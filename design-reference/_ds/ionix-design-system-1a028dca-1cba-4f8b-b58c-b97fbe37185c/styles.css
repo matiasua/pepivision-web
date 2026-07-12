@@ -1,0 +1,7 @@
+/* Ionix Design System — global stylesheet entry point.
+   Keep this file as @import statements only; add new token files here. */
+@import url('./tokens/fonts.css');
+@import url('./tokens/colors.css');
+@import url('./tokens/typography.css');
+@import url('./tokens/spacing.css');
+@import url('./tokens/base.css');

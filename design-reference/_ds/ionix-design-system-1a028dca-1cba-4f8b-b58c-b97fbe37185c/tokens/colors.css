@@ -1,0 +1,68 @@
+/* ==========================================================================
+   COLOR — Ionix Design System
+   Sampled directly from the live homepage screenshot (pixel-picked).
+   ========================================================================== */
+
+:root {
+  /* ---- Base palette --------------------------------------------------- */
+  --ionix-black: #17141a;
+  --ionix-charcoal: #211e1d;      /* page background — warm near-black */
+  --ionix-charcoal-raised: #262229;
+
+  --ionix-purple-900: #181320;    /* deepest card / collapsed accordion */
+  --ionix-purple-800: #221c2b;
+  --ionix-purple-700: #2b2338;    /* default card surface / active accordion */
+  --ionix-purple-600: #362c45;
+
+  --ionix-white: #ffffff;
+  --ionix-gray-300: #cfc9d4;
+  --ionix-gray-400: #a49da9;      /* muted body copy on dark surfaces */
+  --ionix-gray-600: #746d7c;
+  --ionix-gray-800: #443f49;
+
+  --ionix-orange-300: #f8a06b;
+  --ionix-orange-400: #f37939;
+  --ionix-orange-500: #f2641a;    /* primary brand orange */
+  --ionix-orange-600: #cc4f0f;
+
+  --ionix-blue-400: #4f74f6;
+  --ionix-blue-500: #2f57f4;
+  --ionix-blue-600: #1d4ff3;      /* primary brand blue */
+  --ionix-blue-700: #1740c4;
+
+  /* ---- Gradients --------------------------------------------------------
+     The brand's signature move: a single blue → orange sweep. Interpolated
+     in sRGB it passes through a natural muted plum — that dusty midtone is
+     NOT a separate token, it emerges from the two-color blend. Never insert
+     a vivid purple stop by hand. */
+  --gradient-brand: linear-gradient(90deg, var(--ionix-blue-600) 0%, var(--ionix-orange-500) 100%);
+  --gradient-brand-diagonal: linear-gradient(135deg, var(--ionix-blue-600) 0%, var(--ionix-orange-500) 100%);
+  --gradient-cta: linear-gradient(90deg, var(--ionix-orange-500) 0%, var(--ionix-blue-600) 100%);
+  --gradient-glow: radial-gradient(circle at 30% 20%, rgba(29,79,243,0.25), transparent 60%),
+                    radial-gradient(circle at 75% 80%, rgba(242,100,26,0.20), transparent 60%); /* @kind color */
+
+  /* ---- Semantic aliases ------------------------------------------------- */
+  --bg-page: var(--ionix-charcoal);
+  --bg-header: var(--ionix-charcoal);
+  --bg-surface: var(--ionix-purple-700);
+  --bg-surface-sunken: var(--ionix-purple-900);
+  --bg-surface-raised: var(--ionix-purple-600);
+  --bg-input: #ffffff;
+  --bg-input-text: #23201f;
+
+  --text-primary: var(--ionix-white);
+  --text-secondary: var(--ionix-gray-400);
+  --text-tertiary: var(--ionix-gray-600);
+  --text-on-accent: var(--ionix-white);
+  --text-accent-orange: var(--ionix-orange-500);
+  --text-accent-blue: var(--ionix-blue-400);
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-accent-blue: var(--ionix-blue-600);
+  --border-accent-orange: var(--ionix-orange-500);
+
+  --accent-primary: var(--ionix-orange-500);
+  --accent-secondary: var(--ionix-blue-600);
+  --focus-ring: var(--ionix-blue-400);
+}

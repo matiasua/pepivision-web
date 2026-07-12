@@ -1,0 +1,17 @@
+/* ==========================================================================
+   BASE RESET — Ionix Design System
+   Minimal reset applied on top of tokens. Dark theme is the only theme
+   observed on the source site — there is no light-mode variant.
+   ========================================================================== */
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: var(--font-body); cursor: pointer; }

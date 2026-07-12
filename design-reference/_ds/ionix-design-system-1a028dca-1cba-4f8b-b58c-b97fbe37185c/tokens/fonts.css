@@ -1,0 +1,25 @@
+/* ==========================================================================
+   FONTS — Ionix Design System
+   --------------------------------------------------------------------------
+   SUBSTITUTION NOTICE: no font files or brand guideline were provided with
+   the source material (a single homepage screenshot). The typefaces below
+   are the closest Google Fonts matches to what is visible in the screenshot:
+
+   - Display/heading font: a bold, geometric, very round-terminal sans
+     (see the rounded "O", "Q", single-story "a" in "Orquestando Control"
+     and the logo wordmark itself) → matched to FREDOKA.
+   - Body/UI font: a plain grotesque sans with a tall x-height and simple
+     double-story "a" → matched to INTER.
+
+   Flagged to the user in readme.md — please supply real brand font files
+   (or name the actual typefaces) if pixel-accurate type is needed.
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --font-display: 'Fredoka', 'Baloo 2', sans-serif;
+  --font-body: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+}
+/* No monospace usage was observed anywhere on the source page — omitted
+   rather than inventing a --font-mono token the brand doesn't use. */
