@@ -3,7 +3,7 @@ import { Container } from '@/components/Container';
 import { PageHeroBand } from '@/components/PageHeroBand';
 import { LegalDraftNotice } from '@/components/LegalDraftNotice';
 import { Card } from '@/components/Card';
-import { siteConfig } from '@/lib/site-config';
+import { DataRightsForm } from '@/components/quote/DataRightsForm';
 
 export const metadata: Metadata = {
   title: 'Derechos ARCO',
@@ -41,16 +41,7 @@ export default function DerechosArcoPage() {
           </div>
 
           <Card padding="lg" className="mt-6">
-            <h2 className="text-xl font-bold">Formulario de solicitud</h2>
-            <p className="mt-2 text-sm leading-relaxed text-grafito">
-              El formulario para verificar tu identidad y enviar tu solicitud (con persistencia real y
-              seguimiento por parte de nuestro equipo) se habilita en una fase posterior de este proyecto.
-              Mientras tanto, puedes ejercer tus derechos escribiéndonos directamente a{' '}
-              <a href={`mailto:${siteConfig.email}`} className="font-semibold text-fucsia">
-                {siteConfig.email}
-              </a>{' '}
-              indicando: tu nombre completo, el derecho que deseas ejercer y el detalle de tu solicitud.
-            </p>
+            <DataRightsForm />
           </Card>
         </Container>
       </section>

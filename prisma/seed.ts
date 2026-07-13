@@ -35,6 +35,24 @@ const SEED_PRODUCTS = [
   { code: 'PV-110', name: 'Coral', price: 45900, gender: Gender.MUJER, shape: ProductShape.CAT_EYE, material: ProductMaterial.METAL, colors: ['Dorado', 'Fucsia', 'Plata'], badge: ProductBadge.NUEVO, available: true, sizes: '53-18-140 mm', description: 'Cat eye de metal con detalles finos y un toque sofisticado. Para brillar con elegancia.' },
 ];
 
+// Dev bootstrap for `home-visit-coverage`: there is no admin panel yet to
+// manage this list (depends on admin-auth, Fase 6), but the home-visit
+// form's "comuna habilitada" validation (Fase 5) needs real rows to check
+// against. Based in Quilicura per lib/site-config.ts; one comuna (Puente
+// Alto) is seeded inactive so the "not covered" warning path is testable.
+const SEED_COMUNAS: { name: string; region: string; active: boolean }[] = [
+  { name: 'Quilicura', region: 'Región Metropolitana', active: true },
+  { name: 'Renca', region: 'Región Metropolitana', active: true },
+  { name: 'Huechuraba', region: 'Región Metropolitana', active: true },
+  { name: 'Conchalí', region: 'Región Metropolitana', active: true },
+  { name: 'Independencia', region: 'Región Metropolitana', active: true },
+  { name: 'Recoleta', region: 'Región Metropolitana', active: true },
+  { name: 'Santiago', region: 'Región Metropolitana', active: true },
+  { name: 'Providencia', region: 'Región Metropolitana', active: true },
+  { name: 'Ñuñoa', region: 'Región Metropolitana', active: true },
+  { name: 'Puente Alto', region: 'Región Metropolitana', active: false },
+];
+
 async function main() {
   for (const item of SEED_PRODUCTS) {
     const slug = slugify(item.name);
@@ -82,6 +100,17 @@ async function main() {
 
   const count = await prisma.product.count();
   console.log(`Seed de catálogo completo. ${count} productos en la base de datos.`);
+
+  for (const comuna of SEED_COMUNAS) {
+    await prisma.enabledComuna.upsert({
+      where: { name: comuna.name },
+      update: { region: comuna.region, active: comuna.active },
+      create: comuna,
+    });
+  }
+
+  const comunaCount = await prisma.enabledComuna.count();
+  console.log(`Seed de comunas completo. ${comunaCount} comunas en la base de datos.`);
 }
 
 main()

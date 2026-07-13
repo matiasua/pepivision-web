@@ -2,9 +2,8 @@ import type { Metadata } from 'next';
 import { Container } from '@/components/Container';
 import { PageHeroBand } from '@/components/PageHeroBand';
 import { Card, IconBadge } from '@/components/Card';
-import { LinkButton } from '@/components/Button';
 import { WhatsAppIcon } from '@/components/icons';
-import { buildWhatsAppLink } from '@/lib/whatsapp';
+import { HomeVisitForm } from '@/components/quote/HomeVisitForm';
 
 export const metadata: Metadata = {
   title: 'Atención a domicilio',
@@ -18,10 +17,6 @@ const steps = [
   { title: '3 · Revisión de modelos', description: 'Conoces modelos disponibles para decidir con calma.' },
   { title: '4 · Entrega o atención', description: 'Según cobertura y confirmación de tu comuna.' },
 ];
-
-const homeVisitWhatsAppHref = buildWhatsAppLink(
-  'Hola Pepi Visión 360, quiero consultar la cobertura de atención a domicilio para mi comuna.'
-);
 
 export default function DomicilioPage() {
   return (
@@ -52,27 +47,17 @@ export default function DomicilioPage() {
             <div>
               <h2 className="text-2xl font-bold sm:text-[26px]">Consulta cobertura para tu comuna</h2>
               <p className="mt-3 leading-relaxed text-grafito">
-                Escríbenos indicando tu comuna y te confirmamos si podemos coordinar atención a domicilio en
-                tu zona. La disponibilidad se confirma caso a caso.
+                Déjanos tus datos y te confirmamos si podemos coordinar atención a domicilio en tu zona. La
+                disponibilidad se confirma caso a caso.
               </p>
               <div className="mt-5 flex items-center gap-2.5 font-semibold text-navy">
                 <WhatsAppIcon className="h-5 w-5 text-whatsapp" />
-                Respondemos directo por WhatsApp
+                También puedes escribirnos directo por WhatsApp
               </div>
             </div>
 
-            <Card padding="lg" className="text-center">
-              <p className="text-sm leading-relaxed text-grafito">
-                El formulario de consulta de cobertura (validado contra la lista de comunas habilitadas) se
-                habilita en una fase posterior. Mientras tanto, cuéntanos tu comuna directamente por
-                WhatsApp y te confirmamos la disponibilidad.
-              </p>
-              <div className="mt-5">
-                <LinkButton href={homeVisitWhatsAppHref} variant="whatsapp" className="w-full">
-                  <WhatsAppIcon className="h-[19px] w-[19px]" />
-                  Consultar atención a domicilio
-                </LinkButton>
-              </div>
+            <Card padding="lg">
+              <HomeVisitForm />
             </Card>
           </div>
         </Container>
