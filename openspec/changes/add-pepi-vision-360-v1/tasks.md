@@ -1,114 +1,134 @@
-## 1. Fundación técnica
+## 1. Entorno local Docker Compose
 
-- [ ] 1.1 Inicializar el proyecto Next.js (App Router) con TypeScript en modo estricto y Tailwind CSS configurado.
-- [ ] 1.2 Configurar lint (ESLint) y formateo, y wirear los scripts `lint`, `typecheck`, `test`, `build` en `package.json` como el gate obligatorio antes de dar por completa cualquier tarea (regla de `CLAUDE.md`).
-- [ ] 1.3 Alojar las fuentes Poppins e Inter dentro del proyecto (self-hosted) y eliminar cualquier dependencia de Google Fonts CDN.
-- [ ] 1.4 Portar el sistema visual base del mockup (paleta de colores, radios, sombras, tipografía) a tokens de Tailwind/CSS, sin copiar el markup del mockup.
-- [ ] 1.5 Inicializar Prisma y definir el `schema.prisma` inicial según el modelo de datos de `design.md` (Product, ProductColor, ProductImage, Request, DataRightsRequest, EnabledComuna, BusinessSettings, AdminUser, Session, AuditLogEntry, EmailLog).
-- [ ] 1.6 Crear la migración inicial de Prisma y un entorno de base de datos local (Postgres vía Docker Compose de desarrollo) para trabajar contra él.
-- [ ] 1.7 Definir la estructura de carpetas del monolito modular (`app/`, `modules/<dominio>/{schemas,repository,service}`, `components/`) descrita en "Arquitectura de módulos", incluyendo el módulo `data-rights` para derechos ARCO.
-- [ ] 1.8 Configurar logging estructurado (JSON) de la aplicación.
-- [ ] 1.9 Crear `.env.example` documentando todas las variables de entorno necesarias (base de datos, sesión, Object Storage, correo, y `APP_URL`/`NEXT_PUBLIC_APP_URL` para el dominio/URL de la app, sin acoplar el código a un dominio específico), sin valores reales, y confirmar que `.env*` real permanece fuera de Git.
-- [ ] 1.10 Escribir un seed de Prisma opcional con los 10 modelos de ejemplo del mockup (`SEED`) para poblar un entorno de desarrollo/demo.
-- [ ] 1.11 Agregar las dependencias/configuración base de las comprobaciones de accesibilidad (`axe`, Lighthouse CI) al proyecto, sin necesidad de wirearlas al pipeline todavía (eso ocurre en la Fase 9).
+Esta fase es la **base obligatoria de todo el desarrollo posterior**: se construye antes que cualquier código de aplicación, y ninguna fase siguiente asume ni requiere herramientas instaladas directamente en el host más allá de Docker y Docker Compose. Ningún paso de esta fase crea, aprovisiona ni configura recursos en AWS, ni usa AWS CLI, Terraform, CloudFormation, CDK, Pulumi, Ansible o LocalStack.
 
-## 2. Sitio público
+**Regla obligatoria para todas las fases posteriores (2 a 9):**
+- No se ejecuta `npm`, Prisma, tests, build ni ninguna herramienta de la aplicación directamente en el host.
+- Todo comando de la aplicación se ejecuta dentro de los contenedores mediante `docker compose exec <servicio> <comando>` (contenedor ya corriendo) o `docker compose run --rm <servicio> <comando>` (ejecución puntual).
+- El host solamente requiere tener instalados Docker y Docker Compose.
+- No se utiliza una instalación local de PostgreSQL, MinIO, Nginx ni Mailpit: los cuatro corren exclusivamente como contenedores de este `compose.yaml`.
 
-- [ ] 2.1 Implementar el layout global: header con navegación (desktop + drawer móvil), CTA de WhatsApp, footer, banner de cookies y botón flotante de WhatsApp, según `specs/public-site/spec.md`.
-- [ ] 2.2 Implementar la página de inicio (hero, beneficios, destacados del catálogo, banner del cotizador).
-- [ ] 2.3 Implementar la página de tipos de cristales (tipos, tratamientos, tabla comparativa).
-- [ ] 2.4 Implementar la página nosotros y la página de FAQ (acordeón accesible).
-- [ ] 2.5 Implementar la página de contacto, leyendo los datos desde `business-settings`.
-- [ ] 2.6 Implementar las páginas legales (privacidad, términos) con el contenido del mockup y el aviso visible de "borrador pendiente de validación legal".
-- [ ] 2.7 Implementar el contenido informativo de la página de derechos ARCO (explicación de los 6 derechos); el formulario de envío (con persistencia real) se implementa en la Fase 4 junto con la capacidad `data-rights-requests`.
-- [ ] 2.8 Verificar accesibilidad básica (contraste, foco de teclado, `aria-label`) y responsive en los breakpoints definidos para todo lo implementado en esta fase, como primera pasada previa a la validación completa de la Fase 7.
+Tareas:
 
-## 3. Catálogo y productos
+- [ ] 1.1 Escribir `Dockerfile.dev` para el servicio `web` (Next.js, TypeScript estricto), preparado para hot reload con el código fuente montado por volumen.
+- [ ] 1.2 Escribir `.dockerignore` (excluyendo `node_modules`, `.git`, `.next`, `.env`, etc.) para mantener el contexto de build de `web` liviano y sin filtrar archivos locales/secretos.
+- [ ] 1.3 Crear un `package.json`/esqueleto mínimo (generado mediante un comando containerizado de un solo uso, nunca instalando Node en el host) para que el servicio `web` tenga algo que ejecutar mientras no exista todavía el scaffold completo de Next.js (que se construye en la Fase 2).
+- [ ] 1.4 Escribir `compose.yaml` con el servicio `web`: puerto interno `3000` (no publicado directamente al host), healthcheck propio, sin secretos hardcodeados (todo por variables de entorno referenciadas desde `.env`).
+- [ ] 1.5 Agregar el servicio `postgres` al `compose.yaml`: imagen con versión fijada, volumen persistente nombrado, healthcheck (`pg_isready`), `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` desde variables de entorno, puerto publicado únicamente en `127.0.0.1`.
+- [ ] 1.6 Agregar el servicio `migrate` al `compose.yaml`: misma imagen/código que `web`, ejecuta las migraciones de Prisma, `depends_on: postgres` con condición `service_healthy`, sin `restart` (se espera que finalice y quede en estado `Exited (0)`, sin permanecer ejecutándose).
+- [ ] 1.7 Agregar el servicio `minio` al `compose.yaml`: volumen persistente nombrado, healthcheck propio, API y consola web expuestas, credenciales (`MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`) desde variables de entorno, puertos publicados únicamente en `127.0.0.1`.
+- [ ] 1.8 Agregar el servicio `minio-init` al `compose.yaml`: `depends_on: minio` con condición `service_healthy`, crea automáticamente el bucket `OBJECT_STORAGE_BUCKET` si no existe, finaliza exitosamente tras crearlo (sin `restart`, sin permanecer ejecutándose).
+- [ ] 1.9 Agregar el servicio `mailpit` al `compose.yaml`: expone su puerto SMTP y su interfaz web de inspección; confirmar que la app, apuntando `SMTP_HOST` a este servicio, nunca envía correos a destinatarios reales.
+- [ ] 1.10 Escribir la configuración local de Nginx y agregar el servicio `nginx` al `compose.yaml`: publica la app en `http://localhost:8080`, proxy hacia `web:3000`, cabeceras `Upgrade`/`Connection` para soportar el WebSocket del hot reload de Next.js, sin configuración de HTTPS/TLS.
+- [ ] 1.11 Agregar el servicio opcional `adminer` bajo un `profile: tools`, confirmando que `docker compose up --build` (sin especificar el profile) no lo levanta.
+- [ ] 1.12 Crear la red interna de Docker Compose que conecta a todos los servicios, y confirmar que `postgres` y `minio` no quedan expuestos a ninguna interfaz distinta de `127.0.0.1`.
+- [ ] 1.13 Configurar volúmenes persistentes nombrados para `postgres` y `minio`.
+- [ ] 1.14 Crear `.env.example` con todas las variables usadas por `compose.yaml` y por la app (base de datos, `SESSION_SECRET`, `OBJECT_STORAGE_*`, `SMTP_*`, `APP_URL`/`NEXT_PUBLIC_APP_URL`), sin valores reales y sin ninguna credencial de AWS; confirmar que `compose.yaml` no contiene ningún secreto en texto plano y que `.env` permanece ignorado por Git.
+- [ ] 1.15 Verificar que `docker compose config` no reporta errores.
+- [ ] 1.16 Verificar que un único `docker compose up --build` levanta `web`, `postgres`, `migrate`, `minio`, `minio-init`, `mailpit` y `nginx` (con `migrate`/`minio-init` terminando en estado `Exited (0)`, no como error), y que `adminer` no se levanta salvo que se invoque el profile `tools`.
+- [ ] 1.17 Verificar que `postgres` y `minio` alcanzan estado `healthy`, y que el bucket configurado se crea automáticamente vía `minio-init`.
+- [ ] 1.18 Verificar que reiniciar los contenedores (`docker compose restart`, o `down` sin `-v` seguido de `up`) no elimina los datos persistentes de `postgres` ni de `minio`.
+- [ ] 1.19 Verificar que `nginx` publica la app en `http://localhost:8080` y que el hot reload de Next.js funciona a través del proxy.
+- [ ] 1.20 Documentar en el repositorio el procedimiento de arranque/actualización del entorno completo vía Docker Compose (un único comando, prerrequisitos — solo Docker y Docker Compose —, cómo levantar `adminer` opcionalmente, y cómo ejecutar comandos de la app vía `docker compose exec`/`docker compose run`).
 
-- [ ] 3.1 Implementar el repositorio y servicio de catálogo (listar, filtrar, buscar) sobre Prisma, según `specs/product-catalog/spec.md`.
-- [ ] 3.2 Implementar la página de catálogo público (listado, buscador, filtros, drawer de filtros en móvil, estado vacío).
-- [ ] 3.3 Implementar la ficha de producto pública (galería, specs, colores, disponibilidad, productos relacionados, CTAs de cotizar/WhatsApp).
-- [ ] 3.4 Implementar el listado administrativo de modelos en `/admin/products` (tabla, KPIs) según `specs/product-management/spec.md`.
-- [ ] 3.5 Implementar alta y edición de modelo (formulario completo: datos, colores predefinidos/custom, disponibilidad, etiqueta), con validación Zod client + server.
-- [ ] 3.6 Implementar eliminación de modelo con confirmación inline.
-- [ ] 3.7 Conectar las mutaciones de productos al registro de auditoría (dependiente de la Fase 5 para el modelo de usuario, puede quedar con un TODO explícito hasta entonces).
+## 2. Fundación técnica Next.js y Prisma
 
-## 4. Formularios y solicitudes
+Todos los comandos de esta fase (scaffold de Next.js, instalación de dependencias, Prisma CLI, etc.) se ejecutan dentro del contenedor `web` (`docker compose exec web ...` o `docker compose run --rm web ...`), nunca instalando Node/npm/Prisma en el host — el entorno de la Fase 1 ya está corriendo antes de empezar esta fase.
 
-- [ ] 4.1 Implementar el cotizador público de 5 pasos (armazón, cristal, tratamientos, indicación de receta sin adjuntar archivo, datos de contacto) según `specs/quote-requests/spec.md`.
-- [ ] 4.2 Implementar validación Zod (client + server) del cotizador, incluyendo consentimiento obligatorio y formato de correo.
-- [ ] 4.3 Implementar el envío del cotizador: creación de `Request` tipo cotización, cálculo de `retentionExpiresAt`, pantalla de éxito con CTA de WhatsApp.
-- [ ] 4.4 Implementar el formulario público de atención a domicilio (incluye el campo de correo agregado respecto del mockup) según `specs/home-visit-requests/spec.md`, con validación contra la lista de comunas habilitadas.
-- [ ] 4.5 Implementar el envío de la consulta de domicilio: creación de `Request` tipo atención a domicilio, pantalla de éxito con CTA de WhatsApp.
-- [ ] 4.6 Implementar la gestión administrativa de comunas habilitadas en `/admin/home-visits` (listar, agregar, activar/desactivar) según `specs/home-visit-coverage/spec.md`.
-- [ ] 4.7 Implementar la bandeja administrativa unificada de solicitudes comerciales en `/admin/requests` (listado, filtro por tipo, cambio de estado, contacto por WhatsApp, eliminación con confirmación, estado vacío) según `specs/request-inbox/spec.md`.
-- [ ] 4.8 Implementar la configuración de negocio en `/admin/settings` (datos de contacto y período de retención de solicitudes comerciales y de derechos ARCO) según `specs/business-settings/spec.md` (autorización real dependiente de la Fase 5).
-- [ ] 4.9 Implementar el envío del formulario de derechos ARCO (completado en la Fase 2): validación Zod client + server, creación de `DataRightsRequest` con estado `RECEIVED`, cálculo de `retentionExpiresAt`, y pantalla de confirmación, según `specs/data-rights-requests/spec.md`.
-- [ ] 4.10 Implementar el envío de la notificación por correo al negocio al crearse una solicitud de derechos ARCO, registrando el intento en `EmailLog`.
-- [ ] 4.11 Implementar la sección/tab "Derechos ARCO" dentro de `/admin/requests`, separada de la bandeja comercial, con su propio flujo de estados (`RECEIVED`/`IN_REVIEW`/`RESOLVED`/`REJECTED`) y campo de notas de resolución.
-- [ ] 4.12 Conectar los cambios de estado de solicitudes de derechos ARCO al registro de auditoría (dependiente de la Fase 5 para el modelo de usuario, puede quedar con un TODO explícito hasta entonces, igual que 3.7).
+- [ ] 2.1 Completar el scaffold de Next.js (App Router) con TypeScript en modo estricto y Tailwind CSS configurado, sobre el esqueleto mínimo creado en la Fase 1.
+- [ ] 2.2 Configurar lint (ESLint) y formateo, y wirear los scripts `lint`, `typecheck`, `test`, `build` en `package.json` como el gate obligatorio antes de dar por completa cualquier tarea (regla de `CLAUDE.md`); todos se invocan vía `docker compose exec web npm run <script>`.
+- [ ] 2.3 Alojar las fuentes Poppins e Inter dentro del proyecto (self-hosted) y eliminar cualquier dependencia de Google Fonts CDN.
+- [ ] 2.4 Portar el sistema visual base del mockup (paleta de colores, radios, sombras, tipografía) a tokens de Tailwind/CSS, sin copiar el markup del mockup.
+- [ ] 2.5 Inicializar Prisma (`docker compose exec web npx prisma init` o equivalente) y definir el `schema.prisma` inicial según el modelo de datos de `design.md` (Product, ProductColor, ProductImage, Request, DataRightsRequest, EnabledComuna, BusinessSettings, AdminUser, Session, AuditLogEntry, EmailLog), usando el `DATABASE_URL`/variables `POSTGRES_*` ya definidas en la Fase 1.
+- [ ] 2.6 Generar y aplicar la migración inicial de Prisma a través del servicio `migrate` (`docker compose run --rm migrate` o `docker compose exec web npx prisma migrate dev` en desarrollo iterativo).
+- [ ] 2.7 Definir la estructura de carpetas del monolito modular (`app/`, `modules/<dominio>/{schemas,repository,service}`, `components/`) descrita en "Arquitectura de módulos", incluyendo los módulos `data-rights`, `notifications` (abstracción SMTP) y `storage` (abstracción de almacenamiento de objetos).
+- [ ] 2.8 Configurar logging estructurado (JSON) de la aplicación.
+- [ ] 2.9 Completar `.env.example` (creado en la Fase 1) con cualquier variable adicional específica de la aplicación que no estuviera ya cubierta.
+- [ ] 2.10 Escribir un seed de Prisma opcional con los 10 modelos de ejemplo del mockup (`SEED`), ejecutable vía `docker compose exec web npx prisma db seed`.
+- [ ] 2.11 Agregar las dependencias/configuración base de las comprobaciones de accesibilidad (`axe`, Lighthouse CI) al proyecto (instaladas dentro del contenedor `web`), sin necesidad de wirearlas al pipeline todavía (eso ocurre en la Fase 9).
 
-## 5. Autenticación y administración
+## 3. Sitio público
 
-- [ ] 5.1 Implementar el modelo de `AdminUser`, `Session` y roles (`SUPERADMIN`/`ADMIN`) con hash de contraseña (`argon2id` o `bcrypt`).
-- [ ] 5.2 Implementar el flujo de inicio de sesión de `/admin` (formulario, verificación de credenciales, creación de sesión persistida) según `specs/admin-auth/spec.md`.
-- [ ] 5.3 Implementar límite de intentos de inicio de sesión por IP/usuario.
-- [ ] 5.4 Implementar cierre de sesión e invalidación de sesiones persistidas, y expiración por inactividad.
-- [ ] 5.5 Implementar el middleware/guard de protección de rutas `/admin/**` por sesión válida y por rol, con revalidación server-side en cada mutación administrativa.
-- [ ] 5.6 Implementar `/admin/users` (crear usuario, desactivar usuario, protección contra desactivar al único `SUPERADMIN` activo), accesible solo para `SUPERADMIN`.
-- [ ] 5.7 Retomar y completar la protección por rol pendiente de la Fase 3 y la Fase 4 (gestión de productos, comunas, solicitudes comerciales, solicitudes de derechos ARCO y configuración) ahora que existe el modelo de auth real.
-- [ ] 5.8 Implementar el registro de auditoría (`AuditLogEntry`) y conectarlo a todas las acciones administrativas sensibles listadas en `specs/admin-auth/spec.md`, incluyendo los cambios de estado de solicitudes de derechos ARCO (pendientes de la Fase 4).
-- [ ] 5.9 Crear el script/comando para provisionar el primer usuario `SUPERADMIN` en un despliegue nuevo (sin credenciales hardcodeadas en el código, a diferencia del mockup).
+- [ ] 3.1 Implementar el layout global: header con navegación (desktop + drawer móvil), CTA de WhatsApp, footer, banner de cookies y botón flotante de WhatsApp, según `specs/public-site/spec.md`.
+- [ ] 3.2 Implementar la página de inicio (hero, beneficios, destacados del catálogo, banner del cotizador).
+- [ ] 3.3 Implementar la página de tipos de cristales (tipos, tratamientos, tabla comparativa).
+- [ ] 3.4 Implementar la página nosotros y la página de FAQ (acordeón accesible).
+- [ ] 3.5 Implementar la página de contacto, leyendo los datos desde `business-settings`.
+- [ ] 3.6 Implementar las páginas legales (privacidad, términos) con el contenido del mockup y el aviso visible de "borrador pendiente de validación legal".
+- [ ] 3.7 Implementar el contenido informativo de la página de derechos ARCO (explicación de los 6 derechos); el formulario de envío (con persistencia real) se implementa en la Fase 5 junto con la capacidad `data-rights-requests`.
+- [ ] 3.8 Verificar accesibilidad básica (contraste, foco de teclado, `aria-label`) y responsive en los breakpoints definidos para todo lo implementado en esta fase, como primera pasada previa a la validación completa de la Fase 8.
 
-## 6. Almacenamiento de imágenes
+## 4. Catálogo y productos
 
-- [ ] 6.1 Configurar el cliente de Lightsail Object Storage (API S3) y las variables de entorno correspondientes.
-- [ ] 6.2 Implementar validación server-side de archivos subidos (tipo MIME, tamaño máximo) según `specs/product-image-storage/spec.md`.
-- [ ] 6.3 Implementar el procesamiento server-side de imágenes (redimensionado/optimización), reemplazando el resize por `<canvas>` del navegador del mockup.
-- [ ] 6.4 Implementar la subida al bucket y el guardado de la referencia (`storageKey`/URL) en `ProductImage`.
-- [ ] 6.5 Implementar el reemplazo de una imagen ya asignada a una posición (principal/frontal/lateral).
-- [ ] 6.6 Conectar la entrega de imágenes en catálogo/ficha de producto al mecanismo de optimización de imágenes de Next.js apuntando al almacenamiento externo.
-- [ ] 6.7 Actualizar el formulario de alta/edición de modelo (Fase 3) para usar este flujo real de subida en vez de cualquier placeholder temporal usado antes.
+- [ ] 4.1 Implementar el repositorio y servicio de catálogo (listar, filtrar, buscar) sobre Prisma, según `specs/product-catalog/spec.md`.
+- [ ] 4.2 Implementar la página de catálogo público (listado, buscador, filtros, drawer de filtros en móvil, estado vacío).
+- [ ] 4.3 Implementar la ficha de producto pública (galería, specs, colores, disponibilidad, productos relacionados, CTAs de cotizar/WhatsApp).
+- [ ] 4.4 Implementar el listado administrativo de modelos en `/admin/products` (tabla, KPIs) según `specs/product-management/spec.md`.
+- [ ] 4.5 Implementar alta y edición de modelo (formulario completo: datos, colores predefinidos/custom, disponibilidad, etiqueta), con validación Zod client + server.
+- [ ] 4.6 Implementar eliminación de modelo con confirmación inline.
+- [ ] 4.7 Conectar las mutaciones de productos al registro de auditoría (dependiente de la Fase 6 para el modelo de usuario, puede quedar con un TODO explícito hasta entonces).
 
-## 7. Seguridad y auditoría
+## 5. Formularios y solicitudes
 
-- [ ] 7.1 Implementar rate limiting en los formularios públicos (cotizador, atención a domicilio, ARCO) además del ya implementado en login.
-- [ ] 7.2 Configurar cabeceras de seguridad (CSP, `X-Content-Type-Options`, `X-Frame-Options`/`frame-ancestors`, `Referrer-Policy`).
-- [ ] 7.3 Configurar cookies de sesión como `httpOnly`, `secure`, `sameSite=lax`, y verificar mitigación CSRF en las mutaciones administrativas.
-- [ ] 7.4 Configurar el usuario de base de datos de la aplicación con privilegios mínimos (no superusuario de Postgres).
-- [ ] 7.5 Configurar auditoría de dependencias (`npm audit`/Dependabot o equivalente) como parte del repositorio.
-- [ ] 7.6 Revisar y documentar en el propio repositorio (no como código) cualquier decisión de seguridad tomada durante la implementación que no estuviera ya cubierta por `design.md`, conforme a la regla de "documentar toda decisión arquitectónica relevante".
-- [ ] 7.7 Ejecutar la lista de validación manual de accesibilidad completa de `design.md` (teclado, foco, formularios, contraste, textos alternativos, lector de pantalla) sobre las páginas públicas principales y las pantallas clave del panel admin, documentando el resultado; no se requiere contratar una auditoría externa para este hito.
+- [ ] 5.1 Implementar el cotizador público de 5 pasos (armazón, cristal, tratamientos, indicación de receta sin adjuntar archivo, datos de contacto) según `specs/quote-requests/spec.md`.
+- [ ] 5.2 Implementar validación Zod (client + server) del cotizador, incluyendo consentimiento obligatorio y formato de correo.
+- [ ] 5.3 Implementar el envío del cotizador: creación de `Request` tipo cotización, cálculo de `retentionExpiresAt`, pantalla de éxito con CTA de WhatsApp.
+- [ ] 5.4 Implementar el formulario público de atención a domicilio (incluye el campo de correo agregado respecto del mockup) según `specs/home-visit-requests/spec.md`, con validación contra la lista de comunas habilitadas.
+- [ ] 5.5 Implementar el envío de la consulta de domicilio: creación de `Request` tipo atención a domicilio, pantalla de éxito con CTA de WhatsApp.
+- [ ] 5.6 Implementar la gestión administrativa de comunas habilitadas en `/admin/home-visits` (listar, agregar, activar/desactivar) según `specs/home-visit-coverage/spec.md`.
+- [ ] 5.7 Implementar la bandeja administrativa unificada de solicitudes comerciales en `/admin/requests` (listado, filtro por tipo, cambio de estado, contacto por WhatsApp, eliminación con confirmación, estado vacío) según `specs/request-inbox/spec.md`.
+- [ ] 5.8 Implementar la configuración de negocio en `/admin/settings` (datos de contacto y período de retención de solicitudes comerciales y de derechos ARCO) según `specs/business-settings/spec.md` (autorización real dependiente de la Fase 6).
+- [ ] 5.9 Implementar el envío del formulario de derechos ARCO (completado en la Fase 3): validación Zod client + server, creación de `DataRightsRequest` con estado `RECEIVED`, cálculo de `retentionExpiresAt`, y pantalla de confirmación, según `specs/data-rights-requests/spec.md`.
+- [ ] 5.10 Implementar el envío de la notificación por correo al negocio al crearse una solicitud de derechos ARCO, registrando el intento en `EmailLog`.
+- [ ] 5.11 Implementar la sección/tab "Derechos ARCO" dentro de `/admin/requests`, separada de la bandeja comercial, con su propio flujo de estados (`RECEIVED`/`IN_REVIEW`/`RESOLVED`/`REJECTED`) y campo de notas de resolución.
+- [ ] 5.12 Conectar los cambios de estado de solicitudes de derechos ARCO al registro de auditoría (dependiente de la Fase 6 para el modelo de usuario, puede quedar con un TODO explícito hasta entonces, igual que 4.7).
+- [ ] 5.13 Implementar el módulo `notifications` (abstracción SMTP: `SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_FROM`) que envía todos los correos anteriores; en este entorno, `SMTP_HOST` apunta al servicio `mailpit` (ver Fase 1), sin autenticación real y sin salir nunca a destinatarios reales.
 
-## 8. Docker y Nginx
+## 6. Autenticación y administración
 
-- [ ] 8.1 Escribir el `Dockerfile` de producción de la aplicación Next.js (build multi-stage).
-- [ ] 8.2 Escribir el `docker-compose.yml` de producción con los servicios `app`, `db` (Postgres, sin puerto publicado) y `nginx`.
-- [ ] 8.3 Configurar Nginx como reverse proxy: terminación TLS, redirección HTTP→HTTPS, cabeceras de seguridad, proxy hacia el contenedor `app`.
-- [ ] 8.4 Verificar mediante una prueba local que Postgres no es alcanzable fuera de la red interna de Docker Compose.
-- [ ] 8.5 Documentar el procedimiento de arranque/actualización local del stack completo vía Docker Compose.
-- [ ] 8.6 Documentar y probar el procedimiento de "validación local con build productivo" (levantar localmente la misma imagen Docker y el mismo `docker-compose.yml` que se usarán en producción, según "Ambientes" en `design.md`) como paso previo obligatorio a cualquier despliegue.
+- [ ] 6.1 Implementar el modelo de `AdminUser`, `Session` y roles (`SUPERADMIN`/`ADMIN`) con hash de contraseña (`argon2id` o `bcrypt`).
+- [ ] 6.2 Implementar el flujo de inicio de sesión de `/admin` (formulario, verificación de credenciales, creación de sesión persistida) según `specs/admin-auth/spec.md`.
+- [ ] 6.3 Implementar límite de intentos de inicio de sesión por IP/usuario.
+- [ ] 6.4 Implementar cierre de sesión e invalidación de sesiones persistidas, y expiración por inactividad.
+- [ ] 6.5 Implementar el middleware/guard de protección de rutas `/admin/**` por sesión válida y por rol, con revalidación server-side en cada mutación administrativa.
+- [ ] 6.6 Implementar `/admin/users` (crear usuario, desactivar usuario, protección contra desactivar al único `SUPERADMIN` activo), accesible solo para `SUPERADMIN`.
+- [ ] 6.7 Retomar y completar la protección por rol pendiente de la Fase 4 y la Fase 5 (gestión de productos, comunas, solicitudes comerciales, solicitudes de derechos ARCO y configuración) ahora que existe el modelo de auth real.
+- [ ] 6.8 Implementar el registro de auditoría (`AuditLogEntry`) y conectarlo a todas las acciones administrativas sensibles listadas en `specs/admin-auth/spec.md`, incluyendo los cambios de estado de solicitudes de derechos ARCO (pendientes de la Fase 5).
+- [ ] 6.9 Crear el script/comando para provisionar el primer usuario `SUPERADMIN` en un entorno nuevo (sin credenciales hardcodeadas en el código, a diferencia del mockup) — ejecutado vía `docker compose exec web ...`, usable tanto en este entorno de desarrollo como en un futuro entorno productivo.
 
-## 9. CI/CD
+## 7. Almacenamiento de imágenes
 
-- [ ] 9.1 Configurar el workflow de GitHub Actions que ejecuta lint, typecheck, tests y build en cada pull request (gate obligatorio antes de mergear).
-- [ ] 9.2 Configurar el workflow de construcción de la imagen Docker de producción.
-- [ ] 9.3 Configurar el paso de despliegue automatizado hacia la instancia Lightsail (o publicación de la imagen a un registro, según se resuelva en la Fase 10).
-- [ ] 9.4 Configurar la inyección de secretos (credenciales de base de datos, Object Storage, correo, secreto de sesión) en el pipeline sin exponerlos en el repositorio ni en logs de CI.
-- [ ] 9.5 Configurar la ejecución del job diario de `pg_dump` como parte de la infraestructura desplegada (ver Fase 10), no del propio pipeline de CI.
-- [ ] 9.6 Wirear `axe` y Lighthouse CI al pipeline (ejecutándose sobre páginas públicas principales y pantallas clave del panel admin en cada pull request), definiendo y aplicando un umbral concreto que haga fallar el build si no se cumple.
-- [ ] 9.7 Configurar un "environment" de GitHub Actions con aprobación manual requerida (reviewers) antes de que el job de despliegue a producción se ejecute.
-- [ ] 9.8 Documentar el procedimiento para levantar un ambiente de staging efímero bajo demanda (misma imagen/compose que producción) y el criterio de qué cambios lo ameritan (migraciones de datos, cambios de autenticación/autorización, cambios de infraestructura), incluyendo cómo se destruye al terminar.
+- [ ] 7.1 Implementar el módulo `storage` como abstracción de almacenamiento de objetos compatible con S3, configurada por `OBJECT_STORAGE_ENDPOINT`/`OBJECT_STORAGE_REGION`/`OBJECT_STORAGE_BUCKET`/`OBJECT_STORAGE_ACCESS_KEY`/`OBJECT_STORAGE_SECRET_KEY`/`OBJECT_STORAGE_FORCE_PATH_STYLE`, sin acoplarse a un SDK de proveedor específico más allá de un cliente S3 estándar.
+- [ ] 7.2 Implementar validación server-side de archivos subidos (tipo MIME, tamaño máximo) según `specs/product-image-storage/spec.md`.
+- [ ] 7.3 Implementar el procesamiento server-side de imágenes (redimensionado/optimización), reemplazando el resize por `<canvas>` del navegador del mockup.
+- [ ] 7.4 Implementar la subida al bucket configurado (`OBJECT_STORAGE_BUCKET`) y el guardado de la referencia (`storageKey`/URL) en `ProductImage`; en este entorno, el bucket vive en el servicio `minio` (ver Fase 1) y se crea automáticamente vía `minio-init`.
+- [ ] 7.5 Implementar el reemplazo de una imagen ya asignada a una posición (principal/frontal/lateral).
+- [ ] 7.6 Conectar la entrega de imágenes en catálogo/ficha de producto al mecanismo de optimización de imágenes de Next.js apuntando al endpoint configurado.
+- [ ] 7.7 Actualizar el formulario de alta/edición de modelo (Fase 4) para usar este flujo real de subida en vez de cualquier placeholder temporal usado antes.
 
-## 10. Despliegue en Lightsail
+## 8. Seguridad, auditoría y accesibilidad
 
-- [ ] 10.1 Aprovisionar la instancia Lightsail y el firewall (solo 22/80/443 abiertos).
-- [ ] 10.2 Aprovisionar el/los bucket(s) de Lightsail Object Storage (imágenes de producto y backups).
-- [ ] 10.3 Resolver el prerrequisito de despliegue de dominio y proveedor DNS definitivos (fuera del alcance de la implementación en sí), y configurar `APP_URL`/`NEXT_PUBLIC_APP_URL` junto con el certificado TLS apuntando a ese dominio.
-- [ ] 10.4 Resolver la decisión pendiente de proveedor de correo (AWS SES propuesto): verificar dominio de envío y solicitar salida de modo sandbox antes de considerar el correo funcional en producción.
-- [ ] 10.5 Desplegar el stack completo (Docker Compose + Nginx) en la instancia y ejecutar la migración inicial de Prisma contra la base de datos de producción.
-- [ ] 10.6 Configurar el job diario de `pg_dump` con subida al bucket de backups y verificar que se ejecuta correctamente al menos una vez.
-- [ ] 10.7 Ejecutar y documentar una restauración de prueba completa desde un backup, en un entorno separado de producción.
-- [ ] 10.8 Provisionar el primer usuario `SUPERADMIN` en producción mediante el script/comando de la Fase 5 (sin credenciales hardcodeadas).
-- [ ] 10.9 Verificar en producción los criterios de aceptación de `design.md` (HTTPS obligatorio, Postgres no público, backups funcionando, CI en verde con las comprobaciones de accesibilidad, aprobación manual de despliegue efectiva, dominio resuelto vía `APP_URL`/`NEXT_PUBLIC_APP_URL`, páginas legales marcadas como borrador, solicitudes de derechos ARCO persistiendo y notificando correctamente).
-- [ ] 10.10 Confirmar que el contenido de `design-reference/` permanece intacto y sin modificaciones tras todo el proceso de implementación.
+- [ ] 8.1 Implementar rate limiting en los formularios públicos (cotizador, atención a domicilio, ARCO) además del ya implementado en login.
+- [ ] 8.2 Configurar cabeceras de seguridad (CSP, `X-Content-Type-Options`, `X-Frame-Options`/`frame-ancestors`, `Referrer-Policy`).
+- [ ] 8.3 Configurar cookies de sesión como `httpOnly`, `sameSite=lax` (el flag `secure` se activa cuando corresponda bajo HTTPS, fuera del alcance de este entorno), y verificar mitigación CSRF en las mutaciones administrativas.
+- [ ] 8.4 Configurar el usuario de base de datos de la aplicación con privilegios mínimos (no superusuario de Postgres).
+- [ ] 8.5 Configurar auditoría de dependencias (`npm audit`/Dependabot o equivalente) como parte del repositorio.
+- [ ] 8.6 Revisar y documentar en el propio repositorio (no como código) cualquier decisión de seguridad tomada durante la implementación que no estuviera ya cubierta por `design.md`, conforme a la regla de "documentar toda decisión arquitectónica relevante".
+- [ ] 8.7 Ejecutar la lista de validación manual de accesibilidad completa de `design.md` (teclado, foco, formularios, contraste, textos alternativos, lector de pantalla) sobre las páginas públicas principales y las pantallas clave del panel admin, documentando el resultado; no se requiere contratar una auditoría externa.
+- [ ] 8.8 Confirmar que no existe ninguna credencial de AWS ni de ningún proveedor cloud en el repositorio, en `.env.example`, ni en el propio `.env` de desarrollo.
+
+## 9. Pruebas y CI
+
+Todos los comandos de esta fase (tests, lint, typecheck, build) se ejecutan dentro de contenedores (vía `docker compose exec`/`docker compose run`, o un job de CI que use la misma imagen de `web`), nunca instalando Node/Prisma directamente en el runner sin contenedor. Esta fase no incluye ningún paso de despliegue ni de construcción/publicación de infraestructura, porque no hay ningún destino de despliegue en el alcance de esta propuesta.
+
+- [ ] 9.1 Escribir tests unitarios (schemas Zod, lógica de negocio pura de cada `service`: cálculo de `retentionExpiresAt`, filtrado de catálogo, reglas de disponibilidad de comuna, etc.), ejecutables vía `docker compose exec web npm test`.
+- [ ] 9.2 Escribir tests de integración (repositorios Prisma, route handlers/server actions) contra una base de datos de pruebas (un servicio `postgres` efímero adicional dentro del propio Docker Compose, nunca una instalación local de Postgres), cubriendo al menos: CRUD de producto, envío de cotización y de consulta de domicilio (incluyendo verificación en `EmailLog`), login/logout de admin, cambio de estado de solicitudes, gestión de comunas habilitadas.
+- [ ] 9.3 Escribir tests end-to-end (Playwright u equivalente) para los flujos críticos listados en "Plan de pruebas" de `design.md`, corriendo contra el propio entorno de Docker Compose (incluyendo verificar que los correos aparecen en Mailpit y que las imágenes terminan en el bucket de MinIO).
+- [ ] 9.4 Configurar el workflow de GitHub Actions que ejecuta lint, typecheck, tests y build en cada pull request (gate obligatorio antes de mergear), ejecutando esos comandos dentro de un contenedor equivalente al de `web` (o vía `docker compose run`), no instalados directamente en el runner.
+- [ ] 9.5 Wirear `axe` y Lighthouse CI al pipeline (ejecutándose sobre páginas públicas principales y pantallas clave del panel admin en cada pull request), definiendo y aplicando un umbral concreto que haga fallar el build si no se cumple.
+- [ ] 9.6 Verificar en CI que `docker compose config` no reporta errores, como parte del gate.
+- [ ] 9.7 Confirmar que el pipeline no incluye ningún paso de construcción de imagen para un registro remoto, publicación, ni despliegue — y que no referencia ninguna credencial de AWS.
+
+## 10. Infraestructura productiva (fuera de alcance)
+
+- [ ] 10.1 (Nota, no una tarea de implementación) La infraestructura y el despliegue productivos — instancia, red, TLS/certificados, DNS, base de datos gestionada o no, object storage productivo, backups en la nube, pipelines de despliegue, ambientes de staging — serán creados y configurados **manualmente por el propietario del proyecto en una etapa posterior**, y se abordarán mediante una propuesta OpenSpec separada cuando corresponda. Esta fase no contiene tareas de implementación dentro del alcance actual.

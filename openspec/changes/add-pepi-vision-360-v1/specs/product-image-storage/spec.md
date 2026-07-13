@@ -22,12 +22,16 @@ El sistema SHALL redimensionar/optimizar cada imagen de producto en el servidor 
 - **WHEN** se sube una imagen válida de un producto
 - **THEN** el sistema la procesa en el servidor a una resolución y calidad estandarizadas antes de subirla al almacenamiento externo
 
-### Requirement: Almacenamiento fuera del contenedor de la aplicación
-El sistema SHALL almacenar toda imagen de producto en un servicio de almacenamiento de objetos externo (Lightsail Object Storage), y nunca en el sistema de archivos del contenedor de la aplicación ni codificada dentro de la base de datos.
+### Requirement: Almacenamiento fuera del contenedor de la aplicación mediante una abstracción configurable
+El sistema SHALL almacenar toda imagen de producto en un servicio de almacenamiento de objetos externo compatible con S3, accedido mediante una abstracción configurable por variables de entorno (`OBJECT_STORAGE_ENDPOINT`, `OBJECT_STORAGE_REGION`, `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_ACCESS_KEY`, `OBJECT_STORAGE_SECRET_KEY`, `OBJECT_STORAGE_FORCE_PATH_STYLE`), y nunca en el sistema de archivos del contenedor de la aplicación ni codificada dentro de la base de datos. En el entorno de desarrollo local, ese almacenamiento es el servicio `minio` del Docker Compose; el proveedor productivo se decide y configura por separado, sin requerir cambios de código.
 
 #### Scenario: Imagen persistida en almacenamiento externo
 - **WHEN** una imagen de producto termina de procesarse exitosamente
-- **THEN** el sistema la sube al bucket de almacenamiento de objetos configurado y guarda únicamente la referencia (clave/URL) en la base de datos
+- **THEN** el sistema la sube al bucket de almacenamiento de objetos configurado (`OBJECT_STORAGE_BUCKET`) a través del endpoint configurado (`OBJECT_STORAGE_ENDPOINT`), y guarda únicamente la referencia (clave/URL) en la base de datos
+
+#### Scenario: Bucket local disponible en desarrollo
+- **WHEN** el entorno de desarrollo local se levanta con `docker compose up --build`
+- **THEN** el bucket configurado en `OBJECT_STORAGE_BUCKET` existe automáticamente en la instancia local de MinIO, sin pasos manuales adicionales
 
 ### Requirement: Reemplazo de una imagen existente
 El sistema SHALL permitir reemplazar una imagen ya asignada a una posición (principal, frontal, lateral) de un producto, dejando de servir la imagen anterior tras el reemplazo.
