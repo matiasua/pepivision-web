@@ -1,5 +1,17 @@
 @import 'tailwindcss';
 
+/*
+ * Design tokens ported from design-reference/_pepi-standalone-src.html
+ * (Fase 3 — Sitio público). Values are the mockup's exact hex/px/rgba
+ * values; see openspec/changes/add-pepi-vision-360-v1 for the source
+ * analysis. Breakpoints are the one deliberate deviation: the mockup uses
+ * two custom max-width cutoffs (1000px, 560px) in a desktop-first
+ * stylesheet; here we use Tailwind's own mobile-first `md`/`lg` scale
+ * (768px/1024px) instead of redefining custom breakpoints, since the
+ * whole component layer is written mobile-first against Tailwind's
+ * default scale.
+ */
+
 :root {
   --background: #ffffff;
   --foreground: #1a2350;
@@ -10,10 +22,83 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-inter);
   --font-display: var(--font-poppins);
+
+  /* Brand palette */
+  --color-navy: #16265f;
+  --color-navy-2: #1b2f74;
+  --color-footer: #0f1a44;
+  --color-blue: #1668c8;
+  --color-blue-el: #1f8bff;
+  --color-fucsia: #e5127d;
+  --color-rosado: #f65ba8;
+  --color-ink: #1a2350;
+  --color-grafito: #4a5170;
+  --color-gray: #f4f6fb;
+  --color-gray-2: #e8edf7;
+  --color-line: #e2e8f4;
+  --color-whatsapp: #25d366;
+  --color-error: #c8305b;
+  --color-error-bg: #fdecef;
+  --color-success: #1fae5a;
+  --color-success-bg: #e9f9ef;
+
+  /* Radii */
+  --radius-pill: 999px;
+  --radius-card: 22px;
+  --radius-card-sm: 16px;
+  --radius-input: 12px;
+
+  /* Shadows */
+  --shadow-brand: 0 10px 34px -12px rgba(22, 38, 95, 0.24);
+  --shadow-brand-sm: 0 4px 16px -6px rgba(22, 38, 95, 0.18);
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans), system-ui, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display), sans-serif;
+    color: var(--color-navy);
+  }
+
+  /* Visible focus ring everywhere — accessibility requirement (Fase 3, item 5). */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--color-blue);
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  /* The mockup's diagonal gradient pair, used as both a background and a
+     button fill — not a single CSS variable Tailwind can generate a
+     utility from, so it's kept as small explicit utility classes. */
+  .bg-brand-gradient {
+    background-image: linear-gradient(100deg, #1668c8 0%, #e5127d 100%);
+  }
+  .bg-brand-gradient-soft {
+    background-image: linear-gradient(135deg, #eaf1fb 0%, #fdeaf4 100%);
+  }
+}
+
+@keyframes pulse-whatsapp {
+  0% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 16px rgba(37, 211, 102, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(37, 211, 102, 0);
+  }
 }

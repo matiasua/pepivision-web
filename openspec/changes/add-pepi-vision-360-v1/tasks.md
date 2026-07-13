@@ -46,15 +46,15 @@ Todos los comandos de esta fase (scaffold de Next.js, instalación de dependenci
 
 ## 3. Sitio público
 
-- [ ] 3.1 Portar el sistema visual base del mockup (paleta de colores, radios, sombras, tipografía) a tokens de Tailwind/CSS, sin copiar el markup del mockup. **Trasladada desde la Fase 2** (era 2.4): no correspondía al alcance técnico de esa fase (fundación técnica, sin páginas/estilos visuales del sitio); se implementa aquí porque el resto de las páginas de esta fase la necesitan.
-- [ ] 3.2 Implementar el layout global: header con navegación (desktop + drawer móvil), CTA de WhatsApp, footer, banner de cookies y botón flotante de WhatsApp, según `specs/public-site/spec.md`.
-- [ ] 3.3 Implementar la página de inicio (hero, beneficios, destacados del catálogo, banner del cotizador).
-- [ ] 3.4 Implementar la página de tipos de cristales (tipos, tratamientos, tabla comparativa).
-- [ ] 3.5 Implementar la página nosotros y la página de FAQ (acordeón accesible).
-- [ ] 3.6 Implementar la página de contacto, leyendo los datos desde `business-settings`.
-- [ ] 3.7 Implementar las páginas legales (privacidad, términos) con el contenido del mockup y el aviso visible de "borrador pendiente de validación legal".
-- [ ] 3.8 Implementar el contenido informativo de la página de derechos ARCO (explicación de los 6 derechos); el formulario de envío (con persistencia real) se implementa en la Fase 5 junto con la capacidad `data-rights-requests`.
-- [ ] 3.9 Verificar accesibilidad básica (contraste, foco de teclado, `aria-label`) y responsive en los breakpoints definidos para todo lo implementado en esta fase, como primera pasada previa a la validación completa de la Fase 8.
+- [x] 3.1 Portar el sistema visual base del mockup (paleta de colores, radios, sombras, tipografía) a tokens de Tailwind/CSS, sin copiar el markup del mockup. **Trasladada desde la Fase 2** (era 2.4): no correspondía al alcance técnico de esa fase (fundación técnica, sin páginas/estilos visuales del sitio); se implementa aquí porque el resto de las páginas de esta fase la necesitan.
+- [x] 3.2 Implementar el layout global: header con navegación (desktop + drawer móvil), CTA de WhatsApp, footer, banner de cookies y botón flotante de WhatsApp, según `specs/public-site/spec.md`.
+- [x] 3.3 Implementar la página de inicio (hero, beneficios, destacados del catálogo, banner del cotizador).
+- [x] 3.4 Implementar la página de tipos de cristales (tipos, tratamientos, tabla comparativa). También se implementó la página de atención a domicilio (`/domicilio`) con los 4 pasos del proceso como contenido estático, ya que la especificación de la Fase 3 la incluye entre las rutas públicas requeridas aunque no tenga un ítem propio en este listado; el formulario persistente de esa página queda para la Fase 5 (tareas 5.4-5.5), reemplazado aquí por una tarjeta explicativa con CTA de WhatsApp.
+- [x] 3.5 Implementar la página nosotros y la página de FAQ (acordeón accesible).
+- [x] 3.6 Implementar la página de contacto. **Desviación**: los datos (WhatsApp, teléfono, correo, Instagram, horario, ubicación) se leen desde `lib/site-config.ts`, una configuración estática de placeholder, y no desde el modelo `BusinessSettings` persistido en base de datos, ya que la gestión de esa configuración vía panel administrativo corresponde a una fase posterior (Fase 5).
+- [x] 3.7 Implementar las páginas legales (privacidad, términos) con el contenido del mockup y el aviso visible de "borrador pendiente de validación legal".
+- [x] 3.8 Implementar el contenido informativo de la página de derechos ARCO (explicación de los 6 derechos); el formulario de envío (con persistencia real) se implementa en la Fase 5 junto con la capacidad `data-rights-requests`.
+- [x] 3.9 Verificar accesibilidad básica (contraste, foco de teclado, `aria-label`) y responsive en los breakpoints definidos para todo lo implementado en esta fase, como primera pasada previa a la validación completa de la Fase 8.
 
 ## 4. Catálogo y productos
 
