@@ -1,0 +1,14 @@
+{
+  "name": "pepivision360",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node dev.js",
+    "start": "node server.js",
+    "migrate": "echo 'No hay migraciones Prisma todavia (se agregan en la Fase 2)' && exit 0",
+    "lint": "echo 'Lint pendiente de configurar en la Fase 2' && exit 0",
+    "typecheck": "echo 'Typecheck pendiente de configurar en la Fase 2' && exit 0",
+    "test": "echo 'Tests pendientes de configurar en la Fase 9' && exit 0",
+    "build": "echo 'Build pendiente de configurar en la Fase 2' && exit 0"
+  }
+}

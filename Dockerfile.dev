@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1
+# Development image for the `web` service. Code is bind-mounted at runtime
+# (see compose.yaml), so this build only bakes in the dependency layer;
+# the actual source is supplied by the volume mount, enabling hot reload.
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]

@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log*
+.next
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.log
+coverage
+tmp
+backups
+design-reference
+docs
+openspec
+.claude
