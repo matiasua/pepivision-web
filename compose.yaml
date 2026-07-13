@@ -21,6 +21,10 @@ services:
     environment:
       NODE_ENV: development
       PORT: "3000"
+      # Bind-mounted source on macOS/Windows Docker Desktop doesn't reliably
+      # deliver native fs-change events into the container (see Fase 1
+      # notes) — polling makes Next.js's dev watcher work regardless of host.
+      WATCHPACK_POLLING: "true"
       DATABASE_URL: ${DATABASE_URL}
       SESSION_SECRET: ${SESSION_SECRET}
       APP_URL: ${APP_URL}

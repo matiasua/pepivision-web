@@ -9,8 +9,11 @@
 # Node / Next.js
 node_modules/
 .next/
+out/
 dist/
 coverage/
+next-env.d.ts
+*.tsbuildinfo
 
 # Logs
 *.log

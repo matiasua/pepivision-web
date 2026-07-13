@@ -1,0 +1,277 @@
+// Fundación técnica (Fase 2). Modelo transcrito de
+// openspec/changes/add-pepi-vision-360-v1/design.md → "Modelo de datos".
+// Los valores exactos de los enums de catálogo (género/forma/material/etiqueta)
+// se terminan de afinar al implementar `product-management` en la Fase 4.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Gender {
+  MUJER
+  HOMBRE
+  UNISEX
+  INFANTIL
+}
+
+enum ProductShape {
+  REDONDO
+  RECTANGULAR
+  CAT_EYE
+  AVIADOR
+  CUADRADO
+}
+
+enum ProductMaterial {
+  ACETATO
+  METAL
+  MIXTO
+}
+
+enum ProductBadge {
+  NUEVO
+  MAS_VENDIDO
+}
+
+enum ImageSlot {
+  MAIN
+  FRONT
+  SIDE
+}
+
+enum RequestType {
+  QUOTE
+  HOME_VISIT
+}
+
+enum RequestStatus {
+  NEW
+  HANDLED
+}
+
+enum DataRightType {
+  ACCESS
+  RECTIFICATION
+  CANCELLATION
+  OPPOSITION
+  PORTABILITY
+  BLOCKING
+}
+
+enum DataRightStatus {
+  RECEIVED
+  IN_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum AdminRole {
+  SUPERADMIN
+  ADMIN
+}
+
+enum EmailKind {
+  CUSTOMER_CONFIRMATION
+  BUSINESS_NOTIFICATION
+  DATA_RIGHTS_NOTIFICATION
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  code          String          @unique
+  name          String
+  gender        Gender
+  shape         ProductShape
+  material      ProductMaterial
+  sizes         String?
+  priceFromClp  Int
+  description   String?
+  badge         ProductBadge?
+  available     Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  createdById   String?
+  createdBy     AdminUser?      @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedById   String?
+  updatedBy     AdminUser?      @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+
+  colors ProductColor[]
+  images ProductImage[]
+
+  @@map("products")
+}
+
+model ProductColor {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  hex       String
+
+  @@map("product_colors")
+}
+
+model ProductImage {
+  id        String    @id @default(cuid())
+  productId String
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  slot      ImageSlot
+  storageKey String
+  url       String
+  width     Int?
+  height    Int?
+  createdAt DateTime  @default(now())
+
+  @@map("product_images")
+}
+
+/// Cotizaciones + atención a domicilio, tabla unificada (ver decisión de
+/// modelado en design.md).
+model Request {
+  id                 String        @id @default(cuid())
+  type               RequestType
+  status             RequestStatus @default(NEW)
+  name               String
+  phone              String
+  email              String?
+  comuna             String?
+  message             String?
+  hasPrescription    Boolean?
+  details            Json?
+  consentAcceptedAt  DateTime
+  createdAt          DateTime      @default(now())
+  retentionExpiresAt DateTime
+  deletedAt          DateTime?
+
+  emailLogs EmailLog[]
+
+  @@map("requests")
+}
+
+model EnabledComuna {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  region    String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("enabled_comunas")
+}
+
+/// Fila única (singleton) — la aplicación siempre lee/escribe el mismo id.
+model BusinessSettings {
+  id                       String    @id @default(cuid())
+  whatsappNumber           String
+  phoneDisplay             String
+  email                    String
+  instagramHandle          String
+  hoursText                String
+  locationText             String
+  requestRetentionMonths   Int       @default(12)
+  dataRightsRetentionMonths Int      @default(12)
+  updatedAt                DateTime  @updatedAt
+  updatedById              String?
+  updatedBy                AdminUser? @relation(fields: [updatedById], references: [id])
+
+  @@map("business_settings")
+}
+
+/// Solicitudes de derechos ARCO (acceso, rectificación, cancelación,
+/// oposición, portabilidad, bloqueo).
+model DataRightsRequest {
+  id                 String          @id @default(cuid())
+  rightType          DataRightType
+  name               String
+  email              String
+  phone              String?
+  description        String
+  status             DataRightStatus @default(RECEIVED)
+  resolutionNotes    String?
+  resolvedById       String?
+  resolvedBy         AdminUser?      @relation("DataRightsResolvedBy", fields: [resolvedById], references: [id])
+  resolvedAt         DateTime?
+  consentAcceptedAt  DateTime
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  retentionExpiresAt DateTime
+  deletedAt          DateTime?
+
+  emailLogs EmailLog[]
+
+  @@map("data_rights_requests")
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  role         AdminRole
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions               Session[]
+  auditLogEntries        AuditLogEntry[]
+  productsCreated        Product[]           @relation("ProductCreatedBy")
+  productsUpdated        Product[]           @relation("ProductUpdatedBy")
+  businessSettingsEdited BusinessSettings[]
+  dataRightsResolved     DataRightsRequest[]  @relation("DataRightsResolvedBy")
+
+  @@map("admin_users")
+}
+
+/// Sesiones persistidas en BD, no JWT — permite invalidación inmediata.
+model Session {
+  id          String    @id @default(cuid())
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  ip          String?
+  userAgent   String?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  @@map("sessions")
+}
+
+model AuditLogEntry {
+  id          String     @id @default(cuid())
+  adminUserId String?
+  adminUser   AdminUser? @relation(fields: [adminUserId], references: [id])
+  action      String
+  targetType  String
+  targetId    String?
+  metadata    Json?
+  ip          String?
+  createdAt   DateTime   @default(now())
+
+  @@map("audit_log_entries")
+}
+
+model EmailLog {
+  id                  String             @id @default(cuid())
+  requestId           String?
+  request             Request?           @relation(fields: [requestId], references: [id])
+  dataRightsRequestId String?
+  dataRightsRequest   DataRightsRequest? @relation(fields: [dataRightsRequestId], references: [id])
+  kind                EmailKind
+  toAddress           String
+  status              EmailStatus
+  providerMessageId   String?
+  error               String?
+  createdAt           DateTime           @default(now())
+
+  @@map("email_logs")
+}

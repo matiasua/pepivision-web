@@ -35,28 +35,26 @@ Tareas:
 
 Todos los comandos de esta fase (scaffold de Next.js, instalación de dependencias, Prisma CLI, etc.) se ejecutan dentro del contenedor `web` (`docker compose exec web ...` o `docker compose run --rm web ...`), nunca instalando Node/npm/Prisma en el host — el entorno de la Fase 1 ya está corriendo antes de empezar esta fase.
 
-- [ ] 2.1 Completar el scaffold de Next.js (App Router) con TypeScript en modo estricto y Tailwind CSS configurado, sobre el esqueleto mínimo creado en la Fase 1.
-- [ ] 2.2 Configurar lint (ESLint) y formateo, y wirear los scripts `lint`, `typecheck`, `test`, `build` en `package.json` como el gate obligatorio antes de dar por completa cualquier tarea (regla de `CLAUDE.md`); todos se invocan vía `docker compose exec web npm run <script>`.
-- [ ] 2.3 Alojar las fuentes Poppins e Inter dentro del proyecto (self-hosted) y eliminar cualquier dependencia de Google Fonts CDN.
-- [ ] 2.4 Portar el sistema visual base del mockup (paleta de colores, radios, sombras, tipografía) a tokens de Tailwind/CSS, sin copiar el markup del mockup.
-- [ ] 2.5 Inicializar Prisma (`docker compose exec web npx prisma init` o equivalente) y definir el `schema.prisma` inicial según el modelo de datos de `design.md` (Product, ProductColor, ProductImage, Request, DataRightsRequest, EnabledComuna, BusinessSettings, AdminUser, Session, AuditLogEntry, EmailLog), usando el `DATABASE_URL`/variables `POSTGRES_*` ya definidas en la Fase 1.
-- [ ] 2.6 Generar y aplicar la migración inicial de Prisma a través del servicio `migrate` (`docker compose run --rm migrate` o `docker compose exec web npx prisma migrate dev` en desarrollo iterativo).
-- [ ] 2.7 Definir la estructura de carpetas del monolito modular (`app/`, `modules/<dominio>/{schemas,repository,service}`, `components/`) descrita en "Arquitectura de módulos", incluyendo los módulos `data-rights`, `notifications` (abstracción SMTP) y `storage` (abstracción de almacenamiento de objetos).
-- [ ] 2.8 Configurar logging estructurado (JSON) de la aplicación.
-- [ ] 2.9 Completar `.env.example` (creado en la Fase 1) con cualquier variable adicional específica de la aplicación que no estuviera ya cubierta.
-- [ ] 2.10 Escribir un seed de Prisma opcional con los 10 modelos de ejemplo del mockup (`SEED`), ejecutable vía `docker compose exec web npx prisma db seed`.
-- [ ] 2.11 Agregar las dependencias/configuración base de las comprobaciones de accesibilidad (`axe`, Lighthouse CI) al proyecto (instaladas dentro del contenedor `web`), sin necesidad de wirearlas al pipeline todavía (eso ocurre en la Fase 9).
+- [x] 2.1 Completar el scaffold de Next.js (App Router) con TypeScript en modo estricto y Tailwind CSS configurado, sobre el esqueleto mínimo creado en la Fase 1. **Nota**: Next.js 16 usa Turbopack por defecto en `dev`/`build`; se fuerza `--webpack` explícitamente (`npm run dev`/`npm run build`) para poder aplicar el polling de hot reload que exige la Fase 1/2 sobre bind mounts de Docker Desktop.
+- [x] 2.2 Configurar lint (ESLint) y formateo, y wirear los scripts `lint`, `typecheck`, `test`, `build` en `package.json` como el gate obligatorio antes de dar por completa cualquier tarea (regla de `CLAUDE.md`); todos se invocan vía `docker compose exec web npm run <script>`. Incluye además `prisma:generate` y `prisma:migrate` (ver 2.4/2.5).
+- [x] 2.3 Alojar las fuentes Poppins e Inter dentro del proyecto (self-hosted) y eliminar cualquier dependencia de Google Fonts CDN.
+- [x] 2.4 Inicializar Prisma (`docker compose exec web npx prisma init` o equivalente) y definir el `schema.prisma` inicial según el modelo de datos de `design.md` (Product, ProductColor, ProductImage, Request, EnabledComuna, BusinessSettings, DataRightsRequest, AdminUser, Session, AuditLogEntry, EmailLog — 11 modelos en total), usando el `DATABASE_URL`/variables `POSTGRES_*` ya definidas en la Fase 1. **Desviación**: se fijó Prisma en la línea 6.x (`6.19.3`), no 7.x — Prisma 7 elimina `datasource.url` en `schema.prisma` a favor de adaptadores + `prisma.config.ts`, lo que no coincide con "conexión mediante `DATABASE_URL`" tal como lo describe `design.md`; documentado también en el informe de esta sesión.
+- [x] 2.5 Generar y aplicar la migración inicial de Prisma a través del servicio `migrate` (`docker compose run --rm migrate` o `docker compose exec web npx prisma migrate dev` en desarrollo iterativo). Migración `20260713010250_init` creada y aplicada; el servicio `migrate` ahora ejecuta `prisma migrate deploy` real (ya no el placeholder de la Fase 1).
+- [x] 2.6 Definir la estructura de carpetas del monolito modular (`app/`, `modules/<dominio>/{schemas,repository,service}`, `components/`) descrita en "Arquitectura de módulos", incluyendo los módulos `data-rights`, `notifications` (abstracción SMTP) y `storage` (abstracción de almacenamiento de objetos). **Nota**: los tres módulos se crean como directorios placeholder (`README.md` explicando su alcance futuro y la fase que los implementa), sin la subdivisión `schemas/repository/service` todavía — esa subdivisión se llena de contenido real recién cuando cada módulo se implementa (Fases 5 y 7), para no crear carpetas vacías sin uso.
+- [x] 2.7 Configurar logging estructurado (JSON) de la aplicación.
+- [x] 2.8 Completar `.env.example` (creado en la Fase 1) con cualquier variable adicional específica de la aplicación que no estuviera ya cubierta. Verificado: todas las variables que usa `lib/env.ts` ya estaban cubiertas desde la Fase 1; no se necesitó agregar ninguna nueva.
 
 ## 3. Sitio público
 
-- [ ] 3.1 Implementar el layout global: header con navegación (desktop + drawer móvil), CTA de WhatsApp, footer, banner de cookies y botón flotante de WhatsApp, según `specs/public-site/spec.md`.
-- [ ] 3.2 Implementar la página de inicio (hero, beneficios, destacados del catálogo, banner del cotizador).
-- [ ] 3.3 Implementar la página de tipos de cristales (tipos, tratamientos, tabla comparativa).
-- [ ] 3.4 Implementar la página nosotros y la página de FAQ (acordeón accesible).
-- [ ] 3.5 Implementar la página de contacto, leyendo los datos desde `business-settings`.
-- [ ] 3.6 Implementar las páginas legales (privacidad, términos) con el contenido del mockup y el aviso visible de "borrador pendiente de validación legal".
-- [ ] 3.7 Implementar el contenido informativo de la página de derechos ARCO (explicación de los 6 derechos); el formulario de envío (con persistencia real) se implementa en la Fase 5 junto con la capacidad `data-rights-requests`.
-- [ ] 3.8 Verificar accesibilidad básica (contraste, foco de teclado, `aria-label`) y responsive en los breakpoints definidos para todo lo implementado en esta fase, como primera pasada previa a la validación completa de la Fase 8.
+- [ ] 3.1 Portar el sistema visual base del mockup (paleta de colores, radios, sombras, tipografía) a tokens de Tailwind/CSS, sin copiar el markup del mockup. **Trasladada desde la Fase 2** (era 2.4): no correspondía al alcance técnico de esa fase (fundación técnica, sin páginas/estilos visuales del sitio); se implementa aquí porque el resto de las páginas de esta fase la necesitan.
+- [ ] 3.2 Implementar el layout global: header con navegación (desktop + drawer móvil), CTA de WhatsApp, footer, banner de cookies y botón flotante de WhatsApp, según `specs/public-site/spec.md`.
+- [ ] 3.3 Implementar la página de inicio (hero, beneficios, destacados del catálogo, banner del cotizador).
+- [ ] 3.4 Implementar la página de tipos de cristales (tipos, tratamientos, tabla comparativa).
+- [ ] 3.5 Implementar la página nosotros y la página de FAQ (acordeón accesible).
+- [ ] 3.6 Implementar la página de contacto, leyendo los datos desde `business-settings`.
+- [ ] 3.7 Implementar las páginas legales (privacidad, términos) con el contenido del mockup y el aviso visible de "borrador pendiente de validación legal".
+- [ ] 3.8 Implementar el contenido informativo de la página de derechos ARCO (explicación de los 6 derechos); el formulario de envío (con persistencia real) se implementa en la Fase 5 junto con la capacidad `data-rights-requests`.
+- [ ] 3.9 Verificar accesibilidad básica (contraste, foco de teclado, `aria-label`) y responsive en los breakpoints definidos para todo lo implementado en esta fase, como primera pasada previa a la validación completa de la Fase 8.
 
 ## 4. Catálogo y productos
 
@@ -67,6 +65,7 @@ Todos los comandos de esta fase (scaffold de Next.js, instalación de dependenci
 - [ ] 4.5 Implementar alta y edición de modelo (formulario completo: datos, colores predefinidos/custom, disponibilidad, etiqueta), con validación Zod client + server.
 - [ ] 4.6 Implementar eliminación de modelo con confirmación inline.
 - [ ] 4.7 Conectar las mutaciones de productos al registro de auditoría (dependiente de la Fase 6 para el modelo de usuario, puede quedar con un TODO explícito hasta entonces).
+- [ ] 4.8 Escribir un seed de Prisma opcional con los 10 productos de ejemplo del mockup (array `SEED` — no confundir con los 11 modelos de `schema.prisma`), ejecutable vía `docker compose exec web npx prisma db seed`. **Trasladada desde la Fase 2** (era 2.10): no correspondía al alcance técnico de esa fase; tiene más sentido aquí, una vez que existe el repositorio/servicio de catálogo (4.1) que consume esos datos de ejemplo.
 
 ## 5. Formularios y solicitudes
 
@@ -121,13 +120,14 @@ Todos los comandos de esta fase (scaffold de Next.js, instalación de dependenci
 
 Todos los comandos de esta fase (tests, lint, typecheck, build) se ejecutan dentro de contenedores (vía `docker compose exec`/`docker compose run`, o un job de CI que use la misma imagen de `web`), nunca instalando Node/Prisma directamente en el runner sin contenedor. Esta fase no incluye ningún paso de despliegue ni de construcción/publicación de infraestructura, porque no hay ningún destino de despliegue en el alcance de esta propuesta.
 
-- [ ] 9.1 Escribir tests unitarios (schemas Zod, lógica de negocio pura de cada `service`: cálculo de `retentionExpiresAt`, filtrado de catálogo, reglas de disponibilidad de comuna, etc.), ejecutables vía `docker compose exec web npm test`.
-- [ ] 9.2 Escribir tests de integración (repositorios Prisma, route handlers/server actions) contra una base de datos de pruebas (un servicio `postgres` efímero adicional dentro del propio Docker Compose, nunca una instalación local de Postgres), cubriendo al menos: CRUD de producto, envío de cotización y de consulta de domicilio (incluyendo verificación en `EmailLog`), login/logout de admin, cambio de estado de solicitudes, gestión de comunas habilitadas.
-- [ ] 9.3 Escribir tests end-to-end (Playwright u equivalente) para los flujos críticos listados en "Plan de pruebas" de `design.md`, corriendo contra el propio entorno de Docker Compose (incluyendo verificar que los correos aparecen en Mailpit y que las imágenes terminan en el bucket de MinIO).
-- [ ] 9.4 Configurar el workflow de GitHub Actions que ejecuta lint, typecheck, tests y build en cada pull request (gate obligatorio antes de mergear), ejecutando esos comandos dentro de un contenedor equivalente al de `web` (o vía `docker compose run`), no instalados directamente en el runner.
-- [ ] 9.5 Wirear `axe` y Lighthouse CI al pipeline (ejecutándose sobre páginas públicas principales y pantallas clave del panel admin en cada pull request), definiendo y aplicando un umbral concreto que haga fallar el build si no se cumple.
-- [ ] 9.6 Verificar en CI que `docker compose config` no reporta errores, como parte del gate.
-- [ ] 9.7 Confirmar que el pipeline no incluye ningún paso de construcción de imagen para un registro remoto, publicación, ni despliegue — y que no referencia ninguna credencial de AWS.
+- [ ] 9.1 Agregar las dependencias/configuración base de las comprobaciones de accesibilidad (`axe`, Lighthouse CI) al proyecto, instaladas dentro del contenedor `web`. **Trasladada desde la Fase 2** (era 2.11): no correspondía al alcance técnico de esa fase; se implementa aquí, justo antes de conectarlas al pipeline (9.6), en vez de instalarlas de antemano sin usarlas.
+- [ ] 9.2 Escribir tests unitarios (schemas Zod, lógica de negocio pura de cada `service`: cálculo de `retentionExpiresAt`, filtrado de catálogo, reglas de disponibilidad de comuna, etc.), ejecutables vía `docker compose exec web npm test`.
+- [ ] 9.3 Escribir tests de integración (repositorios Prisma, route handlers/server actions) contra una base de datos de pruebas (un servicio `postgres` efímero adicional dentro del propio Docker Compose, nunca una instalación local de Postgres), cubriendo al menos: CRUD de producto, envío de cotización y de consulta de domicilio (incluyendo verificación en `EmailLog`), login/logout de admin, cambio de estado de solicitudes, gestión de comunas habilitadas.
+- [ ] 9.4 Escribir tests end-to-end (Playwright u equivalente) para los flujos críticos listados en "Plan de pruebas" de `design.md`, corriendo contra el propio entorno de Docker Compose (incluyendo verificar que los correos aparecen en Mailpit y que las imágenes terminan en el bucket de MinIO).
+- [ ] 9.5 Configurar el workflow de GitHub Actions que ejecuta lint, typecheck, tests y build en cada pull request (gate obligatorio antes de mergear), ejecutando esos comandos dentro de un contenedor equivalente al de `web` (o vía `docker compose run`), no instalados directamente en el runner.
+- [ ] 9.6 Wirear `axe` y Lighthouse CI al pipeline (ejecutándose sobre páginas públicas principales y pantallas clave del panel admin en cada pull request), definiendo y aplicando un umbral concreto que haga fallar el build si no se cumple.
+- [ ] 9.7 Verificar en CI que `docker compose config` no reporta errores, como parte del gate.
+- [ ] 9.8 Confirmar que el pipeline no incluye ningún paso de construcción de imagen para un registro remoto, publicación, ni despliegue — y que no referencia ninguna credencial de AWS.
 
 ## 10. Infraestructura productiva (fuera de alcance)
 

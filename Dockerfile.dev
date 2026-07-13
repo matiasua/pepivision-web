@@ -2,11 +2,14 @@
 # Development image for the `web` service. Code is bind-mounted at runtime
 # (see compose.yaml), so this build only bakes in the dependency layer;
 # the actual source is supplied by the volume mount, enabling hot reload.
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
+# Prisma's schema must exist before `npm install` runs, because the
+# `postinstall` script calls `prisma generate`.
+COPY prisma ./prisma
 RUN npm install
 
 COPY . .
