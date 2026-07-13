@@ -86,9 +86,15 @@ enum EmailStatus {
   FAILED
 }
 
+/// `slug` agregado en la Fase 4 (no estaba en el modelo ilustrativo de
+/// design.md): la ficha pública de producto necesita una URL estable
+/// (`/catalogo/[slug]`), independiente de `code` (que es un dato de
+/// gestión interna, editable desde el admin). Ver design.md → "Decisiones
+/// de modelado" para el detalle de esta adición.
 model Product {
   id            String          @id @default(cuid())
   code          String          @unique
+  slug          String          @unique
   name          String
   gender        Gender
   shape         ProductShape

@@ -178,6 +178,7 @@ EmailLog
 - **`DataRightsRequest` como tabla separada de `Request`**, no como un tercer `type` dentro de la tabla unificada: tiene un ciclo de vida distinto (4 estados) y una motivación distinta (cumplimiento legal, no interés comercial). Se administra en una sección propia dentro de `/admin/requests` (ver "Arquitectura de módulos"), no en una ruta nueva.
 - **`DataRightsRequest` aplica minimización de datos deliberada**: solo captura nombre, correo, teléfono opcional y descripción — sin RUT ni ningún campo de verificación de identidad, y sin adjuntos (ver "Riesgos y decisiones pendientes").
 - **`retentionExpiresAt` en `DataRightsRequest`** sigue el mismo patrón que en `Request`, calculado a partir de `dataRightsRetentionMonths` (campo propio en `BusinessSettings`, independiente de `requestRetentionMonths`).
+- **`Product.slug` (añadido en la Fase 4 de implementación, no listado en el modelo ilustrativo anterior)**: la ficha pública de producto necesita una ruta estable y legible (`/catalogo/[slug]`). No se reutiliza `code` para esto porque `code` es un dato de gestión interna (editable libremente desde `/admin/products`, ver `product-management`); acoplar la URL pública a un campo mutable rompería enlaces compartidos cada vez que un administrador corrija un código. `slug` se genera una vez a partir del nombre al crear el producto (kebab-case, ASCII, único) y no se regenera automáticamente si el nombre cambia después — así una edición de nombre no rompe URLs ya indexadas o compartidas.
 
 ## Arquitectura de módulos
 

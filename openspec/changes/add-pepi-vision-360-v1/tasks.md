@@ -58,14 +58,12 @@ Todos los comandos de esta fase (scaffold de Next.js, instalación de dependenci
 
 ## 4. Catálogo y productos
 
-- [ ] 4.1 Implementar el repositorio y servicio de catálogo (listar, filtrar, buscar) sobre Prisma, según `specs/product-catalog/spec.md`.
-- [ ] 4.2 Implementar la página de catálogo público (listado, buscador, filtros, drawer de filtros en móvil, estado vacío).
-- [ ] 4.3 Implementar la ficha de producto pública (galería, specs, colores, disponibilidad, productos relacionados, CTAs de cotizar/WhatsApp).
-- [ ] 4.4 Implementar el listado administrativo de modelos en `/admin/products` (tabla, KPIs) según `specs/product-management/spec.md`.
-- [ ] 4.5 Implementar alta y edición de modelo (formulario completo: datos, colores predefinidos/custom, disponibilidad, etiqueta), con validación Zod client + server.
-- [ ] 4.6 Implementar eliminación de modelo con confirmación inline.
-- [ ] 4.7 Conectar las mutaciones de productos al registro de auditoría (dependiente de la Fase 6 para el modelo de usuario, puede quedar con un TODO explícito hasta entonces).
-- [ ] 4.8 Escribir un seed de Prisma opcional con los 10 productos de ejemplo del mockup (array `SEED` — no confundir con los 11 modelos de `schema.prisma`), ejecutable vía `docker compose exec web npx prisma db seed`. **Trasladada desde la Fase 2** (era 2.10): no correspondía al alcance técnico de esa fase; tiene más sentido aquí, una vez que existe el repositorio/servicio de catálogo (4.1) que consume esos datos de ejemplo.
+- [x] 4.1 Implementar el repositorio y servicio de catálogo (listar, filtrar, buscar) sobre Prisma, según `specs/product-catalog/spec.md`. Se añadió `Product.slug` (no estaba en el modelo ilustrativo de `design.md`, ver decisión documentada allí) para poder enrutar `/catalogo/[slug]`.
+- [x] 4.2 Implementar la página de catálogo público (listado, buscador, filtros, drawer de filtros en móvil, estado vacío).
+- [x] 4.3 Implementar la ficha de producto pública (galería, specs, colores, disponibilidad, productos relacionados, CTAs de cotizar/WhatsApp).
+- [x] 4.4 Escribir un seed de Prisma opcional con los 10 productos de ejemplo del mockup (array `SEED` — no confundir con los 11 modelos de `schema.prisma`), ejecutable vía `docker compose exec web npx prisma db seed`. **Trasladada desde la Fase 2** (era 2.10): no correspondía al alcance técnico de esa fase; tiene más sentido aquí, una vez que existe el repositorio/servicio de catálogo (4.1) que consume esos datos de ejemplo.
+
+El CRUD administrativo de modelos (antes 4.4-4.7 en este listado) se trasladó a la Fase 6 (tareas 6.10-6.13): depende de autenticación y del panel administrativo, que no existen todavía en esta fase. La Fase 4 contiene únicamente catálogo público, ficha pública, filtros, repositorio/servicio de lectura y seed de desarrollo.
 
 ## 5. Formularios y solicitudes
 
@@ -91,9 +89,13 @@ Todos los comandos de esta fase (scaffold de Next.js, instalación de dependenci
 - [ ] 6.4 Implementar cierre de sesión e invalidación de sesiones persistidas, y expiración por inactividad.
 - [ ] 6.5 Implementar el middleware/guard de protección de rutas `/admin/**` por sesión válida y por rol, con revalidación server-side en cada mutación administrativa.
 - [ ] 6.6 Implementar `/admin/users` (crear usuario, desactivar usuario, protección contra desactivar al único `SUPERADMIN` activo), accesible solo para `SUPERADMIN`.
-- [ ] 6.7 Retomar y completar la protección por rol pendiente de la Fase 4 y la Fase 5 (gestión de productos, comunas, solicitudes comerciales, solicitudes de derechos ARCO y configuración) ahora que existe el modelo de auth real.
+- [ ] 6.7 Retomar y completar la protección por rol pendiente de la Fase 5 (comunas, solicitudes comerciales, solicitudes de derechos ARCO y configuración) ahora que existe el modelo de auth real. La protección de `/admin/products` no queda pendiente de una fase anterior: se implementa directamente junto con las tareas 6.10-6.13 de esta misma fase.
 - [ ] 6.8 Implementar el registro de auditoría (`AuditLogEntry`) y conectarlo a todas las acciones administrativas sensibles listadas en `specs/admin-auth/spec.md`, incluyendo los cambios de estado de solicitudes de derechos ARCO (pendientes de la Fase 5).
 - [ ] 6.9 Crear el script/comando para provisionar el primer usuario `SUPERADMIN` en un entorno nuevo (sin credenciales hardcodeadas en el código, a diferencia del mockup) — ejecutado vía `docker compose exec web ...`, usable tanto en este entorno de desarrollo como en un futuro entorno productivo.
+- [ ] 6.10 Implementar el listado administrativo de modelos en `/admin/products` (tabla, KPIs) según `specs/product-management/spec.md`. **Trasladada desde la Fase 4** (era 4.4): depende de autenticación y del panel administrativo, que se implementan en esta misma fase.
+- [ ] 6.11 Implementar alta y edición de modelo (formulario completo: datos, colores predefinidos/custom, disponibilidad, etiqueta), con validación Zod client + server. **Trasladada desde la Fase 4** (era 4.5), mismo motivo que 6.10.
+- [ ] 6.12 Implementar eliminación de modelo con confirmación inline. **Trasladada desde la Fase 4** (era 4.6), mismo motivo que 6.10.
+- [ ] 6.13 Conectar las mutaciones de productos (alta, edición, eliminación) al registro de auditoría (`AuditLogEntry`, ver 6.8). **Trasladada desde la Fase 4** (era 4.7): ya no depende de una fase futura, porque ahora está en la misma fase que el modelo de usuario y el registro de auditoría.
 
 ## 7. Almacenamiento de imágenes
 
@@ -103,7 +105,7 @@ Todos los comandos de esta fase (scaffold de Next.js, instalación de dependenci
 - [ ] 7.4 Implementar la subida al bucket configurado (`OBJECT_STORAGE_BUCKET`) y el guardado de la referencia (`storageKey`/URL) en `ProductImage`; en este entorno, el bucket vive en el servicio `minio` (ver Fase 1) y se crea automáticamente vía `minio-init`.
 - [ ] 7.5 Implementar el reemplazo de una imagen ya asignada a una posición (principal/frontal/lateral).
 - [ ] 7.6 Conectar la entrega de imágenes en catálogo/ficha de producto al mecanismo de optimización de imágenes de Next.js apuntando al endpoint configurado.
-- [ ] 7.7 Actualizar el formulario de alta/edición de modelo (Fase 4) para usar este flujo real de subida en vez de cualquier placeholder temporal usado antes.
+- [ ] 7.7 Actualizar el formulario de alta/edición de modelo (Fase 6, tarea 6.11) para usar este flujo real de subida en vez de cualquier placeholder temporal usado antes.
 
 ## 8. Seguridad, auditoría y accesibilidad
 
