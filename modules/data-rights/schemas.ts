@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { honeypotSchema } from '@/lib/honeypot';
+import { optionalNonEmpty } from '@/lib/zod-helpers';
 
 export const RIGHT_TYPES = {
   ACCESS: 'Acceso',
@@ -13,12 +14,7 @@ export const RIGHT_TYPES = {
 export const dataRightsRequestSchema = z.object({
   name: z.string().trim().min(2, 'Ingresa tu nombre completo.').max(120),
   email: z.string().trim().max(160).email('Revisa el formato de tu correo.'),
-  phone: z
-    .string()
-    .trim()
-    .max(30)
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
+  phone: optionalNonEmpty(z.string().trim().max(30)),
   rightType: z.enum(Object.keys(RIGHT_TYPES) as [keyof typeof RIGHT_TYPES], {
     message: 'Selecciona el derecho que deseas ejercer.',
   }),

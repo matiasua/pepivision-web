@@ -104,6 +104,12 @@ model Product {
   description   String?
   badge         ProductBadge?
   available     Boolean         @default(true)
+  /// Añadido en la Fase 6 junto con `/admin/products`: independiente de
+  /// `available` (Disponible/Bajo pedido, un estado de stock que un
+  /// producto visible igual puede mostrar). `visible=false` retira el
+  /// producto del catálogo público y de su ficha (404) sin eliminarlo,
+  /// para "despublicar" un modelo sin perder su historial/admin.
+  visible       Boolean         @default(true)
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
   createdById   String?

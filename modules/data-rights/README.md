@@ -7,6 +7,7 @@ Implementa la capacidad `data-rights-requests` (ver
 - `repository.ts` — acceso a datos vía Prisma (`DataRightsRequest`).
 - `service.ts` — `submitDataRightsRequest()`: crea el registro con estado inicial `RECEIVED`, calcula `retentionExpiresAt` y notifica al negocio (sin correo de confirmación al cliente, según la especificación).
 
-La transición de estados (`RECEIVED`/`IN_REVIEW`/`RESOLVED`/`REJECTED`) y su
-sección en `/admin/requests` todavía no se implementan aquí: dependen de
-`admin-auth` (Fase 6).
+Transición de estados y sección administrativa (Fase 6): `admin-schemas.ts`
+(cambio de estado + nota de resolución, obligatoria al pasar a `RESOLVED`/
+`REJECTED`), `admin-repository.ts` y `admin-service.ts` (+ auditoría de cada
+cambio de estado).

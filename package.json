@@ -13,7 +13,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
     "migrate": "npm run prisma:migrate",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "admin:create-superadmin": "tsx scripts/create-superadmin.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -23,6 +24,7 @@
     "react": "^19",
     "react-dom": "^19",
     "@prisma/client": "6.19.3",
+    "bcryptjs": "^3",
     "nodemailer": "^9.0.3",
     "zod": "^4"
   },

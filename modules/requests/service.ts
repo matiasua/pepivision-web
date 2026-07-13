@@ -1,9 +1,9 @@
 import { EmailKind, RequestType } from '@prisma/client';
 import { ValidationError } from '@/lib/errors';
-import { businessDefaults } from '@/lib/business-defaults';
 import { computeRetentionExpiresAt } from '@/lib/retention';
 import { isHoneypotTriggered } from '@/lib/honeypot';
 import { buildWhatsAppLink } from '@/lib/whatsapp';
+import { getEffectiveBusinessSettings } from '@/modules/business-settings/service';
 import { sendAndLog } from '@/modules/notifications/service';
 import {
   homeVisitBusinessNotification,
@@ -46,6 +46,7 @@ export async function submitQuote(input: QuoteRequestInput): Promise<QuoteSubmis
     frameProductName = `${product.name} (${product.code})`;
   }
 
+  const settings = await getEffectiveBusinessSettings();
   const now = new Date();
   const request = await createRequest({
     type: RequestType.QUOTE,
@@ -65,7 +66,7 @@ export async function submitQuote(input: QuoteRequestInput): Promise<QuoteSubmis
       prescriptionAnswer: input.hasPrescription,
     },
     consentAcceptedAt: now,
-    retentionExpiresAt: computeRetentionExpiresAt(now, businessDefaults.requestRetentionMonths),
+    retentionExpiresAt: computeRetentionExpiresAt(now, settings.requestRetentionMonths),
   });
 
   if (input.email) {
@@ -89,7 +90,7 @@ export async function submitQuote(input: QuoteRequestInput): Promise<QuoteSubmis
   });
   await sendAndLog({
     kind: EmailKind.BUSINESS_NOTIFICATION,
-    to: businessDefaults.notificationEmail,
+    to: settings.notificationEmail,
     subject: businessEmail.subject,
     text: businessEmail.text,
     requestId: request.id,
@@ -116,6 +117,7 @@ export async function submitHomeVisit(input: HomeVisitRequestInput): Promise<Hom
     return { customerName: input.name, whatsappHref, comunaCovered };
   }
 
+  const settings = await getEffectiveBusinessSettings();
   const now = new Date();
   const request = await createRequest({
     type: RequestType.HOME_VISIT,
@@ -130,7 +132,7 @@ export async function submitHomeVisit(input: HomeVisitRequestInput): Promise<Hom
       comunaCovered,
     },
     consentAcceptedAt: now,
-    retentionExpiresAt: computeRetentionExpiresAt(now, businessDefaults.requestRetentionMonths),
+    retentionExpiresAt: computeRetentionExpiresAt(now, settings.requestRetentionMonths),
   });
 
   if (input.email) {
@@ -154,7 +156,7 @@ export async function submitHomeVisit(input: HomeVisitRequestInput): Promise<Hom
   });
   await sendAndLog({
     kind: EmailKind.BUSINESS_NOTIFICATION,
-    to: businessDefaults.notificationEmail,
+    to: settings.notificationEmail,
     subject: businessEmail.subject,
     text: businessEmail.text,
     requestId: request.id,

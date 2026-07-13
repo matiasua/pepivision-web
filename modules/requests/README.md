@@ -9,6 +9,9 @@ retención y disparo de notificaciones por correo.
 - `repository.ts` — acceso a datos vía Prisma (`Request`, lectura de `Product`/`EnabledComuna`).
 - `service.ts` — `submitQuote()` / `submitHomeVisit()`: valida, persiste, calcula `retentionExpiresAt` y dispara las notificaciones de `modules/notifications`.
 
-La bandeja administrativa (`request-inbox`) y la gestión de comunas
-(`home-visit-coverage`) todavía no se implementan aquí: dependen de
-`admin-auth` (Fase 6).
+`request-inbox` (bandeja administrativa en `/admin/requests`, Fase 6):
+`admin-schemas.ts` (filtros por tipo/estado/fecha), `admin-repository.ts`
+(listado, cambio de estado, eliminación con soft-delete vía `deletedAt`) y
+`admin-service.ts` (+ enlace de WhatsApp al cliente, auditoría).
+
+La gestión de comunas vive en `modules/home-visit-coverage` (módulo separado).

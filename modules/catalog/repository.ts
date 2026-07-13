@@ -9,7 +9,10 @@ const PRICE_BUCKET_RANGES: Record<string, Prisma.IntFilter> = {
 };
 
 function buildWhere(filters: CatalogFilters): Prisma.ProductWhereInput {
-  const where: Prisma.ProductWhereInput = {};
+  // Public queries only ever see published products — see design.md
+  // ("Product.visible", Fase 6) and modules/catalog/admin-* for the
+  // publish/unpublish toggle.
+  const where: Prisma.ProductWhereInput = { visible: true };
 
   if (filters.gender) where.gender = filters.gender;
   if (filters.shape) where.shape = filters.shape;
@@ -37,7 +40,7 @@ export function listProducts(filters: CatalogFilters) {
 
 export function findProductBySlug(slug: string) {
   return prisma.product.findUnique({
-    where: { slug },
+    where: { slug, visible: true },
     include: { colors: true, images: true },
   });
 }
@@ -46,6 +49,7 @@ export function listRelatedProducts(product: { id: string; gender: Gender; shape
   return prisma.product.findMany({
     where: {
       id: { not: product.id },
+      visible: true,
       OR: [{ gender: product.gender }, { shape: product.shape }],
     },
     include: { colors: true, images: true },

@@ -1,7 +1,7 @@
 import { DataRightType, EmailKind } from '@prisma/client';
-import { businessDefaults } from '@/lib/business-defaults';
 import { computeRetentionExpiresAt } from '@/lib/retention';
 import { isHoneypotTriggered } from '@/lib/honeypot';
+import { getEffectiveBusinessSettings } from '@/modules/business-settings/service';
 import { sendAndLog } from '@/modules/notifications/service';
 import { dataRightsBusinessNotification } from '@/modules/notifications/templates';
 import { createDataRightsRequest } from './repository';
@@ -18,6 +18,7 @@ export async function submitDataRightsRequest(
     return { customerName: input.name };
   }
 
+  const settings = await getEffectiveBusinessSettings();
   const now = new Date();
   const request = await createDataRightsRequest({
     rightType: DataRightType[input.rightType],
@@ -26,7 +27,7 @@ export async function submitDataRightsRequest(
     phone: input.phone ?? null,
     description: input.description,
     consentAcceptedAt: now,
-    retentionExpiresAt: computeRetentionExpiresAt(now, businessDefaults.dataRightsRetentionMonths),
+    retentionExpiresAt: computeRetentionExpiresAt(now, settings.dataRightsRetentionMonths),
   });
 
   const businessEmail = dataRightsBusinessNotification({
@@ -39,7 +40,7 @@ export async function submitDataRightsRequest(
   });
   await sendAndLog({
     kind: EmailKind.DATA_RIGHTS_NOTIFICATION,
-    to: businessDefaults.notificationEmail,
+    to: settings.notificationEmail,
     subject: businessEmail.subject,
     text: businessEmail.text,
     dataRightsRequestId: request.id,

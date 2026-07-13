@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { honeypotSchema } from '@/lib/honeypot';
+import { optionalNonEmpty } from '@/lib/zod-helpers';
 
 const consentSchema = z.literal(true, {
   message: 'Debes aceptar el tratamiento de tus datos personales para continuar.',
@@ -7,13 +8,7 @@ const consentSchema = z.literal(true, {
 
 const nameSchema = z.string().trim().min(2, 'Ingresa tu nombre completo.').max(120);
 const phoneSchema = z.string().trim().min(6, 'Ingresa un teléfono de contacto válido.').max(30);
-const optionalEmailSchema = z
-  .string()
-  .trim()
-  .max(160)
-  .email('Revisa el formato de tu correo.')
-  .optional()
-  .or(z.literal('').transform(() => undefined));
+const optionalEmailSchema = optionalNonEmpty(z.string().trim().max(160).email('Revisa el formato de tu correo.'));
 
 export const GLASS_TYPES = ['Monofocal', 'Bifocal', 'Multifocal', 'No estoy seguro'] as const;
 export const TREATMENT_IDS = ['azul', 'ar', 'foto', 'uv', 'delgado', 'raya'] as const;
@@ -29,8 +24,8 @@ export const quoteRequestSchema = z
     name: nameSchema,
     phone: phoneSchema,
     email: optionalEmailSchema,
-    comuna: z.string().trim().max(80).optional().or(z.literal('').transform(() => undefined)),
-    message: z.string().trim().max(1000).optional().or(z.literal('').transform(() => undefined)),
+    comuna: optionalNonEmpty(z.string().trim().max(80)),
+    message: optionalNonEmpty(z.string().trim().max(1000)),
     consent: consentSchema,
     website: honeypotSchema,
   })
@@ -46,10 +41,7 @@ export const homeVisitRequestSchema = z.object({
   comuna: z.string().trim().min(2, 'Ingresa tu comuna.').max(80),
   phone: phoneSchema,
   email: optionalEmailSchema,
-  attentionType: z
-    .enum(['Asesoría para elegir lentes', 'Entrega de lentes', 'Ambas'])
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
+  attentionType: optionalNonEmpty(z.enum(['Asesoría para elegir lentes', 'Entrega de lentes', 'Ambas'])),
   consent: consentSchema,
   website: honeypotSchema,
 });
