@@ -42,6 +42,21 @@ Cada solicitud en `/admin/requests` SHALL incluir un acceso directo para contact
 - **WHEN** no existe ninguna solicitud vigente que cumpla el filtro seleccionado
 - **THEN** el sistema muestra un mensaje indicando que no hay solicitudes por ahora
 
+### Requirement: Acceso administrativo a la receta adjunta mediante URL firmada (actualización aprobada durante la implementación)
+Cuando una solicitud de cotización tenga un archivo de receta adjunto, `/admin/requests` SHALL indicar su existencia (tipo, nombre y tamaño) y SHALL permitir verlo o descargarlo únicamente a un administrador autenticado, mediante una URL firmada de corta duración generada tras verificar sesión y autorización server-side — nunca exponiendo el bucket privado directamente ni una URL permanente.
+
+#### Scenario: Administrador visualiza/descarga la receta adjunta
+- **WHEN** un administrador autenticado solicita ver o descargar la receta adjunta de una solicitud
+- **THEN** el sistema verifica su sesión, genera una URL firmada de corta duración contra el bucket privado, y la entrega solo a ese administrador
+
+#### Scenario: Cada acceso queda auditado
+- **WHEN** un administrador visualiza o descarga una receta adjunta
+- **THEN** el sistema registra una entrada de auditoría identificando al administrador, la solicitud y el adjunto accedido
+
+#### Scenario: Solicitud sin adjunto no ofrece la acción
+- **WHEN** una solicitud de cotización no tiene ningún archivo de receta adjunto
+- **THEN** la bandeja administrativa no muestra ninguna acción de ver/descargar adjunto para esa solicitud
+
 ### Requirement: Retención configurable de solicitudes
 Cada solicitud SHALL tener una fecha de vencimiento de retención calculada al crearse, a partir del período de retención vigente en `business-settings` (12 meses por defecto), visible para el administrador en la bandeja.
 

@@ -15,7 +15,7 @@ El formulario y el modelo de datos de `data-rights-requests` SHALL capturar úni
 - **THEN** el sistema no presenta ningún control para adjuntar archivos ni acepta documentos de ningún tipo como parte del envío
 
 ### Requirement: Notificación al negocio de nueva solicitud
-Al crearse un `DataRightsRequest`, el sistema SHALL intentar enviar una notificación por correo a la dirección de negocio configurada en `business-settings`, con el detalle de la solicitud, y registrar el resultado del intento.
+Al crearse un `DataRightsRequest`, el sistema SHALL intentar enviar una notificación por correo a la dirección de negocio configurada en `business-settings`, con el detalle de la solicitud, con una versión HTML y una versión de texto plano equivalente (actualización aprobada durante la implementación), y registrar el resultado del intento.
 
 #### Scenario: Notificación enviada
 - **WHEN** se crea una nueva solicitud de derechos ARCO

@@ -26,7 +26,7 @@ Al completar el formulario con datos válidos, el sistema SHALL crear una solici
 - **THEN** el sistema crea la solicitud, la deja visible en la bandeja administrativa de solicitudes, y muestra una pantalla de confirmación con un CTA para continuar por WhatsApp con un mensaje prellenado
 
 ### Requirement: Notificaciones por correo de nueva consulta de domicilio
-Al crearse una solicitud de atención a domicilio, el sistema SHALL intentar enviar una notificación al negocio y, si el visitante indicó un correo de contacto, una confirmación al cliente, registrando el resultado de cada intento.
+Al crearse una solicitud de atención a domicilio, el sistema SHALL intentar enviar una notificación al negocio y, si el visitante indicó un correo de contacto, una confirmación al cliente, cada una con una versión HTML y una versión de texto plano equivalente (actualización aprobada durante la implementación), registrando el resultado de cada intento.
 
 #### Scenario: Notificación al negocio
 - **WHEN** se crea una solicitud de atención a domicilio

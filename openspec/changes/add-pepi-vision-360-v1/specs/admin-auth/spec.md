@@ -1,19 +1,30 @@
 ## ADDED Requirements
 
 ### Requirement: Inicio de sesión con credenciales reales
-`/admin` SHALL exigir correo y contraseña válidos, verificados contra un usuario administrador almacenado en la base de datos con contraseña hasheada, para conceder acceso al panel.
+`/admin` SHALL exigir un identificador (correo o nombre de usuario) y contraseña válidos, verificados contra un usuario administrador almacenado en la base de datos con contraseña hasheada, para conceder acceso al panel.
 
 #### Scenario: Credenciales correctas
 - **WHEN** un usuario ingresa el correo y la contraseña correctos de un usuario administrador activo
 - **THEN** el sistema crea una sesión válida y concede acceso al panel de administración
 
 #### Scenario: Credenciales incorrectas
-- **WHEN** un usuario ingresa un correo o contraseña incorrectos
-- **THEN** el sistema rechaza el inicio de sesión y muestra un mensaje de error genérico, sin indicar cuál de los dos datos fue incorrecto
+- **WHEN** un usuario ingresa un identificador o contraseña incorrectos
+- **THEN** el sistema rechaza el inicio de sesión y muestra un mensaje de error genérico, sin indicar cuál de los dos datos fue incorrecto ni si el identificador correspondía a un correo o a un nombre de usuario
 
 #### Scenario: Usuario desactivado
 - **WHEN** un usuario administrador desactivado intenta iniciar sesión con sus credenciales correctas
 - **THEN** el sistema rechaza el inicio de sesión
+
+### Requirement: Inicio de sesión con nombre de usuario (actualización aprobada durante la implementación)
+El sistema SHALL permitir iniciar sesión usando el `username` de la cuenta como alternativa al correo electrónico, resolviendo cuál de los dos identificadores corresponde mediante una única búsqueda que no distinga entre ambos casos hacia el usuario.
+
+#### Scenario: Inicio de sesión con username
+- **WHEN** un usuario ingresa su `username` y su contraseña correctos
+- **THEN** el sistema crea una sesión válida, igual que si hubiera ingresado su correo
+
+#### Scenario: Mismo mensaje de error para ambos identificadores
+- **WHEN** un usuario ingresa un `username` inexistente y cualquier contraseña
+- **THEN** el sistema muestra exactamente el mismo mensaje de error genérico que ante un correo inexistente, sin revelar si el identificador correspondía a un correo o a un `username`, ni si la cuenta existe
 
 ### Requirement: Límite de intentos de inicio de sesión
 El sistema SHALL limitar el número de intentos de inicio de sesión fallidos permitidos por dirección IP/usuario en una ventana de tiempo, bloqueando intentos adicionales una vez superado el límite.

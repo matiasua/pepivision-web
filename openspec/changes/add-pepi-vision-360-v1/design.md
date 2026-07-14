@@ -53,8 +53,9 @@ Esta propuesta se acota explícitamente a construir un **entorno de desarrollo l
 - HTTPS/TLS: no se configura en este entorno de desarrollo (Nginx local sirve por HTTP en `localhost:8080`); es una preocupación exclusivamente productiva, fuera de alcance aquí.
 - Integración con la WhatsApp Business API (se mantiene el enlace `wa.me` con mensaje prellenado).
 - Carrito de compra, checkout o pago en línea (el cierre de venta/cotización sigue siendo por WhatsApp).
-- Subida o almacenamiento de imágenes de receta óptica (el formulario solo indica si el cliente posee receta; la receta en sí se coordina por un canal directo).
-- Adjuntar o almacenar documentos sensibles en las solicitudes de derechos ARCO (mismo principio de minimización de datos que en `quote-requests`).
+- ~~Subida o almacenamiento de imágenes de receta óptica~~ — **actualización aprobada durante la implementación**: el cotizador sí permite adjuntar opcionalmente el archivo de la receta, en almacenamiento privado (ver "Almacenamiento privado de adjuntos de solicitudes"). Se mantiene fuera de alcance únicamente para las solicitudes de derechos ARCO (punto siguiente) y para cualquier verificación de identidad basada en el adjunto.
+- Adjuntar o almacenar documentos sensibles en las solicitudes de derechos ARCO (mismo principio de minimización de datos que en `quote-requests`; esto no cambió).
+- Una arquitectura de catálogo extensible multi-categoría (categorías administrables sin enum, ofertas comerciales por categoría, atributos dinámicos) — `Brand` en esta v1 es una capacidad concreta e inicial, no esa arquitectura; se diseña por separado en `redesign-extensible-catalog-v2`.
 - Automatización del borrado/anonimización de solicitudes (comerciales o de derechos ARCO) por vencimiento de retención (se documenta el mecanismo, no se implementa el job).
 - Validación legal definitiva de los textos de privacidad/ARCO/términos (se usan como borrador marcado como pendiente).
 - Una auditoría de accesibilidad externa/contratada como requisito para este hito.
@@ -67,15 +68,15 @@ El detalle normativo (requisitos + escenarios, formato SHALL/WHEN/THEN) vive en 
 | Capacidad | Resumen funcional | Spec |
 |---|---|---|
 | `public-site` | Páginas informativas (inicio, cristales, nosotros, FAQ, contacto, privacidad, ARCO, términos), navegación global, banner de cookies, configuración de negocio visible en el sitio | `specs/public-site/spec.md` |
-| `product-catalog` | Listado de armazones con búsqueda/filtros, ficha de producto, productos relacionados | `specs/product-catalog/spec.md` |
-| `product-management` | CRUD administrativo de modelos (datos, colores, fotos, disponibilidad, etiqueta) | `specs/product-management/spec.md` |
-| `quote-requests` | Cotizador de 5 pasos, envío de solicitud, notificación por correo, CTA WhatsApp | `specs/quote-requests/spec.md` |
-| `home-visit-requests` | Formulario de atención a domicilio validado contra comunas habilitadas, notificación por correo, CTA WhatsApp | `specs/home-visit-requests/spec.md` |
-| `request-inbox` | Bandeja administrativa unificada de solicitudes comerciales, filtros, cambio de estado, retención | `specs/request-inbox/spec.md` |
+| `product-catalog` | Listado de armazones con búsqueda/filtros (incl. marca), ficha de producto con galería por color, productos relacionados | `specs/product-catalog/spec.md` |
+| `product-management` | CRUD administrativo de modelos (datos, marca, colores como mutación inmediata, galería de fotos por color, disponibilidad, etiqueta) | `specs/product-management/spec.md` |
+| `quote-requests` | Cotizador de 5 pasos (con marca/color resueltos server-side y adjunto opcional/privado de receta), envío de solicitud, notificación por correo HTML+texto, CTA WhatsApp | `specs/quote-requests/spec.md` |
+| `home-visit-requests` | Formulario de atención a domicilio validado contra comunas habilitadas, notificación por correo HTML+texto, CTA WhatsApp | `specs/home-visit-requests/spec.md` |
+| `request-inbox` | Bandeja administrativa unificada de solicitudes comerciales, filtros, cambio de estado, acceso autenticado a receta adjunta vía URL firmada, retención | `specs/request-inbox/spec.md` |
 | `home-visit-coverage` | Gestión administrativa de comunas habilitadas | `specs/home-visit-coverage/spec.md` |
 | `business-settings` | Configuración administrativa de datos de contacto/horario/ubicación/retención | `specs/business-settings/spec.md` |
-| `admin-auth` | Autenticación por sesión, usuarios y roles administradores, auditoría | `specs/admin-auth/spec.md` |
-| `product-image-storage` | Subida, validación, redimensionado y entrega de imágenes de producto vía la abstracción de almacenamiento de objetos | `specs/product-image-storage/spec.md` |
+| `admin-auth` | Autenticación por sesión (correo o nombre de usuario), usuarios y roles administradores, auditoría | `specs/admin-auth/spec.md` |
+| `product-image-storage` | Subida, validación, redimensionado y entrega de galería de imágenes de producto por color vía la abstracción de almacenamiento de objetos; bucket privado separado para adjuntos sensibles | `specs/product-image-storage/spec.md` |
 | `data-rights-requests` | Solicitudes de derechos ARCO persistidas en PostgreSQL, notificación al negocio, flujo de estados y auditoría | `specs/data-rights-requests/spec.md` |
 
 Todas las capacidades son **nuevas** — no existen specs previas en `openspec/specs/` (proyecto sin versión productiva anterior).
@@ -113,25 +114,42 @@ Todas las capacidades son **nuevas** — no existen specs previas en `openspec/s
 Modelo relacional (PostgreSQL vía Prisma) ilustrativo — el `schema.prisma` real se crea en la Fase 2 de implementación (una vez que el entorno de Docker Compose de la Fase 1 ya existe), no en esta propuesta. Los nombres de campo son orientativos; el detalle exacto de tipos/constraints se resuelve al implementar cada módulo. Este modelo no se ve afectado por la acotación de alcance a Docker Compose local: es el mismo esquema que correrá contra el PostgreSQL local ahora y contra el productivo más adelante.
 
 ```
+Brand                            # marca comercial del armazón — capacidad concreta inicial de v1;
+                                  # ver "Decisiones de modelado" y redesign-extensible-catalog-v2
+                                  # para la arquitectura de catálogo multi-categoría que la sucede
+  id, name (unique), slug (unique), logoPath (nullable), active (bool),
+  sortOrder (int), createdAt, updatedAt
+
 Product
-  id, code (unique), name, gender (enum), shape (enum), material (enum),
+  id, code (unique), name, brandId -> Brand (nullable), gender (enum), shape (enum), material (enum),
   sizes, priceFromClp (int), description, badge (enum, nullable),
   available (bool), createdAt, updatedAt, createdById -> AdminUser, updatedById -> AdminUser
 
 ProductColor
   id, productId -> Product, name, hex
+  # @@unique([id, productId]) — permite el FK compuesto de ProductImage
+  # abajo; es lo que garantiza a nivel de BD que una fotografía no pueda
+  # asociarse a un color de otro producto (ver "Galería de fotografías...").
 
-ProductImage
-  id, productId -> Product, slot (enum: MAIN | FRONT | SIDE), storageKey,
-  url, width, height, createdAt
+ProductImage                    # galería ordenable de largo variable, no slots fijos (ver nota abajo)
+  id, productId -> Product, productColorId -> ProductColor (FK compuesto
+  junto con productId), storageKey, url, width, height,
+  sortOrder (int), isCover (bool), altText (nullable), createdAt, updatedAt
 
 Request                         # cotizaciones + atención a domicilio, tabla unificada
   id, type (enum: QUOTE | HOME_VISIT), status (enum: NEW | HANDLED),
   name, phone, email (nullable), comuna (nullable),
   message (nullable), hasPrescription (bool, nullable, solo QUOTE),
-  details (json — específico por tipo: armazón/cristal/tratamientos para QUOTE;
+  details (json — específico por tipo: armazón/marca/color/cristal/tratamientos para QUOTE;
            tipo de atención para HOME_VISIT),
   consentAcceptedAt, createdAt, retentionExpiresAt, deletedAt (nullable, soft delete)
+
+RequestAttachment                # adjunto privado y opcional de una Request (receta óptica,
+                                  # único tipo por ahora) — ver "Almacenamiento privado de
+                                  # adjuntos de solicitudes" para la arquitectura completa
+  id, requestId -> Request, type (enum: PRESCRIPTION), storageKey,
+  originalFileName (sanitizado), mimeType, sizeBytes, checksum (nullable),
+  createdAt, deletedAt (nullable, soft delete)
 
 EnabledComuna
   id, name (unique), region (nullable), active (bool), createdAt, updatedAt
@@ -151,7 +169,9 @@ DataRightsRequest                # solicitudes de derechos ARCO (acceso, rectifi
   consentAcceptedAt, createdAt, updatedAt, retentionExpiresAt, deletedAt (nullable, soft delete)
 
 AdminUser
-  id, email (unique), passwordHash, name, role (enum: SUPERADMIN | ADMIN),
+  id, email (unique), username (unique — añadido para permitir inicio de sesión
+  alternativo al correo, ver "Estrategia de autenticación y autorización"),
+  passwordHash, name, role (enum: SUPERADMIN | ADMIN),
   active (bool), createdAt, updatedAt
 
 Session                          # sesiones persistidas en BD, no JWT
@@ -170,7 +190,9 @@ EmailLog
 
 **Decisiones de modelado:**
 - **`Request` unificada con columna `type` + `details` JSON** en vez de dos tablas separadas: la bandeja administrativa (`request-inbox`) necesita listar y filtrar ambos tipos junto, tal como en el mockup. Los campos específicos de cada tipo (armazón/cristal/tratamientos vs. tipo de atención) son minoría y varían poco, por lo que un campo JSON tipado por Zod en la capa de aplicación es más simple que dos tablas con lógica de unión duplicada. Alternativa considerada y descartada: tablas `QuoteRequest`/`HomeVisitRequest` separadas — más "puro" relacionalmente, pero complica la bandeja unificada y la política de retención (habría que aplicarla dos veces).
-- **`hasPrescription` como booleano**, sin ningún campo de archivo/adjunto: refleja la decisión aprobada de no almacenar ni subir imágenes de receta en v1.
+- **`hasPrescription` sigue siendo un booleano** (tri-estado Sí/No/No estoy seguro colapsado a `bool | null`) que indica si el cliente declara tener receta — **actualización aprobada durante la implementación**: además de esta indicación, `Request` ahora puede tener asociado un `RequestAttachment` (el archivo de la receta), siempre opcional y siempre en almacenamiento privado (ver "Almacenamiento privado de adjuntos de solicitudes"). La decisión original de minimización de datos se mantiene en espíritu: el adjunto es opcional, nunca se exige, y nunca se expone fuera del panel administrativo autenticado.
+- **`Brand` es una capacidad concreta e inicial de v1, no una arquitectura de catálogo multi-categoría**: se introdujo para resolver la necesidad real de mostrar y filtrar por marca comercial del armazón. `Product.brandId` es nullable deliberadamente — los productos creados antes de esta adición no tienen marca asignada y no deben quedar inválidos ni perderse; el formulario administrativo exige elegir una marca para altas/ediciones nuevas (validado server-side), pero la base de datos permite que un producto legado quede sin marca hasta que un administrador la complete. `Brand.slug` (no `Brand.name`) es la identidad real de deduplicación (kebab-case, derivado del nombre normalizado), evitando duplicados tipo "Ray-Ban"/"rayban"/"RAY BAN" aunque `name` conserve la grafía comercial exacta para mostrar — mismo patrón de normalización ya usado en `Product.slug` y en `AdminUser.username`. **Una arquitectura de catálogo extensible multi-categoría** (categorías administrables sin enum, ofertas comerciales por categoría, atributos dinámicos, un mismo `Product` ofrecido bajo varias categorías) **se diseña por separado en la propuesta `redesign-extensible-catalog-v2`** — esta propuesta (`add-pepi-vision-360-v1`) no la anticipa ni la sustituye; `Brand` como aquí está modelado permanece válido y reutilizable en ese diseño futuro.
+- **`AdminUser.username` (añadido tras la Fase 6)**: permite iniciar sesión con un identificador alternativo al correo. Se backfillea para usuarios ya existentes a partir de la parte local de su correo (normalizada: minúsculas, solo `a-z0-9_.-`, resolviendo colisiones con un sufijo numérico) antes de forzar la restricción `UNIQUE`/`NOT NULL`, de forma que ningún usuario administrador ya creado queda inválido. Ver "Estrategia de autenticación y autorización" para el detalle del flujo de login.
 - **Roles como enum (`SUPERADMIN`/`ADMIN`)** en vez de una tabla de permisos granular: suficiente para "múltiples usuarios y roles" en v1 (un rol que puede gestionar usuarios/configuración sensible vs. uno operativo). Si más adelante se necesitan permisos más finos, migrar a una tabla `Permission`/`RolePermission` es un cambio aditivo, no una reescritura.
 - **`Session` persistida en base de datos**, no JWT stateless: permite invalidar sesiones (logout real, expiración forzada, ver "Estrategia de autenticación") y es coherente con "autenticación segura basada en sesiones" del stack objetivo.
 - **`retentionExpiresAt` calculado al crear la solicitud** (`createdAt` + período de retención vigente en `BusinessSettings` al momento del envío) en vez de calculado al vuelo: permite que un cambio futuro en el período de retención no altere retroactivamente solicitudes ya creadas, y deja el campo listo para que un job de limpieza futuro simplemente consulte `retentionExpiresAt < now()`.
@@ -179,6 +201,7 @@ EmailLog
 - **`DataRightsRequest` aplica minimización de datos deliberada**: solo captura nombre, correo, teléfono opcional y descripción — sin RUT ni ningún campo de verificación de identidad, y sin adjuntos (ver "Riesgos y decisiones pendientes").
 - **`retentionExpiresAt` en `DataRightsRequest`** sigue el mismo patrón que en `Request`, calculado a partir de `dataRightsRetentionMonths` (campo propio en `BusinessSettings`, independiente de `requestRetentionMonths`).
 - **`Product.slug` (añadido en la Fase 4 de implementación, no listado en el modelo ilustrativo anterior)**: la ficha pública de producto necesita una ruta estable y legible (`/catalogo/[slug]`). No se reutiliza `code` para esto porque `code` es un dato de gestión interna (editable libremente desde `/admin/products`, ver `product-management`); acoplar la URL pública a un campo mutable rompería enlaces compartidos cada vez que un administrador corrija un código. `slug` se genera una vez a partir del nombre al crear el producto (kebab-case, ASCII, único) y no se regenera automáticamente si el nombre cambia después — así una edición de nombre no rompe URLs ya indexadas o compartidas.
+- **Galería de fotografías por color (reemplaza el `ImageSlot` de 3 posiciones fijas de una revisión anterior)**: una fotografía normalmente corresponde al mismo armazón en un color concreto, no a una "vista" (frontal/lateral) — y un producto puede necesitar más de tres fotos. `ProductImage` ahora tiene largo variable, ordenado por `sortOrder` (reasignado consecutivo por la capa de servicio en cada alta/baja/reorden — **no** es una constraint de BD, para evitar tener que usar constraints diferibles solo para permitir intercambiar dos posiciones dentro de una transacción) y con una sola portada por producto (`isCover`, forzado por un índice único parcial de Postgres — `CREATE UNIQUE INDEX ... WHERE "isCover" = true`, no expresable en `schema.prisma`, documentado ahí y creado a mano en la migración). Cada fotografía pertenece a un `ProductColor` mediante una **FK compuesta** `(productColorId, productId) -> ProductColor(id, productId)` (lo que exige `@@unique([id, productId])` en `ProductColor`, redundante con su `id` propio pero necesario para que Postgres acepte el FK compuesto) — así "una fotografía no puede asociarse a un color de otro producto" queda garantizado por la base de datos, no solo por una validación de aplicación (verificado empíricamente: intentar esa asociación cruzada falla con una violación de FK). Como consecuencia, `ProductColor` dejó de poder borrarse y recrearse en cada edición del producto (comportamiento anterior) — la edición de colores ahora hace un diff por `id` (mantener/renombrar/crear) y rechaza explícitamente la eliminación de un color que todavía tenga fotografías asociadas, en vez de dejar que la constraint de BD lo bloquee con un error interno. El límite operativo de fotografías por producto (`MAX_PRODUCT_IMAGES`, documentado en `modules/catalog/README.md`) es una constante de aplicación, no un enum ni una constraint — puede subirse sin migración.
 
 ## Arquitectura de módulos
 
@@ -219,6 +242,7 @@ Los módulos `notifications` y `storage` están deliberadamente diseñados como 
 
 ## Estrategia de autenticación y autorización
 
+- **Inicio de sesión con correo o nombre de usuario (`username`, actualización aprobada durante la implementación)**: `/admin` acepta un único campo "identificador" que puede ser el correo o el `username` de la cuenta; el servidor resuelve cuál de los dos es mediante una sola búsqueda (`OR` sobre ambas columnas, ambas ya normalizadas a minúsculas al guardarse) y aplica exactamente las mismas reglas de rate limiting, mensaje de error genérico ("Correo/usuario o contraseña incorrectos", sin indicar cuál de los tres — identificador, contraseña, o si la cuenta existe — fue incorrecto) y verificación de cuenta activa, independientemente de qué identificador se usó.
 - **Sesión, no JWT stateless**: al iniciar sesión se crea una fila en `Session` (token aleatorio de alta entropía, solo su hash se persiste) y se entrega al navegador como cookie `httpOnly`, `sameSite=lax` (`secure` se activa cuando la app corra bajo HTTPS, es decir, en producción; en este entorno de desarrollo por HTTP local no aplica). Cada request valida la sesión contra la base de datos, lo que permite invalidarla (logout, expiración forzada, bloqueo de usuario) de inmediato.
 - **Hash de contraseña**: `argon2id` (o `bcrypt` como alternativa aceptable) — nunca contraseñas ni hashes reversibles; se reemplaza por completo el patrón de la maqueta (usuario/clave hardcodeados en JS del cliente). **Implementado con `bcryptjs`** (decisión de la Fase 6, no `argon2`/`bcrypt` nativos): ambos paquetes nativos requieren compilar un binding en la imagen Alpine (`musl`, no `glibc`) del contenedor `web`, con riesgo de fallas de build específicas de esa combinación (ver historial de incidentes de Node/Alpine de fases anteriores). `bcryptjs` es una reimplementación en JS puro de bcrypt, sin binarios nativos, ampliamente usada y auditada — corresponde exactamente a la alternativa ya aprobada en este mismo párrafo ("o `bcrypt` como alternativa aceptable").
 - **Roles**: `SUPERADMIN` (puede gestionar `/admin/users` y `/admin/settings`) y `ADMIN` (puede operar `/admin/products`, `/admin/requests`, `/admin/home-visits`, pero no gestionar usuarios). El primer usuario creado en la Fase 6 es `SUPERADMIN`.
@@ -234,9 +258,24 @@ Los módulos `notifications` y `storage` están deliberadamente diseñados como 
 - **En este entorno de desarrollo**: el backend es el servicio `minio` del Docker Compose (ver "Entorno de desarrollo local"), con `OBJECT_STORAGE_FORCE_PATH_STYLE=true` (requerido por MinIO) y el bucket creado automáticamente por `minio-init`.
 - **Proveedor productivo**: se decide cuando se aprovisione la infraestructura productiva (fuera de esta propuesta); gracias a la abstracción, ese cambio es solo de configuración (variables de entorno), no de código.
 - **Flujo de subida**: el navegador sube el archivo a una ruta del servidor (no al almacenamiento directamente, para poder validar/redimensionar antes de persistir) → el servidor valida tipo MIME y tamaño máximo → redimensiona/optimiza con una librería server-side (reemplazando el resize por `<canvas>` del navegador que hace el mockup) → sube el resultado al almacenamiento de objetos → guarda `storageKey` + URL en `ProductImage`.
-- **Acceso**: imágenes de producto se sirven como contenido público de solo lectura (no son datos sensibles); solo la aplicación (vía credenciales de servicio) puede escribir.
-- **Optimización de entrega**: `next/image` (u otro pipeline de optimización) sirviendo desde el endpoint configurado, en vez de imágenes base64 embebidas como hace el mockup.
+- **Acceso**: imágenes de producto se sirven como contenido público de solo lectura (no son datos sensibles); solo la aplicación (vía credenciales de servicio) puede escribir. En desarrollo, el job `minio-init` (Fase 1) ejecuta además `mc anonymous set download` sobre el bucket (añadido en la Fase 7) para habilitar la lectura anónima — sin esto, MinIO deja el bucket privado por defecto y ninguna URL guardada en `ProductImage.url` cargaría en un navegador.
+- **`OBJECT_STORAGE_PUBLIC_URL` (variable añadida en la Fase 7, no prevista en el listado original)**: `OBJECT_STORAGE_ENDPOINT` (`http://minio:9000`) es el hostname interno de Docker que solo el contenedor `web` puede resolver — usado para las llamadas servidor-a-servidor (subida/eliminación). Un navegador en el host no puede resolver `minio`, por lo que las URLs guardadas en `ProductImage.url` usan en cambio `OBJECT_STORAGE_PUBLIC_URL` (`http://localhost:9000` en desarrollo, ya que el puerto de MinIO está publicado en `127.0.0.1:9000`). Ambas variables apuntan al mismo bucket; la distinción es puramente sobre qué red puede resolver cada hostname. En producción, si el proveedor de almacenamiento expone un único dominio público accesible tanto por el servidor como por el navegador, ambas variables pueden coincidir.
+- **Cliente S3**: `@aws-sdk/client-s3` (SDK oficial de AWS, protocolo S3 estándar — no un SDK propietario de MinIO), con `forcePathStyle` según `OBJECT_STORAGE_FORCE_PATH_STYLE`.
+- **Procesamiento de imágenes**: `sharp` (server-side, con binarios prebuilt para Alpine/musl — se verificó explícitamente que instala y corre en la imagen `node:22-alpine` del contenedor `web` antes de adoptarla, dado el precedente de `bcryptjs` con `argon2`/`bcrypt` nativos en la Fase 6). Redimensiona a un máximo de 1200px por lado (sin ampliar imágenes más pequeñas) y reencoda siempre a JPEG calidad 82 — esto es lo que satisface el requisito de "procesamiento server-side" del spec, independientemente de si `next/image` puede optimizar la entrega (ver el punto siguiente).
+- **Optimización de entrega — limitación conocida de este entorno**: `next/image` se sigue usando como componente de renderizado (lazy-loading, `alt`, prevención de CLS), pero con la prop `unoptimized` en los componentes públicos de catálogo/ficha y en la previsualización del panel admin. Motivo: el optimizador integrado de Next.js rechaza —de forma no configurable, por diseño, como protección contra SSRF— cualquier imagen cuyo host resuelva a una dirección de red privada (loopback, rangos RFC 1918), sin importar lo que declare `remotePatterns`. MinIO en este entorno **siempre** resuelve a una dirección privada (la IP interna de Docker, o `127.0.0.1` vía el puerto publicado), por lo que el redimensionado/reformateo en tiempo de request de `next/image` nunca puede completarse aquí — se verificó empíricamente (log: `upstream image ... resolved to private ip`). Esto no compromete el requisito funcional porque el redimensionado/optimización real ya ocurre server-side al subir la imagen (punto anterior); lo único que se pierde es la generación de `srcset`/negociación de formato en tiempo de entrega. Un proveedor productivo con un endpoint verdaderamente público no tendría esta restricción y podría quitar `unoptimized` sin ningún otro cambio de código.
 - **Reemplaza directamente** el patrón identificado en `docs/functional-gaps.md` sección 2 (imágenes base64 dentro de `localStorage`, sin límite de tamaño real, sin optimización real).
+
+## Almacenamiento privado de adjuntos de solicitudes (actualización aprobada durante la implementación)
+
+Las fotografías de producto (sección anterior) son contenido público de solo lectura. Una receta óptica adjunta a una cotización **es un dato privado del cliente** y nunca debe tratarse con el mismo modelo de acceso — esta sección documenta esa separación explícita.
+
+- **Bucket separado**: `PRIVATE_OBJECT_STORAGE_BUCKET` (variable de entorno propia, distinta de `OBJECT_STORAGE_BUCKET`), creado automáticamente por `minio-init` igual que el bucket público, pero **sin** `mc anonymous set download` — permanece privado por defecto (`mc anonymous set none`, explícito). Nunca se guarda ni se construye una URL pública permanente contra este bucket, a diferencia de `ProductImage.url`.
+- **Qué se sube**: el archivo se valida en el servidor por tipo MIME declarado (`application/pdf`, `image/jpeg`, `image/png`, `image/webp` únicamente) y tamaño máximo (10 MB), y además se verifica que el **contenido real** del archivo corresponda al tipo declarado (firma `%PDF` para PDF; decodificación real vía la misma librería de procesamiento de imágenes del servidor para JPG/PNG/WebP) — un archivo cuyo contenido no coincide con lo declarado se rechaza, sin importar la extensión o el `Content-Type` que el navegador haya enviado.
+- **Nombre de archivo sanitizado**: el nombre original se limpia de cualquier ruta y caracteres de control antes de guardarse (`RequestAttachment.originalFileName`); nunca se persiste el nombre crudo del sistema de archivos del cliente.
+- **Flujo transaccional**: (1) validar metadata y contenido del archivo — sin tocar almacenamiento todavía; (2) resolver producto/color/marca de la cotización (puede fallar por razones no relacionadas con el archivo, y en tal caso el archivo nunca se sube); (3) subir el archivo al bucket privado; (4) crear `Request` + `RequestAttachment` en una sola operación atómica; (5) si la persistencia en PostgreSQL falla después de subir el archivo, el objeto recién subido se elimina del bucket como compensación (nunca queda un archivo huérfano); (6) las notificaciones por correo solo se envían después de que la solicitud quedó persistida exitosamente.
+- **Acceso administrativo**: nunca una URL pública. El panel administrativo (`request-inbox`) muestra que existe un adjunto (tipo, nombre, tamaño) y ofrece verlo/descargarlo mediante una acción autenticada que, tras verificar sesión y autorización server-side, genera una **URL firmada de corta duración** (60 segundos) contra el bucket privado y la entrega al navegador del administrador. Cada generación de URL firmada (cada "vista" o "descarga") queda registrada en `AuditLogEntry`. El bucket privado en sí nunca se expone directamente al cliente.
+- **En los correos transaccionales**: cuando una cotización incluye un adjunto, el correo al negocio únicamente indica que existe una receta adjunta disponible en el panel administrativo — nunca incluye el archivo como adjunto de correo, ni su `storageKey`, ni una URL (firmada o no) hacia él. Ver "Estrategia de correo" más abajo.
+- **`RequestAttachment` como tabla separada** (no un campo `Json` dentro de `Request.details`) precisamente para poder aplicarle sus propias reglas de acceso/almacenamiento sin mezclarlas con el resto del detalle de la solicitud, y para permitir soft-delete independiente (`deletedAt`) sin alterar el resto de `Request`.
 
 ## Estrategia de correo
 
@@ -246,7 +285,11 @@ Los módulos `notifications` y `storage` están deliberadamente diseñados como 
 - **Disparadores**: al enviar una `Request` (cotización o atención a domicilio) válida, se envían dos correos — confirmación al cliente (si dejó correo) y notificación al negocio (dirección configurada en `business-settings`). Al crearse una `DataRightsRequest`, se envía una notificación al negocio (sin confirmación al cliente, según lo aprobado).
 - **No bloqueante**: el envío de correo ocurre después de persistir la solicitud (nunca se pierde si el correo falla); cada intento se registra en `EmailLog` con su resultado.
 - **Reintentos**: no se implementa una cola de reintentos automáticos en esta etapa; un fallo queda registrado en `EmailLog` como `FAILED`.
-- **Plantillas**: HTML simple con el sistema visual de la marca (colores/tipografía self-hosted), sin dependencias de servicios de plantillas externos.
+- **Plantillas — HTML profesional + texto plano equivalente, siempre ambos (actualización aprobada durante la implementación)**: cada correo transaccional (confirmación de cotización, notificación de cotización al negocio, confirmación de atención a domicilio, notificación de atención a domicilio, notificación de derechos ARCO) se genera con `subject` + `html` + `text`, enviados simultáneamente por Nodemailer — nunca solo uno de los dos. El HTML está pensado para clientes de correo reales, no para un navegador: ancho máximo ~600px, layout basado en tablas, estilos inline, sin JavaScript, sin formularios, sin dependencias de fuentes remotas (misma pila seguras Arial/Helvetica que el resto de la regla de self-hosted fonts), sin imágenes en base64. Un componente/función reutilizable arma el documento (encabezado con logo, banda de marca, tarjeta de información, botón de llamada a la acción, aviso, pie de página corporativo) para no duplicar el HTML completo por plantilla.
+- **Branding**: colores tomados de los mismos tokens de marca del sitio público (azul marino, fucsia/rosado, verde para WhatsApp/estados positivos), logo de Pepi Visión 360 mediante una **URL absoluta configurable** (`EMAIL_ASSET_BASE_URL`, con `APP_URL` como respaldo si no se define) — nunca una ruta relativa ni un host interno de Docker, porque un cliente de correo no puede resolver ninguno de los dos. El logo incluye `alt` descriptivo y un texto de marca visible junto al logo como respaldo si el cliente de correo bloquea imágenes.
+- **Escape de contenido dinámico**: todo texto proveniente de un formulario público (nombre, mensaje, comuna, correo, teléfono, marca/modelo/color resueltos, descripción de una solicitud ARCO) se escapa antes de insertarse en el HTML, para prevenir inyección de HTML/scripts a través de un campo de texto libre.
+- **Nunca se expone en un correo**: el archivo de una receta adjunta, su `storageKey`, ninguna URL (firmada o no) hacia el bucket privado, contraseñas, tokens, ni ningún otro dato técnico interno — ver "Almacenamiento privado de adjuntos de solicitudes".
+- **Remitente y entregabilidad (actualización aprobada durante la implementación)**: el remitente incluye un nombre visible (no solo una dirección), y el "Responder a" nunca es la dirección `no-reply` — en un correo al cliente apunta al correo real de contacto del negocio, y en un correo al negocio apunta al correo del cliente cuando existe, para permitir responder con un clic. Se agregan las cabeceras `Auto-Submitted: auto-generated` y `X-Auto-Response-Suppress: All` (RFC 3834) para señalar correo transaccional automático. El transporte SMTP admite TLS configurable (`SMTP_SECURE`, `SMTP_REQUIRE_TLS`, ambos en `false` en este entorno porque Mailpit no soporta TLS) y firma DKIM opcional (`DKIM_DOMAIN_NAME`, `DKIM_KEY_SELECTOR`, `DKIM_PRIVATE_KEY`, las tres en blanco en desarrollo). SPF y DMARC son registros DNS del dominio real de envío — quedan fuera del alcance de esta propuesta (ver "Infraestructura productiva"), documentados aquí como requisito pendiente para el despliegue productivo.
 
 ## Controles de seguridad
 
@@ -263,6 +306,7 @@ Acotados a lo relevante para un entorno de desarrollo local — los controles es
 - **Dependencias**: `npm audit`/Dependabot (o equivalente) como parte de CI para detectar vulnerabilidades conocidas.
 - **Auditoría administrativa** (detallada en la sección de autenticación) como control de trazabilidad.
 - **Sin credenciales de AWS en ningún lado**: ni en código, ni en `.env.example`, ni en el propio `.env` de desarrollo — esta implementación no las necesita.
+- **Adjuntos privados de solicitudes nunca en el bucket público (actualización aprobada durante la implementación)**: la receta óptica adjunta a una cotización vive en un bucket separado (`PRIVATE_OBJECT_STORAGE_BUCKET`) sin acceso anónimo y sin URL pública permanente; el único acceso es una URL firmada de corta duración generada tras autenticación y autorización, con cada acceso auditado — ver "Almacenamiento privado de adjuntos de solicitudes".
 
 ## Entorno de desarrollo local (Docker Compose) — Fase 1
 
@@ -276,13 +320,13 @@ sin necesitar ninguna cuenta ni credencial de un proveedor cloud, y sin instalar
 
 | Servicio | Rol | Notas clave |
 |---|---|---|
-| **`web`** | Aplicación Next.js, TypeScript estricto | Hot reload; código fuente montado por volumen (bind mount) desde el host; puerto interno `3000` (no publicado directamente al host — solo alcanzable a través de `nginx`); healthcheck sobre un endpoint propio de salud. |
+| **`web`** | Aplicación Next.js, TypeScript estricto | Hot reload; código fuente montado por volumen (bind mount) desde el host; puerto interno `3000` (no publicado directamente al host — solo alcanzable a través de `nginx`); healthcheck sobre un endpoint propio de salud. **Actualización aprobada durante la implementación**: `logging.serverFunctions` deshabilitado explícitamente (el logging por defecto de Server Actions en modo dev de Next.js imprimiría contraseñas en texto plano en `docker compose logs web` para acciones como el login); límite de tamaño de Server Actions (`experimental.serverActions.bodySizeLimit`) alineado a 10 MB con el límite de imágenes de producto (ver fila `nginx`). |
 | **`postgres`** | Base de datos | Imagen con **versión fijada** (no `latest`); volumen persistente nombrado; healthcheck (`pg_isready`); `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` desde variables de entorno; puerto publicado únicamente en `127.0.0.1` (nunca en `0.0.0.0`). |
 | **`migrate`** | Job puntual | Usa la misma imagen/código que `web`; ejecuta las migraciones de Prisma contra `postgres`; `depends_on: postgres` con condición `service_healthy`; no queda corriendo (sale con código 0 tras aplicar las migraciones — comportamiento esperado, no un error). |
 | **`minio`** | Almacenamiento de objetos local (S3-compatible) | Volumen persistente nombrado; healthcheck propio; expone API y consola web; credenciales (`MINIO_ROOT_USER`/`MINIO_ROOT_PASSWORD`) desde variables de entorno; puertos publicados únicamente en `127.0.0.1`. |
 | **`minio-init`** | Job puntual | Espera a que `minio` esté `service_healthy`; crea automáticamente el bucket (`OBJECT_STORAGE_BUCKET`) si no existe; no queda corriendo tras completar la tarea. |
 | **`mailpit`** | SMTP local para desarrollo | Recibe cualquier correo que la app envíe vía `SMTP_HOST=mailpit`; expone su interfaz web para inspeccionar los mensajes; **no reenvía nada a destinatarios reales**. |
-| **`nginx`** | Reverse proxy local | Publica la aplicación en `http://localhost:8080`; hace proxy hacia `web:3000`; soporta cabeceras `Upgrade`/`Connection` para que el hot reload (WebSocket) de Next.js funcione a través del proxy; **sin HTTPS** en este entorno. |
+| **`nginx`** | Reverse proxy local | Publica la aplicación en `http://localhost:8080`; hace proxy hacia `web:3000`; soporta cabeceras `Upgrade`/`Connection` para que el hot reload (WebSocket) de Next.js funcione a través del proxy; **sin HTTPS** en este entorno. Reenvía `Host`/`X-Forwarded-Host` usando `$http_host` (no `$host`, que descarta el puerto) más `X-Forwarded-Proto`/`X-Forwarded-Port` — necesario para que la verificación de mismo origen de los Server Actions de Next.js (que compara `Origin` contra el host reconstruido a partir de estas cabeceras) no rechace las peticiones legítimas del navegador en `:8080` con "Invalid Server Actions request" (bug corregido post-Fase 7, ver `nginx/dev.conf`). **Actualización aprobada durante la implementación**: `client_max_body_size 10m`, alineado con el límite de Server Actions de `web`, para que la subida de fotografías de producto no sea rechazada por el proxy antes de llegar a la aplicación. |
 | **`adminer`** *(opcional)* | Explorador de base de datos | Bajo el profile `tools` (`docker compose --profile tools up`), **no** se levanta con el `docker compose up --build` estándar; no es obligatorio para correr la aplicación. |
 
 **Requisitos transversales del `docker-compose.yml`:**
@@ -303,8 +347,13 @@ sin necesitar ninguna cuenta ni credencial de un proveedor cloud, y sin instalar
 | `DATABASE_URL` (o `POSTGRES_DB`/`POSTGRES_USER`/`POSTGRES_PASSWORD` + host `postgres`) | Conexión de Prisma/`web`/`migrate` a la base de datos. |
 | `SESSION_SECRET` | Firma de sesiones (`admin-auth`). |
 | `OBJECT_STORAGE_ENDPOINT`, `OBJECT_STORAGE_REGION`, `OBJECT_STORAGE_BUCKET`, `OBJECT_STORAGE_ACCESS_KEY`, `OBJECT_STORAGE_SECRET_KEY`, `OBJECT_STORAGE_FORCE_PATH_STYLE` | Abstracción de almacenamiento de objetos (`product-image-storage`); en desarrollo apuntan a `minio`. |
+| `OBJECT_STORAGE_PUBLIC_URL` (Fase 7) | Base URL accesible desde el navegador para las imágenes de producto — distinta de `OBJECT_STORAGE_ENDPOINT` (servidor-a-servidor, hostname interno de Docker). |
+| `PRIVATE_OBJECT_STORAGE_BUCKET` (actualización aprobada durante la implementación) | Bucket separado y privado (sin acceso anónimo, sin `*_PUBLIC_URL` propio) para adjuntos sensibles de solicitudes (recetas) — ver "Almacenamiento privado de adjuntos de solicitudes". |
 | `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` | Credenciales del propio contenedor `minio` (en desarrollo, pueden coincidir con `OBJECT_STORAGE_ACCESS_KEY`/`SECRET_KEY` por simplicidad; en producción el proveedor real definirá sus propias credenciales de menor privilegio). |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | Abstracción de correo (`notifications`); en desarrollo apuntan a `mailpit` sin autenticación real. |
+| `SMTP_SECURE`, `SMTP_REQUIRE_TLS` (actualización aprobada durante la implementación) | Postura TLS de la conexión SMTP — ambas en `false` en este entorno (Mailpit no soporta TLS); un proveedor productivo real debe activar al menos una. |
+| `DKIM_DOMAIN_NAME`, `DKIM_KEY_SELECTOR`, `DKIM_PRIVATE_KEY` (actualización aprobada durante la implementación) | Firma DKIM opcional del correo saliente — las tres en blanco en desarrollo (Mailpit no valida firmas); se activan juntas cuando exista un dominio de envío productivo real con su clave pública publicada en DNS. |
+| `EMAIL_ASSET_BASE_URL` (actualización aprobada durante la implementación) | Base URL absoluta para assets dentro de correos (el logo) — opcional, usa `APP_URL` como respaldo si no se define; nunca una ruta relativa ni un hostname interno de Docker. |
 
 ## Infraestructura productiva
 
@@ -365,6 +414,14 @@ Para considerar completo el alcance descrito en esta propuesta (entorno de desar
 25. Ningún comando de la aplicación (`npm`, Prisma, tests, build) se ejecuta directamente en el host: todos corren dentro de contenedores vía `docker compose exec`/`docker compose run`, verificable inspeccionando los scripts/documentación del repositorio.
 26. El host solo requiere tener instalados Docker y Docker Compose; no hay ninguna instalación local de PostgreSQL, MinIO, Nginx ni Mailpit fuera de los contenedores del propio `compose.yaml`.
 
+**Actualizaciones aprobadas durante la implementación (adicionales a los 26 criterios originales):**
+
+27. Un administrador puede iniciar sesión en `/admin` usando su nombre de usuario además de su correo, con el mismo mensaje de error genérico ante credenciales inválidas independientemente del identificador usado.
+28. Cada producto tiene una galería de fotografías de largo variable (no limitada a 3 posiciones fijas), cada fotografía asociada a uno de los colores del producto, con orden explícito y una portada designable; agregar o quitar un color se refleja de inmediato tanto en el selector de colores como en la galería, sin necesidad de guardar el formulario completo y volver a entrar.
+29. Cada producto puede tener una marca (`Brand`) asignada; el catálogo público permite filtrar por marca y la muestra en tarjetas, ficha de producto y cotizador; el panel administrativo permite seleccionarla desde una lista de marcas activas. Los productos existentes antes de esta adición permanecen válidos sin marca asignada.
+30. El cotizador permite adjuntar opcionalmente el archivo de una receta óptica (PDF/JPG/PNG/WebP, máximo 10 MB); el archivo se almacena en un bucket privado sin acceso anónimo y sin URL pública permanente; un administrador autenticado puede verlo/descargarlo mediante una URL firmada de corta duración, y cada acceso queda registrado en `AuditLogEntry`.
+31. Cada correo transaccional se genera con una versión HTML profesional (compatible con clientes de correo reales) y una versión de texto plano equivalente, enviadas simultáneamente; el HTML incluye el logo mediante una URL absoluta configurable, escapa todo contenido dinámico, y nunca incluye el archivo de una receta adjunta ni su referencia de almacenamiento.
+
 ## Riesgos / Trade-offs
 
 | Riesgo | Mitigación |
@@ -381,6 +438,9 @@ Para considerar completo el alcance descrito en esta propuesta (entorno de desar
 | Mezclar solicitudes comerciales (2 estados) y de derechos ARCO (4 estados) dentro de la misma ruta `/admin/requests` puede confundir a los administradores | Sección/tab claramente diferenciada ("Derechos ARCO") con su propio flujo de estados. |
 | Ejecutar comprobaciones de accesibilidad (axe/Lighthouse CI) sin un umbral numérico acordado puede volverse un gate ignorable o, al revés, bloquear builds por regresiones menores | Definir el umbral concreto (score mínimo, cero violaciones críticas de axe) al implementar el pipeline en la Fase 9. |
 | Confundir "MinIO/Mailpit en desarrollo" con "la solución productiva" y nunca migrar a un proveedor real | Este documento y `proposal.md` dejan explícito, repetidamente, que la infraestructura productiva es una propuesta futura separada — no una extensión automática de este entorno. |
+| Confundir `Brand` (capacidad concreta de v1) con la arquitectura de catálogo multi-categoría | Documentado explícitamente en "Decisiones de modelado" y en `proposal.md`: `Brand` no anticipa ni sustituye el diseño de `redesign-extensible-catalog-v2`, que se aborda como propuesta separada. |
+| Un adjunto privado de receta mal configurado (bucket equivocado, ACL anónima por error) expondría datos sensibles del cliente | Bucket separado del de fotografías de producto, creado con `mc anonymous set none` explícito (no solo "no llamar `set download`"), verificado empíricamente (acceso anónimo directo devuelve 403); único acceso vía URL firmada de 60 segundos generada tras autenticación. |
+| Sin SPF/DKIM/DMARC configurados (dependen de un dominio de envío productivo real, fuera de este alcance), los correos podrían clasificarse como spam en un despliegue productivo | DKIM ya soportado por el código (activación por variables de entorno cuando exista el dominio); SPF/DMARC documentados como requisito pendiente de la infraestructura productiva, no de esta implementación. |
 
 ## Riesgos y decisiones pendientes
 
