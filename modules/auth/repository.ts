@@ -5,12 +5,27 @@ export function findAdminByEmail(email: string) {
   return prisma.adminUser.findUnique({ where: { email } });
 }
 
+export function findAdminByUsername(username: string) {
+  return prisma.adminUser.findUnique({ where: { username } });
+}
+
+/** Login lookup: identifier is already trim+lowercased by loginSchema, matching how both columns are stored. */
+export function findAdminByIdentifier(identifier: string) {
+  return prisma.adminUser.findFirst({ where: { OR: [{ email: identifier }, { username: identifier }] } });
+}
+
 export function findAdminById(id: string) {
   return prisma.adminUser.findUnique({ where: { id } });
 }
 
+// Excludes passwordHash: this list is passed to a Client Component
+// (UserManager) and Server->Client props are serialized into the page's
+// RSC payload, so anything selected here is visible in the browser.
 export function listAdminUsers() {
-  return prisma.adminUser.findMany({ orderBy: { createdAt: 'asc' } });
+  return prisma.adminUser.findMany({
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, email: true, username: true, name: true, role: true, active: true },
+  });
 }
 
 export function countActiveSuperadmins(excludeId?: string) {
@@ -21,6 +36,7 @@ export function countActiveSuperadmins(excludeId?: string) {
 
 export function createAdminUser(data: {
   email: string;
+  username: string;
   name: string;
   passwordHash: string;
   role: AdminRole;

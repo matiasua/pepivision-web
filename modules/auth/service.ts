@@ -20,7 +20,9 @@ import {
   createSession,
   deleteSessionByTokenHash,
   findAdminByEmail,
+  findAdminByIdentifier,
   findAdminById,
+  findAdminByUsername,
   findSessionByTokenHash,
   listAdminUsers,
   listAuditLogEntries,
@@ -31,10 +33,11 @@ import type { CreateAdminUserInput, LoginInput } from './schemas';
 const LOGIN_RATE_LIMIT_MAX = 5;
 const LOGIN_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 
-// Every login failure (unknown email, wrong password, inactive user) returns
-// this exact same message — see specs/admin-auth/spec.md: never reveal
-// which part was wrong, nor whether the account exists.
-const GENERIC_LOGIN_ERROR = 'Correo o contraseña incorrectos.';
+// Every login failure (unknown identifier, wrong password, inactive user)
+// returns this exact same message — see specs/admin-auth/spec.md: never
+// reveal which part was wrong, nor whether the account exists, nor whether
+// the identifier resolved to an email or a username.
+const GENERIC_LOGIN_ERROR = 'Correo/usuario o contraseña incorrectos.';
 
 export interface CurrentSession {
   sessionId: string;
@@ -77,13 +80,13 @@ export async function login(
   input: LoginInput,
   context: { ip: string | null; userAgent: string | null }
 ): Promise<LoginResult> {
-  const rateLimitKey = `${context.ip ?? 'unknown'}:${input.email}`;
+  const rateLimitKey = `${context.ip ?? 'unknown'}:${input.identifier}`;
 
   if (isRateLimited(rateLimitKey, LOGIN_RATE_LIMIT_MAX, LOGIN_RATE_LIMIT_WINDOW_MS)) {
     return { ok: false, message: 'Demasiados intentos. Espera unos minutos antes de volver a intentarlo.' };
   }
 
-  const admin = await findAdminByEmail(input.email);
+  const admin = await findAdminByIdentifier(input.identifier);
   const passwordValid = admin ? await verifyPassword(input.password, admin.passwordHash) : false;
 
   if (!admin || !admin.active || !passwordValid) {
@@ -93,7 +96,7 @@ export async function login(
       action: 'admin.login_failed',
       targetType: 'AdminUser',
       targetId: admin?.id ?? null,
-      metadata: { email: input.email },
+      metadata: { identifier: input.identifier },
       ip: context.ip,
     });
     return { ok: false, message: GENERIC_LOGIN_ERROR };
@@ -146,19 +149,34 @@ export async function logout(context: { ip: string | null }): Promise<void> {
   }
 }
 
-/** Used only by scripts/create-superadmin.ts — not exposed via any HTTP route. */
-export async function createSuperadmin(input: { email: string; name: string; password: string }) {
-  const existing = await findAdminByEmail(input.email.toLowerCase());
-  if (existing) {
-    throw new ValidationError(`Ya existe un usuario administrador con el correo ${input.email}.`);
-  }
+/**
+ * Used only by scripts/create-superadmin.ts — not exposed via any HTTP
+ * route. Idempotent: creates the account if it doesn't exist yet;
+ * otherwise resets its password (and role/name/active) to the given
+ * values — a controlled reset for local dev, never a silent failure.
+ */
+export async function provisionDevAdminUser(input: {
+  email: string;
+  username: string;
+  name: string;
+  password: string;
+  role: AdminRole;
+}) {
+  const email = input.email.trim().toLowerCase();
+  const username = input.username.trim().toLowerCase();
   const passwordHash = await hashPassword(input.password);
-  return createAdminUserRow({
-    email: input.email.toLowerCase(),
-    name: input.name,
-    passwordHash,
-    role: 'SUPERADMIN',
-  });
+  const existing = await findAdminByEmail(email);
+
+  const usernameOwner = await findAdminByUsername(username);
+  if (usernameOwner && usernameOwner.id !== existing?.id) {
+    throw new ValidationError(`El nombre de usuario "${username}" ya está en uso por otra cuenta.`);
+  }
+
+  if (existing) {
+    return updateAdminUser(existing.id, { passwordHash, name: input.name, role: input.role, active: true, username });
+  }
+
+  return createAdminUserRow({ email, username, name: input.name, passwordHash, role: input.role });
 }
 
 export async function listUsers() {
@@ -166,13 +184,18 @@ export async function listUsers() {
 }
 
 export async function createAdminUser(input: CreateAdminUserInput, actor: CurrentSession) {
-  const existing = await findAdminByEmail(input.email);
-  if (existing) {
+  const existingEmail = await findAdminByEmail(input.email);
+  if (existingEmail) {
     throw new ValidationError('Ya existe un usuario administrador con ese correo.');
+  }
+  const existingUsername = await findAdminByUsername(input.username);
+  if (existingUsername) {
+    throw new ValidationError('Ya existe un usuario administrador con ese nombre de usuario.');
   }
   const passwordHash = await hashPassword(input.password);
   const user = await createAdminUserRow({
     email: input.email,
+    username: input.username,
     name: input.name,
     passwordHash,
     role: input.role,
@@ -182,7 +205,7 @@ export async function createAdminUser(input: CreateAdminUserInput, actor: Curren
     action: 'admin.user_created',
     targetType: 'AdminUser',
     targetId: user.id,
-    metadata: { email: user.email, role: user.role },
+    metadata: { email: user.email, username: user.username, role: user.role },
     ip: null,
   });
   return user;

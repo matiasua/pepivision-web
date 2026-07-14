@@ -1,81 +1,19 @@
-interface EmailContent {
-  subject: string;
-  text: string;
-}
+// Thin barrel over modules/notifications/email/templates/* — kept as the
+// stable import path every caller (modules/requests, modules/data-rights)
+// already uses, so the HTML-template rework didn't need to touch import
+// paths across the codebase. The actual template logic (HTML + text +
+// subject + preheader) lives in modules/notifications/email/.
+export { quoteCustomerConfirmation } from './email/templates/quote-customer-confirmation';
+export type { QuoteCustomerConfirmationInput } from './email/templates/quote-customer-confirmation';
 
-export function quoteCustomerConfirmation(name: string): EmailContent {
-  return {
-    subject: 'Recibimos tu cotización — Pepi Visión 360',
-    text: `Hola ${name},\n\nRecibimos tu solicitud de cotización. Te contactaremos pronto con un presupuesto referencial. El valor final dependerá de tu receta, el armazón y los tratamientos seleccionados.\n\nGracias por escribirnos.\nPepi Visión 360`,
-  };
-}
+export { quoteBusinessNotification } from './email/templates/quote-business-notification';
+export type { QuoteBusinessNotificationInput } from './email/templates/quote-business-notification';
 
-export function quoteBusinessNotification(details: {
-  requestId: string;
-  name: string;
-  phone: string;
-  email: string | null;
-  comuna: string | null;
-  message: string | null;
-}): EmailContent {
-  return {
-    subject: `Nueva cotización — ${details.name}`,
-    text: [
-      `Nueva solicitud de cotización (id ${details.requestId}).`,
-      `Nombre: ${details.name}`,
-      `Teléfono: ${details.phone}`,
-      `Correo: ${details.email ?? '(no proporcionado)'}`,
-      `Comuna: ${details.comuna ?? '(no proporcionada)'}`,
-      `Mensaje: ${details.message ?? '(sin mensaje)'}`,
-    ].join('\n'),
-  };
-}
+export { homeVisitCustomerConfirmation } from './email/templates/home-visit-customer-confirmation';
+export type { HomeVisitCustomerConfirmationInput } from './email/templates/home-visit-customer-confirmation';
 
-export function homeVisitCustomerConfirmation(name: string): EmailContent {
-  return {
-    subject: 'Recibimos tu consulta de atención a domicilio — Pepi Visión 360',
-    text: `Hola ${name},\n\nRevisaremos la cobertura para tu comuna y te contactaremos a la brevedad. Gracias por escribirnos.\n\nPepi Visión 360`,
-  };
-}
+export { homeVisitBusinessNotification } from './email/templates/home-visit-business-notification';
+export type { HomeVisitBusinessNotificationInput } from './email/templates/home-visit-business-notification';
 
-export function homeVisitBusinessNotification(details: {
-  requestId: string;
-  name: string;
-  phone: string;
-  email: string | null;
-  comuna: string;
-  attentionType: string | null;
-}): EmailContent {
-  return {
-    subject: `Nueva consulta de atención a domicilio — ${details.name}`,
-    text: [
-      `Nueva consulta de atención a domicilio (id ${details.requestId}).`,
-      `Nombre: ${details.name}`,
-      `Comuna: ${details.comuna}`,
-      `Teléfono: ${details.phone}`,
-      `Correo: ${details.email ?? '(no proporcionado)'}`,
-      `Tipo de atención: ${details.attentionType ?? '(no especificado)'}`,
-    ].join('\n'),
-  };
-}
-
-export function dataRightsBusinessNotification(details: {
-  requestId: string;
-  rightTypeLabel: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  description: string;
-}): EmailContent {
-  return {
-    subject: `Nueva solicitud de derechos ARCO — ${details.rightTypeLabel}`,
-    text: [
-      `Nueva solicitud de derechos ARCO (id ${details.requestId}).`,
-      `Derecho: ${details.rightTypeLabel}`,
-      `Nombre: ${details.name}`,
-      `Correo: ${details.email}`,
-      `Teléfono: ${details.phone ?? '(no proporcionado)'}`,
-      `Descripción: ${details.description}`,
-    ].join('\n'),
-  };
-}
+export { dataRightsBusinessNotification } from './email/templates/data-rights-business-notification';
+export type { DataRightsBusinessNotificationInput } from './email/templates/data-rights-business-notification';

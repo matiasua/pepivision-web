@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { loginAction } from '@/app/admin/actions';
 
 export function LoginCard() {
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
@@ -14,7 +14,7 @@ export function LoginCard() {
   function handleSubmit() {
     setError('');
     startTransition(async () => {
-      const result = await loginAction({ email, password });
+      const result = await loginAction({ identifier, password });
       if (result.status === 'error') {
         setError(result.message);
         return;
@@ -31,13 +31,13 @@ export function LoginCard() {
       </div>
 
       <div className="rounded-card border border-line bg-white p-6.5 shadow-brand">
-        <label className="text-[13px] font-semibold text-navy">Correo</label>
+        <label className="text-[13px] font-semibold text-navy">Correo o nombre de usuario</label>
         <input
-          type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          type="text"
+          value={identifier}
+          onChange={(event) => setIdentifier(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && handleSubmit()}
-          placeholder="tu@correo.cl"
+          placeholder="tu@correo.cl o tu-usuario"
           autoComplete="username"
           className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 outline-none"
         />

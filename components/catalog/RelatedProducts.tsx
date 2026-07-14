@@ -3,6 +3,8 @@ import Link from 'next/link';
 import type { CatalogProductView } from '@/modules/catalog/service';
 import { ImagePlaceholder } from './ImagePlaceholder';
 
+// `unoptimized`: see the comment on ProductGallery — next/image's optimizer
+// can't fetch from MinIO's private-network address in this environment.
 export function RelatedProducts({ products }: { products: CatalogProductView[] }) {
   if (products.length === 0) return null;
 
@@ -17,8 +19,8 @@ export function RelatedProducts({ products }: { products: CatalogProductView[] }
             className="overflow-hidden rounded-2xl border border-line bg-white shadow-brand-sm transition-transform duration-200 hover:-translate-y-1"
           >
             <div className="relative aspect-[4/3] bg-gray">
-              {product.mainImageUrl ? (
-                <Image src={product.mainImageUrl} alt={product.name} fill className="object-cover" />
+              {product.coverImageUrl ? (
+                <Image src={product.coverImageUrl} alt={product.name} fill className="object-cover" unoptimized />
               ) : (
                 <ImagePlaceholder label="Foto armazón" />
               )}

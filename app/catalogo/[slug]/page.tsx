@@ -42,18 +42,16 @@ export default async function ProductoPage({ params }: { params: Promise<Params>
       </Link>
 
       <div className="grid grid-cols-1 items-start gap-11 lg:grid-cols-2">
-        <ProductGallery
-          name={product.name}
-          mainImageUrl={product.mainImageUrl}
-          frontImageUrl={product.frontImageUrl}
-          sideImageUrl={product.sideImageUrl}
-        />
+        <ProductGallery name={product.name} images={product.images} colors={product.colors} />
 
         <div>
           {product.badgeLabel ? (
             <span className="mb-3 inline-block rounded-pill bg-navy px-3.5 py-1.5 text-xs font-semibold text-white">
               {product.badgeLabel}
             </span>
+          ) : null}
+          {product.brandName ? (
+            <div className="text-[12.5px] font-semibold uppercase tracking-wide text-[#93a0bd]">{product.brandName}</div>
           ) : null}
           <h1 className="text-[34px] font-bold">{product.name}</h1>
           <div className="mt-1.5 text-sm text-[#93a0bd]">Código {product.code}</div>
@@ -70,7 +68,7 @@ export default async function ProductoPage({ params }: { params: Promise<Params>
               <div className="mb-2.5 text-sm font-semibold text-navy">Colores disponibles</div>
               <div className="flex flex-wrap gap-3">
                 {product.colors.map((color) => (
-                  <div key={color.name} className="flex items-center gap-1.5">
+                  <div key={color.id} className="flex items-center gap-1.5">
                     <span
                       className="h-[22px] w-[22px] rounded-full border-2 border-white shadow-[0_0_0_1px_#d7dceb]"
                       style={{ backgroundColor: color.hex }}
@@ -122,7 +120,7 @@ export default async function ProductoPage({ params }: { params: Promise<Params>
           </div>
 
           <div className="mt-6 flex flex-col gap-2.5">
-            <LinkButton href="/cotizador" variant="primary" className="w-full">
+            <LinkButton href={`/cotizador?productId=${product.id}`} variant="primary" className="w-full">
               Cotizar este modelo
             </LinkButton>
             <div className="flex gap-2.5">

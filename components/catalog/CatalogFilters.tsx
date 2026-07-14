@@ -28,7 +28,7 @@ function chipClass(active: boolean) {
   }`;
 }
 
-export function CatalogFilters() {
+export function CatalogFilters({ brands }: { brands: { slug: string; name: string }[] }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -37,6 +37,7 @@ export function CatalogFilters() {
   const shape = searchParams.get('shape');
   const material = searchParams.get('material');
   const color = searchParams.get('color');
+  const brand = searchParams.get('brand');
   const price = searchParams.get('price') ?? 'Todos';
   const availableOnly = searchParams.get('availableOnly') === '1';
 
@@ -56,6 +57,26 @@ export function CatalogFilters() {
           Limpiar
         </Link>
       </div>
+
+      {brands.length > 0 ? (
+        <div className="mt-4">
+          <div className="mb-2.5 text-[13px] font-semibold text-navy">Marca</div>
+          <div className="flex flex-wrap gap-1.5">
+            <Link href={buildFilterHref(searchParams, 'brand', null)} className={chipClass(!brand)}>
+              Todas
+            </Link>
+            {brands.map((option) => (
+              <Link
+                key={option.slug}
+                href={buildToggleHref(searchParams, 'brand', option.slug)}
+                className={chipClass(brand === option.slug)}
+              >
+                {option.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <div className="mb-2.5 text-[13px] font-semibold text-navy">Público</div>

@@ -10,6 +10,12 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   SESSION_SECRET: z.string().min(1, 'SESSION_SECRET no puede estar vacío'),
 
+  // Base URL for ABSOLUTE asset URLs inside transactional emails (the
+  // logo, mainly) — optional, falls back to APP_URL when unset (see
+  // modules/notifications/email/config.ts). Never used to build relative
+  // paths: email clients don't resolve those against anything.
+  EMAIL_ASSET_BASE_URL: z.string().url().optional(),
+
   DATABASE_URL: z.string().min(1, 'DATABASE_URL no puede estar vacío'),
 
   OBJECT_STORAGE_ENDPOINT: z.string().url(),
@@ -21,12 +27,42 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .default('true')
     .transform((v) => v === 'true'),
+  // Browser-facing base URL for reading uploaded objects — distinct from
+  // OBJECT_STORAGE_ENDPOINT (used server-to-server; in development that's
+  // `http://minio:9000`, only resolvable on the Docker network, never from
+  // a browser on the host). See design.md → "Estrategia de almacenamiento
+  // de imágenes".
+  OBJECT_STORAGE_PUBLIC_URL: z.string().url(),
+
+  // Separate, non-public bucket for sensitive request attachments
+  // (prescriptions) — see modules/storage/private-service.ts. Deliberately
+  // has no *_PUBLIC_URL counterpart: nothing ever builds a permanent public
+  // URL against it, only short-lived signed URLs generated on demand after
+  // an authenticated admin request.
+  PRIVATE_OBJECT_STORAGE_BUCKET: z.string().min(1),
 
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().positive(),
   SMTP_USER: z.string().default(''),
   SMTP_PASSWORD: z.string().default(''),
   SMTP_FROM: z.string().min(1),
+  // TLS posture for the SMTP connection — both default to Mailpit-safe
+  // (plaintext, no TLS at all) and must be turned on for any real SMTP
+  // provider in production. `secure`=true means TLS from the first byte
+  // (typically port 465); `requireTLS`=true forces a STARTTLS upgrade on
+  // a plaintext connection (typically port 587) and aborts if the server
+  // can't provide it — see modules/notifications/client.ts.
+  SMTP_SECURE: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  SMTP_REQUIRE_TLS: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+
+  // Optional DKIM signing — all three must be set together to activate
+  // (see modules/notifications/client.ts). Left blank in development:
+  // Mailpit doesn't validate signatures, and there's no real domain to
+  // sign for yet. A production deploy sets these once a real sending
+  // domain has a published DKIM public key in DNS.
+  DKIM_DOMAIN_NAME: z.string().default(''),
+  DKIM_KEY_SELECTOR: z.string().default(''),
+  DKIM_PRIVATE_KEY: z.string().default(''),
 });
 
 function loadEnv() {

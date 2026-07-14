@@ -10,6 +10,10 @@ export const catalogFiltersSchema = z.object({
   shape: z.nativeEnum(ProductShape).optional(),
   material: z.nativeEnum(ProductMaterial).optional(),
   color: z.string().trim().min(1).optional(),
+  // A brand *slug* (see design.md), never a display name, per requirement
+  // 4.4 — an unrecognized slug isn't a schema failure (any non-empty
+  // string parses), it's a query that simply matches zero products.
+  brand: z.string().trim().min(1).optional(),
   price: priceBucketSchema.optional(),
   availableOnly: z
     .literal('1')
@@ -33,6 +37,7 @@ export function parseCatalogFilters(searchParams: SearchParamsInput): CatalogFil
     shape: firstValue(searchParams.shape),
     material: firstValue(searchParams.material),
     color: firstValue(searchParams.color),
+    brand: firstValue(searchParams.brand),
     price: firstValue(searchParams.price),
     availableOnly: firstValue(searchParams.availableOnly),
   };

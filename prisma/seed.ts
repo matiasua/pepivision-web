@@ -6,6 +6,7 @@
 // until an admin uploads real photos.
 import { Gender, ProductBadge, ProductMaterial, ProductShape, PrismaClient } from '@prisma/client';
 import { slugify } from '../lib/slug';
+import { getBrandLogos } from '../lib/brands';
 
 const prisma = new PrismaClient();
 
@@ -22,17 +23,23 @@ const SWATCH_HEX: Record<string, string> = {
   Café: '#5a3a24',
 };
 
+// `brandSlug` picks a real brand from public/marcas/ (via getBrandLogos(),
+// same manifest the home carousel and admin selector use — see
+// seedBrands() below) purely so the catalog's brand filter has real,
+// non-fictitious data to demo against in this dev seed. Assigned
+// deterministically (alphabetical order of the real logo files), not
+// invented.
 const SEED_PRODUCTS = [
-  { code: 'PV-101', name: 'Aurora', price: 39900, gender: Gender.MUJER, shape: ProductShape.CAT_EYE, material: ProductMaterial.ACETATO, colors: ['Fucsia', 'Negro', 'Carey'], badge: ProductBadge.MAS_VENDIDO, available: true, sizes: '52-18-140 mm', description: 'Cat eye de acetato con un guiño retro y femenino. Liviano, cómodo y con presencia. Ideal para quienes buscan un look con carácter.' },
-  { code: 'PV-102', name: 'Nova', price: 34900, gender: Gender.UNISEX, shape: ProductShape.REDONDO, material: ProductMaterial.METAL, colors: ['Dorado', 'Plata', 'Negro'], badge: ProductBadge.NUEVO, available: true, sizes: '49-20-145 mm', description: 'Montura redonda de metal fino, minimalista y versátil. Combina con todo y suaviza las facciones.' },
-  { code: 'PV-103', name: 'Milano', price: 42900, gender: Gender.HOMBRE, shape: ProductShape.RECTANGULAR, material: ProductMaterial.ACETATO, colors: ['Negro', 'Azul', 'Café'], badge: null, available: true, sizes: '55-17-145 mm', description: 'Rectangular clásico de acetato, sobrio y elegante. Una apuesta segura para el día a día y la oficina.' },
-  { code: 'PV-104', name: 'Bruno', price: 37900, gender: Gender.HOMBRE, shape: ProductShape.CUADRADO, material: ProductMaterial.MIXTO, colors: ['Negro', 'Carey', 'Azul'], badge: null, available: true, sizes: '54-18-140 mm', description: 'Armazón cuadrado mixto (acetato y metal) con líneas firmes. Moderno y resistente.' },
-  { code: 'PV-105', name: 'Luna', price: 41900, gender: Gender.MUJER, shape: ProductShape.CAT_EYE, material: ProductMaterial.ACETATO, colors: ['Rosado', 'Cristal', 'Carey'], badge: ProductBadge.NUEVO, available: true, sizes: '51-19-140 mm', description: 'Cat eye suave en tonos claros, delicado y luminoso. Perfecto para un estilo fresco y femenino.' },
-  { code: 'PV-106', name: 'Piloto', price: 44900, gender: Gender.UNISEX, shape: ProductShape.AVIADOR, material: ProductMaterial.METAL, colors: ['Dorado', 'Plata', 'Negro'], badge: ProductBadge.MAS_VENDIDO, available: true, sizes: '58-14-140 mm', description: 'Aviador atemporal de metal, cómodo y con estilo. Un ícono que nunca pasa de moda.' },
-  { code: 'PV-107', name: 'Kids Pop', price: 24900, gender: Gender.INFANTIL, shape: ProductShape.REDONDO, material: ProductMaterial.ACETATO, colors: ['Fucsia', 'Azul', 'Verde'], badge: null, available: true, sizes: '44-16-125 mm', description: 'Montura redonda infantil, flexible y resistente. Colores alegres pensados para los más pequeños.' },
-  { code: 'PV-108', name: 'Serena', price: 36900, gender: Gender.MUJER, shape: ProductShape.REDONDO, material: ProductMaterial.ACETATO, colors: ['Carey', 'Rosado', 'Negro'], badge: null, available: true, sizes: '50-20-140 mm', description: 'Redonda de acetato con aire vintage. Cálida, cómoda y muy fácil de combinar.' },
-  { code: 'PV-109', name: 'Max', price: 33900, gender: Gender.HOMBRE, shape: ProductShape.RECTANGULAR, material: ProductMaterial.MIXTO, colors: ['Negro', 'Azul', 'Plata'], badge: null, available: false, sizes: '56-17-145 mm', description: 'Rectangular mixto de perfil deportivo, ligero y funcional para un ritmo activo.' },
-  { code: 'PV-110', name: 'Coral', price: 45900, gender: Gender.MUJER, shape: ProductShape.CAT_EYE, material: ProductMaterial.METAL, colors: ['Dorado', 'Fucsia', 'Plata'], badge: ProductBadge.NUEVO, available: true, sizes: '53-18-140 mm', description: 'Cat eye de metal con detalles finos y un toque sofisticado. Para brillar con elegancia.' },
+  { code: 'PV-101', name: 'Aurora', price: 39900, gender: Gender.MUJER, shape: ProductShape.CAT_EYE, material: ProductMaterial.ACETATO, colors: ['Fucsia', 'Negro', 'Carey'], badge: ProductBadge.MAS_VENDIDO, available: true, sizes: '52-18-140 mm', description: 'Cat eye de acetato con un guiño retro y femenino. Liviano, cómodo y con presencia. Ideal para quienes buscan un look con carácter.', brandSlug: 'angelo-falconi' },
+  { code: 'PV-102', name: 'Nova', price: 34900, gender: Gender.UNISEX, shape: ProductShape.REDONDO, material: ProductMaterial.METAL, colors: ['Dorado', 'Plata', 'Negro'], badge: ProductBadge.NUEVO, available: true, sizes: '49-20-145 mm', description: 'Montura redonda de metal fino, minimalista y versátil. Combina con todo y suaviza las facciones.', brandSlug: 'eye-shield' },
+  { code: 'PV-103', name: 'Milano', price: 42900, gender: Gender.HOMBRE, shape: ProductShape.RECTANGULAR, material: ProductMaterial.ACETATO, colors: ['Negro', 'Azul', 'Café'], badge: null, available: true, sizes: '55-17-145 mm', description: 'Rectangular clásico de acetato, sobrio y elegante. Una apuesta segura para el día a día y la oficina.', brandSlug: 'eye-tech' },
+  { code: 'PV-104', name: 'Bruno', price: 37900, gender: Gender.HOMBRE, shape: ProductShape.CUADRADO, material: ProductMaterial.MIXTO, colors: ['Negro', 'Carey', 'Azul'], badge: null, available: true, sizes: '54-18-140 mm', description: 'Armazón cuadrado mixto (acetato y metal) con líneas firmes. Moderno y resistente.', brandSlug: 'foose' },
+  { code: 'PV-105', name: 'Luna', price: 41900, gender: Gender.MUJER, shape: ProductShape.CAT_EYE, material: ProductMaterial.ACETATO, colors: ['Rosado', 'Cristal', 'Carey'], badge: ProductBadge.NUEVO, available: true, sizes: '51-19-140 mm', description: 'Cat eye suave en tonos claros, delicado y luminoso. Perfecto para un estilo fresco y femenino.', brandSlug: 'game-day' },
+  { code: 'PV-106', name: 'Piloto', price: 44900, gender: Gender.UNISEX, shape: ProductShape.AVIADOR, material: ProductMaterial.METAL, colors: ['Dorado', 'Plata', 'Negro'], badge: ProductBadge.MAS_VENDIDO, available: true, sizes: '58-14-140 mm', description: 'Aviador atemporal de metal, cómodo y con estilo. Un ícono que nunca pasa de moda.', brandSlug: 'gattizoni' },
+  { code: 'PV-107', name: 'Kids Pop', price: 24900, gender: Gender.INFANTIL, shape: ProductShape.REDONDO, material: ProductMaterial.ACETATO, colors: ['Fucsia', 'Azul', 'Verde'], badge: null, available: true, sizes: '44-16-125 mm', description: 'Montura redonda infantil, flexible y resistente. Colores alegres pensados para los más pequeños.', brandSlug: 'george' },
+  { code: 'PV-108', name: 'Serena', price: 36900, gender: Gender.MUJER, shape: ProductShape.REDONDO, material: ProductMaterial.ACETATO, colors: ['Carey', 'Rosado', 'Negro'], badge: null, available: true, sizes: '50-20-140 mm', description: 'Redonda de acetato con aire vintage. Cálida, cómoda y muy fácil de combinar.', brandSlug: 'ice-look' },
+  { code: 'PV-109', name: 'Max', price: 33900, gender: Gender.HOMBRE, shape: ProductShape.RECTANGULAR, material: ProductMaterial.MIXTO, colors: ['Negro', 'Azul', 'Plata'], badge: null, available: false, sizes: '56-17-145 mm', description: 'Rectangular mixto de perfil deportivo, ligero y funcional para un ritmo activo.', brandSlug: 'jean-de-paris' },
+  { code: 'PV-110', name: 'Coral', price: 45900, gender: Gender.MUJER, shape: ProductShape.CAT_EYE, material: ProductMaterial.METAL, colors: ['Dorado', 'Fucsia', 'Plata'], badge: ProductBadge.NUEVO, available: true, sizes: '53-18-140 mm', description: 'Cat eye de metal con detalles finos y un toque sofisticado. Para brillar con elegancia.', brandSlug: 'jorgio' },
 ];
 
 // Dev bootstrap for `home-visit-coverage`: there is no admin panel yet to
@@ -53,20 +60,96 @@ const SEED_COMUNAS: { name: string; region: string; active: boolean }[] = [
   { name: 'Puente Alto', region: 'Región Metropolitana', active: false },
 ];
 
+/**
+ * Upserts one Brand row per real logo in public/marcas/ (via
+ * getBrandLogos() — the exact same manifest the home carousel and admin
+ * selector read), keyed by the normalized slug so re-running never
+ * duplicates a brand even if its display name capitalization changes.
+ * Returns a slug -> id map for wiring SEED_PRODUCTS.brandSlug below.
+ */
+async function seedBrands(): Promise<Map<string, string>> {
+  const logos = getBrandLogos();
+  const slugToId = new Map<string, string>();
+
+  for (const [index, logo] of logos.entries()) {
+    const slug = slugify(logo.alt);
+    const brand = await prisma.brand.upsert({
+      where: { slug },
+      update: { name: logo.alt, logoPath: logo.src, sortOrder: index },
+      create: { name: logo.alt, slug, logoPath: logo.src, sortOrder: index },
+    });
+    slugToId.set(slug, brand.id);
+  }
+
+  console.log(`Seed de marcas completo. ${slugToId.size} marcas en la base de datos.`);
+  return slugToId;
+}
+
+/**
+ * Reconciles a product's colors against `desiredNames` without ever
+ * deleting a color that still has photos attached — the previous version
+ * of this seed did an unconditional deleteMany-then-recreate, which would
+ * throw a foreign key violation (and abort the whole seed run) against
+ * any product whose colors already have real ProductImage rows pointing
+ * at them (composite FK, see migration 20260714000000_product_image_gallery).
+ * A color with photos that's no longer in `desiredNames` is simply left
+ * in place instead — safe, and still idempotent.
+ */
+async function syncProductColors(productId: string, desiredNames: string[]) {
+  const existing = await prisma.productColor.findMany({ where: { productId } });
+  const existingByName = new Map(existing.map((c) => [c.name, c]));
+
+  for (const name of desiredNames) {
+    const hex = SWATCH_HEX[name] ?? '#cccccc';
+    const current = existingByName.get(name);
+    if (current) {
+      if (current.hex !== hex) {
+        await prisma.productColor.update({ where: { id: current.id }, data: { hex } });
+      }
+    } else {
+      await prisma.productColor.create({ data: { productId, name, hex } });
+    }
+  }
+
+  const toRemove = existing.filter((c) => !desiredNames.includes(c.name));
+  if (toRemove.length > 0) {
+    const stillUsed = await prisma.productImage.findMany({
+      where: { productColorId: { in: toRemove.map((c) => c.id) } },
+      select: { productColorId: true },
+      distinct: ['productColorId'],
+    });
+    const usedIds = new Set(stillUsed.map((i) => i.productColorId));
+    const removable = toRemove.filter((c) => !usedIds.has(c.id));
+    if (removable.length > 0) {
+      await prisma.productColor.deleteMany({ where: { id: { in: removable.map((c) => c.id) } } });
+    }
+  }
+}
+
 async function main() {
+  const brandIdBySlug = await seedBrands();
+
   for (const item of SEED_PRODUCTS) {
     const slug = slugify(item.name);
-    const colorRecords = item.colors.map((name) => ({ name, hex: SWATCH_HEX[name] ?? '#cccccc' }));
+    const brandId = brandIdBySlug.get(item.brandSlug) ?? null;
 
-    const existing = await prisma.product.findUnique({ where: { code: item.code } });
+    // Match by code first, falling back to slug: an admin may have since
+    // edited a seeded product's code from the panel (real, observed case:
+    // "Coral" / PV-110 was renamed to XAPFO-126), and this seed must stay
+    // idempotent against that rather than attempting to create a second
+    // row with the same slug and crashing on the unique constraint.
+    const existing =
+      (await prisma.product.findUnique({ where: { code: item.code } })) ??
+      (await prisma.product.findUnique({ where: { slug } }));
 
     if (existing) {
-      await prisma.productColor.deleteMany({ where: { productId: existing.id } });
+      await syncProductColors(existing.id, item.colors);
       await prisma.product.update({
-        where: { code: item.code },
+        where: { id: existing.id },
         data: {
           slug,
           name: item.name,
+          brandId,
           priceFromClp: item.price,
           gender: item.gender,
           shape: item.shape,
@@ -75,15 +158,16 @@ async function main() {
           available: item.available,
           sizes: item.sizes,
           description: item.description,
-          colors: { create: colorRecords },
         },
       });
     } else {
+      const colorRecords = item.colors.map((name) => ({ name, hex: SWATCH_HEX[name] ?? '#cccccc' }));
       await prisma.product.create({
         data: {
           code: item.code,
           slug,
           name: item.name,
+          brandId,
           priceFromClp: item.price,
           gender: item.gender,
           shape: item.shape,

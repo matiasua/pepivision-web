@@ -102,3 +102,18 @@
     box-shadow: 0 0 0 0 rgba(37, 211, 102, 0);
   }
 }
+
+/* BrandCarousel (home, "Marcas que trabajamos"): the track renders the
+   logo list twice back-to-back and scrolls exactly half its own width, so
+   the loop point is invisible. Pause-on-hover/focus and the
+   prefers-reduced-motion fallback are handled with Tailwind's
+   `group-hover`/`group-focus-within`/`motion-reduce` variants directly in
+   the component — only the keyframe itself needs to live here. */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}

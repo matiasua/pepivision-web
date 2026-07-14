@@ -29,17 +29,25 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       APP_URL: ${APP_URL}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      EMAIL_ASSET_BASE_URL: ${EMAIL_ASSET_BASE_URL}
       OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT}
+      OBJECT_STORAGE_PUBLIC_URL: ${OBJECT_STORAGE_PUBLIC_URL}
       OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION}
       OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET}
       OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY}
       OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY}
       OBJECT_STORAGE_FORCE_PATH_STYLE: ${OBJECT_STORAGE_FORCE_PATH_STYLE}
+      PRIVATE_OBJECT_STORAGE_BUCKET: ${PRIVATE_OBJECT_STORAGE_BUCKET}
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
       SMTP_USER: ${SMTP_USER}
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS}
+      DKIM_DOMAIN_NAME: ${DKIM_DOMAIN_NAME}
+      DKIM_KEY_SELECTOR: ${DKIM_KEY_SELECTOR}
+      DKIM_PRIVATE_KEY: ${DKIM_PRIVATE_KEY}
     # No ports published to the host on purpose: only `nginx` reaches `web`,
     # over the internal network, on its internal port 3000.
     healthcheck:
@@ -120,7 +128,10 @@ services:
     networks:
       - pepivision-dev
 
-  # One-shot: waits for minio, creates the app's bucket if missing, exits.
+  # One-shot: waits for minio, creates the app's buckets if missing, exits.
+  # Two buckets: the public product-photo one (anonymous read, unchanged)
+  # and a private one for sensitive request attachments (prescriptions) —
+  # deliberately no `mc anonymous set download` on that one, ever.
   minio-init:
     image: minio/mc:RELEASE.2024-10-29T15-34-59Z
     depends_on:
@@ -130,12 +141,17 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
       OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET}
+      PRIVATE_OBJECT_STORAGE_BUCKET: ${PRIVATE_OBJECT_STORAGE_BUCKET}
     entrypoint: >
       /bin/sh -c "
       mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\" &&
       (mc mb local/\"$$OBJECT_STORAGE_BUCKET\" || true) &&
+      mc anonymous set download local/\"$$OBJECT_STORAGE_BUCKET\" &&
       mc ls local/\"$$OBJECT_STORAGE_BUCKET\" &&
-      echo 'bucket ready'
+      (mc mb local/\"$$PRIVATE_OBJECT_STORAGE_BUCKET\" || true) &&
+      mc anonymous set none local/\"$$PRIVATE_OBJECT_STORAGE_BUCKET\" &&
+      mc ls local/\"$$PRIVATE_OBJECT_STORAGE_BUCKET\" &&
+      echo 'buckets ready'
       "
     networks:
       - pepivision-dev

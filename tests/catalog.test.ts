@@ -19,6 +19,21 @@ describe('modules/catalog/schemas', () => {
   it('defaults to no filters when searchParams is empty', () => {
     expect(parseCatalogFilters({})).toEqual({ availableOnly: false });
   });
+
+  it('parses a brand filter by slug', () => {
+    const filters = parseCatalogFilters({ brand: 'vespa' });
+    expect(filters).toEqual({ brand: 'vespa', availableOnly: false });
+  });
+
+  it('keeps the brand filter alongside other filters', () => {
+    const filters = parseCatalogFilters({ brand: 'vespa', gender: 'MUJER', shape: 'REDONDO' });
+    expect(filters).toEqual({ brand: 'vespa', gender: Gender.MUJER, shape: 'REDONDO', availableOnly: false });
+  });
+
+  it('does not error on an unrecognized brand slug — it is a valid query that simply matches nothing', () => {
+    const filters = parseCatalogFilters({ brand: 'marca-que-no-existe' });
+    expect(filters).toEqual({ brand: 'marca-que-no-existe', availableOnly: false });
+  });
 });
 
 describe('modules/catalog/filter-url', () => {
@@ -45,6 +60,22 @@ describe('modules/catalog/filter-url', () => {
   it('toggle sets the value when a different one is active', () => {
     const href = buildToggleHref(new URLSearchParams('color=Fucsia'), 'color', 'Negro');
     expect(href).toBe('/catalogo?color=Negro');
+  });
+
+  it('sets the brand filter by slug and persists it across other filter changes', () => {
+    const withBrand = buildFilterHref(new URLSearchParams('gender=MUJER'), 'brand', 'vespa');
+    expect(withBrand).toBe('/catalogo?gender=MUJER&brand=vespa');
+
+    const thenShape = buildFilterHref(new URLSearchParams(withBrand.split('?')[1]), 'shape', 'REDONDO');
+    expect(thenShape).toBe('/catalogo?gender=MUJER&brand=vespa&shape=REDONDO');
+  });
+
+  it('clearing all filters (each set to null) also drops the brand filter', () => {
+    let params = new URLSearchParams('gender=MUJER&brand=vespa');
+    for (const key of ['gender', 'brand']) {
+      params = new URLSearchParams(buildFilterHref(params, key, null).split('?')[1] ?? '');
+    }
+    expect(params.toString()).toBe('');
   });
 });
 

@@ -69,7 +69,7 @@ export default async function AdminProductsPage({
                 <td className="px-4.5 py-3.5">
                   <div className="font-display font-semibold text-navy">{product.name}</div>
                   <div className="text-xs text-[#93a0bd]">
-                    {product.code} · {GENDER_LABELS[product.gender]}
+                    {product.code} · {product.brand?.name ?? 'Sin marca'} · {GENDER_LABELS[product.gender]}
                   </div>
                 </td>
                 <td className="px-4.5 py-3.5 font-display font-bold text-fucsia">{formatClp(product.priceFromClp)}</td>

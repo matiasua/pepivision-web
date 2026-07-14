@@ -17,12 +17,22 @@ function buildWhere(filters: RequestFilterInput): Prisma.RequestWhereInput {
   return where;
 }
 
+const ACTIVE_ATTACHMENTS_INCLUDE = { attachments: { where: { deletedAt: null } } } as const;
+
 export function listRequestsForAdmin(filters: RequestFilterInput) {
-  return prisma.request.findMany({ where: buildWhere(filters), orderBy: { createdAt: 'desc' } });
+  return prisma.request.findMany({
+    where: buildWhere(filters),
+    orderBy: { createdAt: 'desc' },
+    include: ACTIVE_ATTACHMENTS_INCLUDE,
+  });
 }
 
 export function findRequestById(id: string) {
-  return prisma.request.findUnique({ where: { id } });
+  return prisma.request.findUnique({ where: { id }, include: ACTIVE_ATTACHMENTS_INCLUDE });
+}
+
+export function findAttachmentById(id: string) {
+  return prisma.requestAttachment.findUnique({ where: { id } });
 }
 
 export function toggleRequestStatusRow(id: string, nextStatus: RequestStatus) {

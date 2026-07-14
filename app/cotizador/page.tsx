@@ -13,12 +13,26 @@ export const metadata: Metadata = {
 // until the next rebuild. Same reasoning as /catalogo and /catalogo/[slug].
 export const dynamic = 'force-dynamic';
 
-export default async function CotizadorPage() {
+export default async function CotizadorPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ productId?: string }>;
+}) {
+  const { productId } = await searchParams;
   const products = await getCatalog({ availableOnly: false });
   const frameOptions = products.map((product) => ({
     id: product.id,
-    label: `${product.name} · ${product.code} · ${product.priceLabel}`,
+    label: product.brandName
+      ? `${product.brandName} — ${product.name} · ${product.code} · ${product.priceLabel}`
+      : `${product.name} · ${product.code} · ${product.priceLabel}`,
+    colors: product.colors,
   }));
+
+  // "Cotizar este modelo" on a product page links here with ?productId=…
+  // Ignore it if it doesn't match a real, currently-listed product instead
+  // of trusting it blindly — the wizard still requires an explicit color
+  // pick either way (see QuoteWizard.tsx).
+  const initialProductId = frameOptions.some((option) => option.id === productId) ? productId : undefined;
 
   return (
     <section className="py-8">
@@ -28,7 +42,7 @@ export default async function CotizadorPage() {
           <p className="mt-2.5 text-base text-grafito">En 5 pasos te preparamos un presupuesto a tu medida.</p>
         </div>
 
-        <QuoteWizard frameOptions={frameOptions} />
+        <QuoteWizard frameOptions={frameOptions} initialProductId={initialProductId} />
       </Container>
     </section>
   );

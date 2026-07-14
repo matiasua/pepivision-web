@@ -73,6 +73,9 @@ export function Footer() {
             <Link href="/terminos" className="hover:text-white">
               Términos y condiciones
             </Link>
+            <Link href="/admin" className="hover:text-white">
+              Administración
+            </Link>
           </div>
           <p className="mt-4 text-xs leading-relaxed text-[#8493c4]">
             El tratamiento de recetas ópticas y datos personales se realiza de forma confidencial y solo

@@ -18,6 +18,11 @@ export const quoteRequestSchema = z
   .object({
     frameChoice: z.enum(['catalog', 'advice'], { message: 'Indica si eliges del catálogo o necesitas asesoría.' }),
     frameProductId: z.string().trim().min(1).optional(),
+    // Client-sent value only picks which color to *look up*; the real
+    // name/hex persisted on the request are always resolved from
+    // PostgreSQL server-side (see modules/requests/service.ts) — never
+    // trusted verbatim from the browser.
+    frameProductColorId: z.string().trim().min(1).optional(),
     glassType: z.enum(GLASS_TYPES, { message: 'Selecciona un tipo de cristal.' }),
     treatments: z.array(z.enum(TREATMENT_IDS)).max(TREATMENT_IDS.length).default([]),
     hasPrescription: z.enum(PRESCRIPTION_ANSWERS, { message: 'Indica si cuentas con una receta óptica vigente.' }),
@@ -32,6 +37,10 @@ export const quoteRequestSchema = z
   .refine((data) => data.frameChoice !== 'catalog' || !!data.frameProductId, {
     message: 'Selecciona un modelo del catálogo.',
     path: ['frameProductId'],
+  })
+  .refine((data) => data.frameChoice !== 'catalog' || !!data.frameProductColorId, {
+    message: 'Selecciona un color para este modelo.',
+    path: ['frameProductColorId'],
   });
 
 export type QuoteRequestInput = z.infer<typeof quoteRequestSchema>;

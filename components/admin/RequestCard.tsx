@@ -1,21 +1,84 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { WhatsAppIcon } from '@/components/icons';
 import { StatusPill } from './StatusPill';
 import { ConfirmDeleteButton } from './ConfirmDeleteButton';
-import { toggleRequestStatusAction, deleteRequestAction } from '@/app/admin/requests/actions';
+import {
+  toggleRequestStatusAction,
+  deleteRequestAction,
+  getAttachmentDownloadUrlAction,
+} from '@/app/admin/requests/actions';
 import type { AdminRequestView } from '@/modules/requests/admin-service';
 
 const TYPE_LABELS: Record<string, string> = { QUOTE: 'Cotización', HOME_VISIT: 'Atención a domicilio' };
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentPanel({ attachment }: { attachment: NonNullable<AdminRequestView['attachment']> }) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const handleOpen = () => {
+    // Open the tab synchronously, on the click itself, so browsers don't
+    // treat the later `location` assignment — once the signed URL comes
+    // back from the server action — as an unrequested popup. Passing
+    // 'noopener' directly to window.open() here would make it return null
+    // (per spec), leaving nothing to redirect later — instead we get a
+    // real handle and sever `opener` on it manually, which has the same
+    // anti-tabnabbing effect without losing the reference.
+    const win = window.open('', '_blank');
+    if (win) {
+      win.opener = null;
+    }
+    setError(null);
+    startTransition(async () => {
+      const result = await getAttachmentDownloadUrlAction(attachment.id);
+      if (result.status === 'error') {
+        win?.close();
+        setError(result.message);
+        return;
+      }
+      if (win) {
+        win.location.href = result.url;
+      } else {
+        window.open(result.url, '_blank', 'noopener,noreferrer');
+      }
+    });
+  };
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2.5 rounded-lg border border-line bg-gray/40 px-3 py-2.5">
+      <span className="text-[13.5px] text-grafito">
+        <span className="text-[#93a0bd]">Receta adjunta:</span> {attachment.originalFileName} (
+        {formatFileSize(attachment.sizeBytes)})
+      </span>
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={handleOpen}
+        className="ml-auto rounded-lg bg-navy px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
+      >
+        {isPending ? 'Abriendo…' : 'Ver / Descargar'}
+      </button>
+      {error ? <div className="w-full text-xs text-fucsia">{error}</div> : null}
+    </div>
+  );
+}
 
 function detailLines(request: AdminRequestView): { label: string; value: string }[] {
   const details = (request.details ?? {}) as Record<string, unknown>;
 
   if (request.type === 'QUOTE') {
     return [
+      ...(details.frameBrandName ? [{ label: 'Marca', value: details.frameBrandName as string }] : []),
       { label: 'Armazón', value: (details.frameProductName as string) ?? (details.frameChoice === 'advice' ? 'Necesita asesoría' : '—') },
+      ...(details.frameProductColorName ? [{ label: 'Color', value: details.frameProductColorName as string }] : []),
       { label: 'Cristal', value: (details.glassType as string) ?? '—' },
       { label: 'Tratamientos', value: (details.treatmentLabels as string[])?.join(', ') || 'Ninguno' },
       { label: 'Receta óptica', value: (details.prescriptionAnswer as string) ?? '—' },
@@ -56,6 +119,8 @@ export function RequestCard({ request }: { request: AdminRequestView }) {
           </div>
         ))}
       </div>
+
+      {request.attachment ? <AttachmentPanel attachment={request.attachment} /> : null}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <button

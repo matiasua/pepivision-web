@@ -8,6 +8,7 @@ import { createUserAction, resetPasswordAction, toggleUserActiveAction } from '@
 export interface AdminUserView {
   id: string;
   email: string;
+  username: string;
   name: string;
   role: AdminRole;
   active: boolean;
@@ -17,6 +18,7 @@ const ROLE_LABELS: Record<AdminRole, string> = { SUPERADMIN: 'Superadministrador
 
 function NewUserForm({ onCreated }: { onCreated: () => void }) {
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<AdminRole>('ADMIN');
@@ -26,12 +28,13 @@ function NewUserForm({ onCreated }: { onCreated: () => void }) {
   function handleSubmit() {
     setError('');
     startTransition(async () => {
-      const result = await createUserAction({ email, name, password, role });
+      const result = await createUserAction({ email, username, name, password, role });
       if (result.status === 'error') {
         setError(result.message);
         return;
       }
       setEmail('');
+      setUsername('');
       setName('');
       setPassword('');
       setRole('ADMIN');
@@ -53,6 +56,14 @@ function NewUserForm({ onCreated }: { onCreated: () => void }) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="correo@pepivision360.cl"
+          className="rounded-input border border-line bg-white px-3.5 py-2.5 outline-none"
+        />
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="nombre de usuario"
+          autoCapitalize="off"
+          autoCorrect="off"
           className="rounded-input border border-line bg-white px-3.5 py-2.5 outline-none"
         />
         <input
@@ -177,6 +188,7 @@ export function UserManager({ users, currentUserId }: { users: AdminUserView[]; 
                 <td className="px-4.5 py-3.5">
                   <div className="font-semibold text-navy">{user.name}</div>
                   <div className="text-xs text-[#93a0bd]">{user.email}</div>
+                  <div className="text-xs text-[#93a0bd]">@{user.username}</div>
                 </td>
                 <td className="px-4.5 py-3.5 text-sm text-grafito">{ROLE_LABELS[user.role]}</td>
                 <td className="px-4.5 py-3.5">

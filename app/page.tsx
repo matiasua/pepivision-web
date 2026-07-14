@@ -4,8 +4,10 @@ import { SectionHeading } from '@/components/SectionHeading';
 import { Eyebrow } from '@/components/Eyebrow';
 import { Card, IconBadge } from '@/components/Card';
 import { LinkButton } from '@/components/Button';
+import { BrandCarousel } from '@/components/BrandCarousel';
 import { WhatsAppIcon, ChevronRightIcon, CheckIcon } from '@/components/icons';
 import { defaultWhatsAppHref } from '@/lib/whatsapp';
+import { getBrandLogos } from '@/lib/brands';
 
 // No title override here: the homepage should show the root layout's
 // branded default title ("Pepi Visión 360 · Ver bien nunca fue tan
@@ -41,6 +43,8 @@ const benefits = [
 const quoteSteps = ['Armazón', 'Cristal', 'Tratamientos', 'Receta', 'Datos'];
 
 export default function Home() {
+  const brandLogos = getBrandLogos();
+
   return (
     <>
       {/* Hero */}
@@ -123,6 +127,22 @@ export default function Home() {
           </div>
         </Container>
       </section>
+
+      {/* Marcas que trabajamos */}
+      {brandLogos.length > 0 ? (
+        <section className="py-14">
+          <Container>
+            <SectionHeading
+              center
+              title="Marcas que reflejan tu estilo"
+              subtitle="Seleccionamos armazones de marcas reconocidas para que encuentres el diseño, la comodidad y la calidad que mejor se adapta a ti."
+            />
+            <div className="mt-9">
+              <BrandCarousel logos={brandLogos} />
+            </div>
+          </Container>
+        </section>
+      ) : null}
 
       {/* Destacados — placeholder: el catálogo real llega en la Fase 4 */}
       <section className="py-14">

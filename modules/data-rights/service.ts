@@ -37,12 +37,23 @@ export async function submitDataRightsRequest(
     email: input.email,
     phone: input.phone ?? null,
     description: input.description,
+    createdAt: now,
+    contact: {
+      phoneDisplay: settings.phoneDisplay,
+      email: settings.email,
+      instagramHandle: settings.instagramHandle,
+      hoursText: settings.hoursText,
+      locationText: settings.locationText,
+    },
   });
   await sendAndLog({
     kind: EmailKind.DATA_RIGHTS_NOTIFICATION,
     to: settings.notificationEmail,
+    // So the business can hit "Reply" and write straight back to whoever filed the request.
+    replyTo: input.email,
     subject: businessEmail.subject,
     text: businessEmail.text,
+    html: businessEmail.html,
     dataRightsRequestId: request.id,
   });
 

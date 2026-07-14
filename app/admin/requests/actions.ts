@@ -1,7 +1,8 @@
 'use server';
 
 import { requireSession } from '@/modules/auth/service';
-import { toggleRequestStatus, deleteRequest } from '@/modules/requests/admin-service';
+import { toErrorResponse } from '@/lib/errors';
+import { toggleRequestStatus, deleteRequest, getAttachmentDownloadUrl } from '@/modules/requests/admin-service';
 import { changeDataRightsStatusSchema } from '@/modules/data-rights/admin-schemas';
 import { changeDataRightsStatus } from '@/modules/data-rights/admin-service';
 
@@ -13,6 +14,19 @@ export async function toggleRequestStatusAction(requestId: string): Promise<void
 export async function deleteRequestAction(requestId: string): Promise<void> {
   const session = await requireSession();
   await deleteRequest(requestId, session);
+}
+
+export type AttachmentDownloadUrlResult = { status: 'error'; message: string } | { status: 'success'; url: string };
+
+/** Requires an authenticated session (never a public route) and audit-logs every access — see getAttachmentDownloadUrl in modules/requests/admin-service.ts. */
+export async function getAttachmentDownloadUrlAction(attachmentId: string): Promise<AttachmentDownloadUrlResult> {
+  const session = await requireSession();
+  try {
+    const url = await getAttachmentDownloadUrl(attachmentId, session);
+    return { status: 'success', url };
+  } catch (error) {
+    return { status: 'error', message: toErrorResponse(error).message };
+  }
 }
 
 export type ChangeArcoStatusResult = { status: 'error'; message: string } | { status: 'success' };

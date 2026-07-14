@@ -4,12 +4,14 @@ import { WhatsAppIcon } from '@/components/icons';
 import type { CatalogProductView } from '@/modules/catalog/service';
 import { ImagePlaceholder } from './ImagePlaceholder';
 
+// `unoptimized`: see the comment on ProductGallery — next/image's optimizer
+// can't fetch from MinIO's private-network address in this environment.
 export function ProductCard({ product }: { product: CatalogProductView }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-card border border-line bg-white shadow-brand-sm transition-transform duration-200 hover:-translate-y-1">
       <Link href={`/catalogo/${product.slug}`} className="relative block aspect-[4/3] bg-gray">
-        {product.mainImageUrl ? (
-          <Image src={product.mainImageUrl} alt={product.name} fill className="object-cover" />
+        {product.coverImageUrl ? (
+          <Image src={product.coverImageUrl} alt={product.name} fill className="object-cover" unoptimized />
         ) : (
           <ImagePlaceholder label="Foto armazón" />
         )}
@@ -20,6 +22,9 @@ export function ProductCard({ product }: { product: CatalogProductView }) {
         ) : null}
       </Link>
       <div className="flex flex-1 flex-col p-4">
+        {product.brandName ? (
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-[#93a0bd]">{product.brandName}</div>
+        ) : null}
         <div className="font-display text-[16.5px] font-semibold text-navy">{product.name}</div>
         <div className="mt-0.5 text-xs text-[#93a0bd]">
           {product.code} · {product.shapeLabel} · {product.materialLabel}
@@ -28,7 +33,7 @@ export function ProductCard({ product }: { product: CatalogProductView }) {
           <div className="mt-2.5 flex gap-1.5">
             {product.colors.map((color) => (
               <span
-                key={color.name}
+                key={color.id}
                 title={color.name}
                 className="h-4 w-4 rounded-full border-[1.5px] border-white shadow-[0_0_0_1px_#d7dceb]"
                 style={{ backgroundColor: color.hex }}

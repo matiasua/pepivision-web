@@ -5,7 +5,7 @@ import { CatalogFilters } from '@/components/catalog/CatalogFilters';
 import { CatalogSearchInput } from '@/components/catalog/CatalogSearchInput';
 import { ProductCard } from '@/components/catalog/ProductCard';
 import { CatalogEmptyState } from '@/components/catalog/CatalogEmptyState';
-import { getCatalog } from '@/modules/catalog/service';
+import { getCatalog, getCatalogBrandFilterOptions } from '@/modules/catalog/service';
 import { parseCatalogFilters, type CatalogFilters as CatalogFiltersType } from '@/modules/catalog/schemas';
 
 export const metadata: Metadata = {
@@ -67,6 +67,7 @@ export default async function CatalogoPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const filters = parseCatalogFilters(resolvedSearchParams);
+  const brandOptions = await getCatalogBrandFilterOptions();
 
   return (
     <>
@@ -86,7 +87,7 @@ export default async function CatalogoPage({
           </div>
 
           <div className="grid grid-cols-1 items-start gap-7 lg:grid-cols-[260px_1fr]">
-            <CatalogFilters />
+            <CatalogFilters brands={brandOptions} />
 
             <Suspense key={JSON.stringify(filters)} fallback={<CatalogResultsSkeleton />}>
               <CatalogResults filters={filters} />

@@ -20,6 +20,10 @@ function buildWhere(filters: CatalogFilters): Prisma.ProductWhereInput {
   if (filters.availableOnly) where.available = true;
   if (filters.price) where.priceFromClp = PRICE_BUCKET_RANGES[filters.price];
   if (filters.color) where.colors = { some: { name: filters.color } };
+  // brand.slug + brand.active, per design.md — a deactivated brand's
+  // products stop matching a filter for it, even if the product itself is
+  // still visible (matches "solo marcas activas" as the filterable set).
+  if (filters.brand) where.brand = { slug: filters.brand, active: true };
   if (filters.q) {
     where.OR = [
       { name: { contains: filters.q, mode: 'insensitive' } },
@@ -30,10 +34,19 @@ function buildWhere(filters: CatalogFilters): Prisma.ProductWhereInput {
   return where;
 }
 
+/** For the catalog's brand filter — only brands that are active and have at least one published (visible) product. */
+export function listBrandsWithPublishedProducts() {
+  return prisma.brand.findMany({
+    where: { active: true, products: { some: { visible: true } } },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    select: { id: true, name: true, slug: true, logoPath: true },
+  });
+}
+
 export function listProducts(filters: CatalogFilters) {
   return prisma.product.findMany({
     where: buildWhere(filters),
-    include: { colors: true, images: true },
+    include: { colors: true, images: { orderBy: { sortOrder: 'asc' } }, brand: true },
     orderBy: { createdAt: 'asc' },
   });
 }
@@ -41,7 +54,7 @@ export function listProducts(filters: CatalogFilters) {
 export function findProductBySlug(slug: string) {
   return prisma.product.findUnique({
     where: { slug, visible: true },
-    include: { colors: true, images: true },
+    include: { colors: true, images: { orderBy: { sortOrder: 'asc' } }, brand: true },
   });
 }
 
@@ -52,7 +65,7 @@ export function listRelatedProducts(product: { id: string; gender: Gender; shape
       visible: true,
       OR: [{ gender: product.gender }, { shape: product.shape }],
     },
-    include: { colors: true, images: true },
+    include: { colors: true, images: { orderBy: { sortOrder: 'asc' } }, brand: true },
     orderBy: { createdAt: 'asc' },
     take: 3,
   });

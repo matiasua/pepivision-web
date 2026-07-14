@@ -20,8 +20,20 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-white/90 backdrop-blur-md">
       <div className="mx-auto flex h-[76px] max-w-6xl items-center justify-between gap-4 px-5">
-        <Link href="/" aria-label="Ir al inicio Pepi Visión 360" className="flex items-center gap-2.5">
-          <Image src="/brand/pepi-logo.png" alt="Pepi Visión 360" width={140} height={56} className="h-12 w-auto sm:h-14" priority />
+        <Link href="/" aria-label="Ir al inicio Pepi Visión 360" className="flex shrink-0 items-center gap-2.5">
+          {/* public/brand/pepi-logo.png is a square 2000x2000 PNG — width/height
+              below match its real 1:1 ratio (previously declared as 140x56,
+              a 2.5:1 ratio, which squished it horizontally). object-contain
+              is a defensive safeguard against any future asset with a
+              different ratio. */}
+          <Image
+            src="/brand/pepi-logo.png"
+            alt="Pepi Visión 360"
+            width={112}
+            height={112}
+            className="h-12 w-12 object-contain sm:h-14 sm:w-14"
+            priority
+          />
         </Link>
 
         <nav aria-label="Navegación principal" className="hidden items-center gap-1 lg:flex">
@@ -45,7 +57,7 @@ export function Header() {
             href={defaultWhatsAppHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden items-center gap-2 rounded-pill bg-brand-gradient px-5 py-2.5 text-sm font-semibold text-white shadow-brand-sm lg:inline-flex"
+            className="hidden shrink-0 items-center gap-2 whitespace-nowrap rounded-pill bg-brand-gradient px-5 py-2.5 text-sm font-semibold text-white shadow-brand-sm lg:inline-flex"
           >
             <WhatsAppIcon className="h-[17px] w-[17px]" />
             Cotiza tus lentes
@@ -82,7 +94,7 @@ export function Header() {
             href={defaultWhatsAppHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 flex items-center justify-center gap-2 rounded-2xl bg-brand-gradient p-3.5 font-semibold text-white"
+            className="mt-3 flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-brand-gradient p-3.5 font-semibold text-white"
           >
             <WhatsAppIcon className="h-[18px] w-[18px]" />
             Cotiza tus lentes

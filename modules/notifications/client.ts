@@ -9,12 +9,26 @@ import { env } from '@/lib/env';
 type MailTransport = ReturnType<typeof nodemailer.createTransport>;
 const globalForMail = globalThis as unknown as { mailTransport?: MailTransport };
 
+/**
+ * DKIM only activates once all three pieces are configured together — see
+ * lib/env.ts. Returns undefined (nodemailer's default: no signing) in
+ * development against Mailpit, which doesn't check signatures anyway.
+ * Takes plain args (not the `env` singleton) so it's a pure, directly
+ * testable function.
+ */
+export function buildDkimConfig(domainName: string, keySelector: string, privateKey: string) {
+  if (!domainName || !keySelector || !privateKey) return undefined;
+  return { domainName, keySelector, privateKey };
+}
+
 function createTransport(): MailTransport {
   return nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
-    secure: false,
+    secure: env.SMTP_SECURE,
+    requireTLS: env.SMTP_REQUIRE_TLS,
     auth: env.SMTP_USER ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } : undefined,
+    dkim: buildDkimConfig(env.DKIM_DOMAIN_NAME, env.DKIM_KEY_SELECTOR, env.DKIM_PRIVATE_KEY),
   });
 }
 

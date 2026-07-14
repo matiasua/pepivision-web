@@ -22,12 +22,27 @@ describe('modules/requests/schemas — quoteRequestSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts a catalog choice with a frameProductId', () => {
+  it('requires frameProductColorId when frameChoice is catalog, even with a frameProductId', () => {
     const result = quoteRequestSchema.safeParse({
       ...baseQuote,
       frameChoice: 'catalog',
       frameProductId: 'clx000000000000000000000',
     });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts a catalog choice with both a frameProductId and a frameProductColorId', () => {
+    const result = quoteRequestSchema.safeParse({
+      ...baseQuote,
+      frameChoice: 'catalog',
+      frameProductId: 'clx000000000000000000000',
+      frameProductColorId: 'clx000000000000000000001',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('does not require frameProductColorId when requesting advice (no product chosen)', () => {
+    const result = quoteRequestSchema.safeParse(baseQuote);
     expect(result.success).toBe(true);
   });
 

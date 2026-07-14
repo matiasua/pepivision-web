@@ -1,11 +1,30 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { LinkButton } from '@/components/Button';
 import { CheckIcon, WhatsAppIcon } from '@/components/icons';
 import { defaultWhatsAppHref } from '@/lib/whatsapp';
 import { GLASS_TYPES, PRESCRIPTION_ANSWERS, TREATMENT_IDS } from '@/modules/requests/schemas';
+import { ALLOWED_ATTACHMENT_MIME_TYPES, MAX_ATTACHMENT_BYTES } from '@/modules/storage/schemas';
 import { submitQuoteAction, type QuoteActionState } from '@/app/cotizador/actions';
+
+const ATTACHMENT_ACCEPT = ALLOWED_ATTACHMENT_MIME_TYPES.join(',');
+const ATTACHMENT_MAX_MB = MAX_ATTACHMENT_BYTES / (1024 * 1024);
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function validatePrescriptionFile(file: File): string | null {
+  if (!(ALLOWED_ATTACHMENT_MIME_TYPES as readonly string[]).includes(file.type)) {
+    return 'Formato no permitido. Usa PDF, JPG, PNG o WEBP.';
+  }
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    return `El archivo no puede superar ${ATTACHMENT_MAX_MB} MB.`;
+  }
+  return null;
+}
 
 const STEP_LABELS = ['Armazón', 'Cristal', 'Tratamientos', 'Receta', 'Datos'];
 
@@ -34,6 +53,7 @@ const PRESCRIPTION_DESCRIPTIONS: Record<(typeof PRESCRIPTION_ANSWERS)[number], s
 interface FrameOption {
   id: string;
   label: string;
+  colors: { id: string; name: string; hex: string }[];
 }
 
 function choiceClass(active: boolean) {
@@ -42,13 +62,26 @@ function choiceClass(active: boolean) {
   }`;
 }
 
-export function QuoteWizard({ frameOptions }: { frameOptions: FrameOption[] }) {
+export function QuoteWizard({
+  frameOptions,
+  initialProductId,
+}: {
+  frameOptions: FrameOption[];
+  initialProductId?: string;
+}) {
   const [step, setStep] = useState(1);
-  const [frameChoice, setFrameChoice] = useState<'catalog' | 'advice' | ''>('');
-  const [frameProductId, setFrameProductId] = useState('');
+  const [frameChoice, setFrameChoice] = useState<'catalog' | 'advice' | ''>(initialProductId ? 'catalog' : '');
+  const [frameProductId, setFrameProductId] = useState(initialProductId ?? '');
+  const [frameProductColorId, setFrameProductColorId] = useState('');
   const [glassType, setGlassType] = useState<(typeof GLASS_TYPES)[number] | ''>('');
   const [treatments, setTreatments] = useState<string[]>([]);
   const [hasPrescription, setHasPrescription] = useState<(typeof PRESCRIPTION_ANSWERS)[number] | ''>('');
+  const [prescriptionFile, setPrescriptionFile] = useState<File | null>(null);
+  const [prescriptionPreviewUrl, setPrescriptionPreviewUrl] = useState<string | null>(null);
+  const [prescriptionError, setPrescriptionError] = useState('');
+  const [prescriptionMessage, setPrescriptionMessage] = useState('');
+  const [isDraggingPrescription, setIsDraggingPrescription] = useState(false);
+  const prescriptionInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -61,13 +94,57 @@ export function QuoteWizard({ frameOptions }: { frameOptions: FrameOption[] }) {
   const [result, setResult] = useState<QuoteActionState>({ status: 'idle' });
   const [isPending, startTransition] = useTransition();
 
+  const selectedFrame = frameOptions.find((option) => option.id === frameProductId);
+
   function toggleTreatment(id: string) {
     setTreatments((current) => (current.includes(id) ? current.filter((t) => t !== id) : [...current, id]));
+  }
+
+  // Changing (or clearing) the selected product always clears the color —
+  // a color id only ever makes sense for the product it belongs to.
+  function selectFrameProduct(productId: string) {
+    setFrameProductId(productId);
+    setFrameProductColorId('');
+  }
+
+  function clearPrescriptionFile() {
+    if (prescriptionPreviewUrl) URL.revokeObjectURL(prescriptionPreviewUrl);
+    setPrescriptionFile(null);
+    setPrescriptionPreviewUrl(null);
+    setPrescriptionError('');
+    setPrescriptionMessage('');
+    if (prescriptionInputRef.current) prescriptionInputRef.current.value = '';
+  }
+
+  // Switching away from "Sí" must drop any selected file entirely — never
+  // upload it, never keep a hidden reference to it.
+  function selectPrescriptionAnswer(answer: (typeof PRESCRIPTION_ANSWERS)[number]) {
+    setHasPrescription(answer);
+    if (answer !== 'Sí') clearPrescriptionFile();
+  }
+
+  function handlePrescriptionFile(file: File | null) {
+    if (!file) return;
+    const error = validatePrescriptionFile(file);
+    if (error) {
+      setPrescriptionError(error);
+      setPrescriptionMessage('');
+      return;
+    }
+    if (prescriptionPreviewUrl) URL.revokeObjectURL(prescriptionPreviewUrl);
+    setPrescriptionFile(file);
+    setPrescriptionPreviewUrl(file.type === 'application/pdf' ? null : URL.createObjectURL(file));
+    setPrescriptionError('');
+    setPrescriptionMessage('Receta adjuntada correctamente.');
   }
 
   function goNext() {
     if (step === 1 && (!frameChoice || (frameChoice === 'catalog' && !frameProductId))) {
       setStepError('Selecciona un modelo del catálogo o indica que necesitas asesoría.');
+      return;
+    }
+    if (step === 1 && frameChoice === 'catalog' && !frameProductColorId) {
+      setStepError('Selecciona un color para este modelo.');
       return;
     }
     if (step === 2 && !glassType) {
@@ -89,20 +166,32 @@ export function QuoteWizard({ frameOptions }: { frameOptions: FrameOption[] }) {
 
   function handleSubmit() {
     startTransition(async () => {
-      const response = await submitQuoteAction({
-        frameChoice,
-        frameProductId: frameChoice === 'catalog' ? frameProductId : undefined,
-        glassType,
-        treatments,
-        hasPrescription,
-        name,
-        phone,
-        email,
-        comuna,
-        message,
-        consent,
-        website,
-      });
+      const formData = new FormData();
+      if (hasPrescription === 'Sí' && prescriptionFile) {
+        formData.set('prescriptionFile', prescriptionFile);
+      }
+      const response = await submitQuoteAction(
+        {
+          frameChoice,
+          frameProductId: frameChoice === 'catalog' ? frameProductId : undefined,
+          frameProductColorId: frameChoice === 'catalog' ? frameProductColorId : undefined,
+          glassType,
+          treatments,
+          hasPrescription,
+          name,
+          phone,
+          email,
+          comuna,
+          message,
+          consent,
+          website,
+        },
+        formData
+      );
+      // A failed submit (e.g. the attachment failed to upload) must keep
+      // the form's data and the selected file intact so the visitor can
+      // just retry, not start over.
+      if (response.status !== 'error') clearPrescriptionFile();
       setResult(response);
     });
   }
@@ -129,9 +218,11 @@ export function QuoteWizard({ frameOptions }: { frameOptions: FrameOption[] }) {
               setStep(1);
               setFrameChoice('');
               setFrameProductId('');
+              setFrameProductColorId('');
               setGlassType('');
               setTreatments([]);
               setHasPrescription('');
+              clearPrescriptionFile();
               setName('');
               setPhone('');
               setEmail('');
@@ -189,7 +280,7 @@ export function QuoteWizard({ frameOptions }: { frameOptions: FrameOption[] }) {
                 <div className="font-semibold text-navy">Elegir del catálogo</div>
                 <div className="mt-1 text-[13px] text-grafito">Escoge un modelo disponible</div>
               </button>
-              <button type="button" className={choiceClass(frameChoice === 'advice')} onClick={() => { setFrameChoice('advice'); setFrameProductId(''); }}>
+              <button type="button" className={choiceClass(frameChoice === 'advice')} onClick={() => { setFrameChoice('advice'); selectFrameProduct(''); }}>
                 <div className="font-semibold text-navy">Necesito asesoría</div>
                 <div className="mt-1 text-[13px] text-grafito">Ayúdenme a elegir</div>
               </button>
@@ -199,7 +290,7 @@ export function QuoteWizard({ frameOptions }: { frameOptions: FrameOption[] }) {
                 <div className="mb-2.5 text-[13px] font-semibold text-navy">Modelo seleccionado</div>
                 <select
                   value={frameProductId}
-                  onChange={(event) => setFrameProductId(event.target.value)}
+                  onChange={(event) => selectFrameProduct(event.target.value)}
                   className="w-full rounded-input border border-line bg-white px-3.5 py-3 text-ink"
                 >
                   <option value="">Selecciona un modelo…</option>
@@ -209,6 +300,41 @@ export function QuoteWizard({ frameOptions }: { frameOptions: FrameOption[] }) {
                     </option>
                   ))}
                 </select>
+
+                {frameProductId ? (
+                  <div className="mt-4">
+                    <div className="mb-2.5 text-[13px] font-semibold text-navy">Color *</div>
+                    {selectedFrame && selectedFrame.colors.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedFrame.colors.map((color) => {
+                          const active = frameProductColorId === color.id;
+                          return (
+                            <button
+                              key={color.id}
+                              type="button"
+                              onClick={() => setFrameProductColorId(color.id)}
+                              aria-pressed={active}
+                              className={`flex items-center gap-1.5 rounded-pill border-[1.5px] py-1.5 pl-1.5 pr-3.5 text-[13px] font-semibold ${
+                                active ? 'border-fucsia bg-brand-gradient-soft text-fucsia' : 'border-line text-grafito'
+                              }`}
+                            >
+                              <span
+                                className="h-5 w-5 rounded-full border border-white shadow-[0_0_0_1px_#d7dceb]"
+                                style={{ backgroundColor: color.hex }}
+                              />
+                              {color.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="rounded-input bg-gray px-3.5 py-3 text-[13px] text-grafito">
+                        Este modelo todavía no tiene colores cargados — contáctanos por WhatsApp para revisar
+                        las opciones disponibles.
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -273,13 +399,108 @@ export function QuoteWizard({ frameOptions }: { frameOptions: FrameOption[] }) {
                   key={option}
                   type="button"
                   className={choiceClass(hasPrescription === option)}
-                  onClick={() => setHasPrescription(option)}
+                  onClick={() => selectPrescriptionAnswer(option)}
                 >
                   <div className="font-semibold text-navy">{option}</div>
                   <div className="mt-1 text-[13px] text-grafito">{PRESCRIPTION_DESCRIPTIONS[option]}</div>
                 </button>
               ))}
             </div>
+
+            {hasPrescription === 'Sí' ? (
+              <div className="mt-4.5 rounded-2xl border-2 border-line bg-white p-4.5">
+                <h4 className="font-semibold text-navy">Adjunta tu receta óptica</h4>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-grafito">
+                  Puedes subir una fotografía o un archivo PDF. También puedes continuar sin adjuntarla y
+                  enviarla posteriormente.
+                </p>
+
+                {!prescriptionFile ? (
+                  <div
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      setIsDraggingPrescription(true);
+                    }}
+                    onDragLeave={() => setIsDraggingPrescription(false)}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      setIsDraggingPrescription(false);
+                      handlePrescriptionFile(event.dataTransfer.files?.[0] ?? null);
+                    }}
+                    className={`mt-3.5 rounded-2xl border-2 border-dashed p-4 text-center transition-colors ${
+                      isDraggingPrescription ? 'border-fucsia bg-brand-gradient-soft' : 'border-[#c7d2e8] bg-gray'
+                    }`}
+                  >
+                    <p className="text-[13px] text-grafito">Arrastra tu receta aquí o selecciónala desde tu equipo.</p>
+                    <button
+                      type="button"
+                      onClick={() => prescriptionInputRef.current?.click()}
+                      className="mt-3 rounded-input bg-navy px-4.5 py-2.5 text-sm font-semibold text-white"
+                    >
+                      Seleccionar receta
+                    </button>
+                    <input
+                      ref={prescriptionInputRef}
+                      type="file"
+                      accept={ATTACHMENT_ACCEPT}
+                      className="hidden"
+                      onChange={(event) => handlePrescriptionFile(event.target.files?.[0] ?? null)}
+                    />
+                    <p className="mt-2 text-[11px] text-[#93a0bd]">PDF, JPG, PNG o WEBP · máximo {ATTACHMENT_MAX_MB} MB</p>
+                  </div>
+                ) : (
+                  <div className="mt-3.5 flex items-center gap-3 rounded-2xl border border-line bg-gray p-3">
+                    {prescriptionPreviewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- local blob: preview, next/image can't optimize it and doesn't need to
+                      <img src={prescriptionPreviewUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-navy/10 text-[11px] font-bold text-navy">
+                        PDF
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[13.5px] font-semibold text-navy">{prescriptionFile.name}</div>
+                      <div className="text-xs text-[#93a0bd]">{formatFileSize(prescriptionFile.size)}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => prescriptionInputRef.current?.click()}
+                      className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-semibold text-navy"
+                    >
+                      Reemplazar
+                    </button>
+                    <input
+                      ref={prescriptionInputRef}
+                      type="file"
+                      accept={ATTACHMENT_ACCEPT}
+                      className="hidden"
+                      onChange={(event) => handlePrescriptionFile(event.target.files?.[0] ?? null)}
+                    />
+                    <button
+                      type="button"
+                      onClick={clearPrescriptionFile}
+                      aria-label="Quitar receta adjunta"
+                      className="shrink-0 rounded-lg bg-error-bg px-3 py-2 text-xs font-semibold text-error"
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                )}
+
+                <div aria-live="polite">
+                  {prescriptionError ? (
+                    <div className="mt-2.5 rounded-input bg-error-bg px-3 py-2 text-[12.5px] font-semibold text-error">
+                      {prescriptionError}
+                    </div>
+                  ) : null}
+                  {prescriptionMessage ? (
+                    <div className="mt-2.5 rounded-input bg-success-bg px-3 py-2 text-[12.5px] font-semibold text-success">
+                      {prescriptionMessage}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -346,6 +567,18 @@ export function QuoteWizard({ frameOptions }: { frameOptions: FrameOption[] }) {
                 />
               </div>
             </div>
+
+            {hasPrescription === 'Sí' ? (
+              <div className="mt-4.5 rounded-2xl bg-gray p-3.5 text-[13px] text-grafito">
+                <div>
+                  <span className="font-semibold text-navy">Tiene receta:</span> Sí
+                </div>
+                <div className="mt-1">
+                  <span className="font-semibold text-navy">Archivo adjunto:</span>{' '}
+                  {prescriptionFile ? prescriptionFile.name : 'No se adjuntó'}
+                </div>
+              </div>
+            ) : null}
 
             <label className="mt-4.5 flex cursor-pointer items-start gap-2.5 text-[13px] text-grafito">
               <input

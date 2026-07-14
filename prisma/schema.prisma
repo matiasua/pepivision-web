@@ -38,12 +38,6 @@ enum ProductBadge {
   MAS_VENDIDO
 }
 
-enum ImageSlot {
-  MAIN
-  FRONT
-  SIDE
-}
-
 enum RequestType {
   QUOTE
   HOME_VISIT
@@ -91,11 +85,41 @@ enum EmailStatus {
 /// (`/catalogo/[slug]`), independiente de `code` (que es un dato de
 /// gestión interna, editable desde el admin). Ver design.md → "Decisiones
 /// de modelado" para el detalle de esta adición.
+/// Marca comercial del armazón (Ray-Ban, etc.) — ver migración
+/// 20260715000000_add_brand_and_request_attachment y design.md →
+/// "Modelo Brand" para la estrategia de normalización/nullable elegida.
+model Brand {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  /// Identidad real de deduplicación (kebab-case, derivado del nombre
+  /// normalizado) — evita duplicados tipo "Ray-Ban"/"rayban"/"RAY BAN"
+  /// aunque `name` conserve la grafía comercial exacta para mostrar.
+  slug      String   @unique
+  /// Ruta pública bajo /marcas (ver lib/brands.ts), no una URL externa.
+  logoPath  String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+
+  @@map("brands")
+}
+
 model Product {
   id            String          @id @default(cuid())
   code          String          @unique
   slug          String          @unique
   name          String
+  /// Nullable a propósito: los productos existentes antes de esta
+  /// migración no tienen marca asignada todavía y no deben quedar
+  /// inválidos ni perderse. El formulario admin exige elegirla para
+  /// altas/ediciones nuevas (validado server-side), pero la constraint de
+  /// BD permite que un producto legado quede sin marca hasta que un
+  /// administrador la complete.
+  brandId       String?
+  brand         Brand?          @relation(fields: [brandId], references: [id])
   gender        Gender
   shape         ProductShape
   material      ProductMaterial
@@ -130,19 +154,43 @@ model ProductColor {
   name      String
   hex       String
 
+  images ProductImage[]
+
+  /// Composite unique (redundant with `id` alone, which is already unique)
+  /// so ProductImage can declare a composite FK on (productColorId,
+  /// productId) — that's what makes "a photo can't be linked to a color
+  /// from a different product" a DB-enforced invariant, not just an
+  /// application-level check.
+  @@unique([id, productId])
   @@map("product_colors")
 }
 
+/// Reemplaza el modelo de slots fijos (MAIN/FRONT/SIDE, ver migración
+/// 20260714000000_product_image_gallery) por una galería ordenable de
+/// largo variable, donde cada fotografía pertenece a un color concreto del
+/// producto — un mismo armazón en varios colores puede tener varias fotos,
+/// y un mismo color puede tener varias fotos (ver design.md).
 model ProductImage {
-  id        String    @id @default(cuid())
-  productId String
-  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
-  slot      ImageSlot
-  storageKey String
-  url       String
-  width     Int?
-  height    Int?
-  createdAt DateTime  @default(now())
+  id             String       @id @default(cuid())
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productColorId String
+  productColor   ProductColor @relation(fields: [productColorId, productId], references: [id, productId])
+  storageKey     String
+  url            String
+  width          Int?
+  height         Int?
+  /// Posición dentro de la galería del producto; reasignado consecutivo
+  /// (0..n-1) por la capa de servicio en cada subida/eliminación/reorden,
+  /// no forzado por una constraint de BD (ver nota en design.md).
+  sortOrder      Int          @default(0)
+  /// A lo más una fotografía por producto puede tener isCover=true — ver
+  /// índice único parcial creado a mano en la migración (Prisma no expresa
+  /// índices parciales en el schema).
+  isCover        Boolean      @default(false)
+  altText        String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   @@map("product_images")
 }
@@ -165,9 +213,37 @@ model Request {
   retentionExpiresAt DateTime
   deletedAt          DateTime?
 
-  emailLogs EmailLog[]
+  emailLogs   EmailLog[]
+  attachments RequestAttachment[]
 
   @@map("requests")
+}
+
+enum RequestAttachmentType {
+  PRESCRIPTION
+}
+
+/// Adjuntos sensibles de una solicitud (receta óptica, por ahora el único
+/// tipo) — nunca en el bucket público de fotografías de producto, nunca en
+/// PostgreSQL/base64. Solo se guarda la referencia (storageKey) al bucket
+/// privado; ver modules/storage/private-service.ts y design.md → "Adjuntos
+/// de solicitudes: almacenamiento privado".
+model RequestAttachment {
+  id               String                 @id @default(cuid())
+  requestId        String
+  request          Request                @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  type             RequestAttachmentType
+  storageKey       String
+  /// Sanitizado (sin ruta, sin caracteres de control) antes de guardar —
+  /// nunca el nombre crudo del sistema de archivos del cliente.
+  originalFileName String
+  mimeType         String
+  sizeBytes        Int
+  checksum         String?
+  createdAt        DateTime               @default(now())
+  deletedAt        DateTime?
+
+  @@map("request_attachments")
 }
 
 model EnabledComuna {
@@ -227,6 +303,10 @@ model DataRightsRequest {
 model AdminUser {
   id           String    @id @default(cuid())
   email        String    @unique
+  /// Trimmed + lowercased before storage (see modules/auth/schemas.ts);
+  /// unique index makes uniqueness case-insensitive in practice since no
+  /// row is ever written with mixed case.
+  username     String    @unique
   passwordHash String
   name         String
   role         AdminRole
