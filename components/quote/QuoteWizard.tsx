@@ -251,14 +251,14 @@ export function QuoteWizard({
             <div key={label} className="flex flex-1 flex-col items-center gap-1.5">
               <div
                 className={`flex h-[34px] w-[34px] items-center justify-center rounded-full text-sm font-semibold ${
-                  current ? 'bg-fucsia text-white' : done ? 'bg-blue text-white' : 'bg-gray text-[#93a0bd]'
+                  current ? 'bg-fucsia text-white' : done ? 'bg-blue text-white' : 'bg-gray text-[#5b6b85]'
                 }`}
               >
                 {done ? '✓' : n}
               </div>
               <div
                 className={`text-center text-[11px] font-semibold ${
-                  current ? 'text-fucsia' : done ? 'text-blue' : 'text-[#93a0bd]'
+                  current ? 'text-fucsia' : done ? 'text-blue' : 'text-[#5b6b85]'
                 }`}
               >
                 {label}
@@ -461,7 +461,7 @@ export function QuoteWizard({
                       className="hidden"
                       onChange={(event) => handlePrescriptionFile(event.target.files?.[0] ?? null)}
                     />
-                    <p className="mt-2 text-[11px] text-[#93a0bd]">PDF, JPG, PNG o WEBP · máximo {ATTACHMENT_MAX_MB} MB</p>
+                    <p className="mt-2 text-[11px] text-[#5b6b85]">PDF, JPG, PNG o WEBP · máximo {ATTACHMENT_MAX_MB} MB</p>
                   </div>
                 ) : (
                   <div className="mt-3.5 flex items-center gap-3 rounded-2xl border border-line bg-gray p-3">
@@ -475,7 +475,7 @@ export function QuoteWizard({
                     )}
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-[13.5px] font-semibold text-navy">{prescriptionFile.name}</div>
-                      <div className="text-xs text-[#93a0bd]">{formatFileSize(prescriptionFile.size)}</div>
+                      <div className="text-xs text-[#5b6b85]">{formatFileSize(prescriptionFile.size)}</div>
                     </div>
                     <button
                       type="button"
@@ -651,7 +651,7 @@ export function QuoteWizard({
               href={defaultWhatsAppHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden items-center gap-2 rounded-input border-[1.5px] border-whatsapp px-4.5 py-3 font-semibold text-[#1a9d4e] sm:inline-flex"
+              className="hidden items-center gap-2 rounded-input border-[1.5px] border-whatsapp px-4.5 py-3 font-semibold text-[#15803d] sm:inline-flex"
             >
               Continuar por WhatsApp
             </a>

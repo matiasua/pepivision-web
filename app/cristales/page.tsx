@@ -45,7 +45,7 @@ const comparisonRows: { feature: string; mono: boolean; bi: boolean; multi: bool
 
 function Mark({ value }: { value: boolean }) {
   return (
-    <span className={value ? 'text-[#1a9d4e]' : 'text-[#cfd6e6]'} aria-label={value ? 'Sí' : 'No'}>
+    <span className={value ? 'text-[#15803d]' : 'text-[#cfd6e6]'} aria-label={value ? 'Sí' : 'No'}>
       {value ? '✓' : '—'}
     </span>
   );

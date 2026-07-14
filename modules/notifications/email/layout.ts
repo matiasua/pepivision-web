@@ -46,7 +46,7 @@ export function renderEmailFooter(contact: FooterContactInfo): string {
           Horario: ${escapeHtml(contact.hoursText)}<br>
           Ubicación: ${escapeHtml(contact.locationText)}
         </div>
-        <div style="margin-top:14px;font-family:${emailFontFamily};font-size:11.5px;line-height:1.6;color:#93a0bd;">
+        <div style="margin-top:14px;font-family:${emailFontFamily};font-size:11.5px;line-height:1.6;color:#5b6b85;">
           <a href="${escapeHtml(SITE_URL)}" target="_blank" rel="noopener noreferrer" style="color:${emailColors.blue};text-decoration:none;">pepivision360</a>
           &nbsp;·&nbsp;
           <a href="${escapeHtml(PRIVACY_POLICY_URL)}" target="_blank" rel="noopener noreferrer" style="color:${emailColors.blue};text-decoration:none;">Política de privacidad</a>

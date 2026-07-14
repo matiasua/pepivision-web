@@ -194,7 +194,7 @@ export function UserManager({ users, currentUserId }: { users: AdminUserView[]; 
       <div className="mt-5 overflow-hidden overflow-x-auto rounded-card border border-line bg-white shadow-brand-sm">
         <table className="w-full min-w-[640px] border-collapse">
           <thead>
-            <tr className="bg-gray text-left text-[11.5px] font-bold uppercase tracking-wide text-[#7a869f]">
+            <tr className="bg-gray text-left text-[11.5px] font-bold uppercase tracking-wide text-[#5b6b85]">
               <th className="px-4.5 py-3.5">Usuario</th>
               <th className="px-4.5 py-3.5">Rol</th>
               <th className="px-4.5 py-3.5">Estado</th>
@@ -206,12 +206,12 @@ export function UserManager({ users, currentUserId }: { users: AdminUserView[]; 
               <tr key={user.id} className="border-t border-line align-middle">
                 <td className="px-4.5 py-3.5">
                   <div className="font-semibold text-navy">{user.name}</div>
-                  <div className="text-xs text-[#93a0bd]">{user.email}</div>
-                  <div className="text-xs text-[#93a0bd]">@{user.username}</div>
+                  <div className="text-xs text-[#5b6b85]">{user.email}</div>
+                  <div className="text-xs text-[#5b6b85]">@{user.username}</div>
                 </td>
                 <td className="px-4.5 py-3.5 text-sm text-grafito">{ROLE_LABELS[user.role]}</td>
                 <td className="px-4.5 py-3.5">
-                  <span className={`text-xs font-semibold ${user.active ? 'text-success' : 'text-[#93a0bd]'}`}>
+                  <span className={`text-xs font-semibold ${user.active ? 'text-success' : 'text-[#5b6b85]'}`}>
                     {user.active ? 'Activo' : 'Desactivado'}
                   </span>
                 </td>

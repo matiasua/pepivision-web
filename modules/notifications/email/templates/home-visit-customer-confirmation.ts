@@ -38,7 +38,7 @@ export function homeVisitCustomerConfirmation(input: HomeVisitCustomerConfirmati
     </p>
     ${renderInfoCard(rows, { title: 'Resumen de tu consulta' })}
     ${renderNotice(coverageNotice)}
-    <p style="margin:18px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12.5px;color:#93a0bd;">
+    <p style="margin:18px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12.5px;color:#5b6b85;">
       Gracias por escribirnos.
     </p>`;
 

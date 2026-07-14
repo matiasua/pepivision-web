@@ -477,7 +477,7 @@ export function ProductForm({
         ) : null}
 
         {!productId && colors.length > 0 ? (
-          <div className="mt-2 text-xs text-[#93a0bd]">
+          <div className="mt-2 text-xs text-[#5b6b85]">
             Podrás subir fotografías para estos colores después de guardar este modelo por primera vez.
           </div>
         ) : null}

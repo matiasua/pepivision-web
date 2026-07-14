@@ -68,3 +68,51 @@ describe('next.config.ts — buildContentSecurityPolicy', () => {
     expect(prodCsp).not.toContain('ws://localhost:8080');
   });
 });
+
+describe('next.config.ts — headers() full security header set (single source of truth)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  async function loadHeaders() {
+    const mod = await import('../next.config');
+    const rules = await mod.default.headers!();
+    return rules[0].headers;
+  }
+
+  it('applies the full header set to every path via a single catch-all rule', async () => {
+    const mod = await import('../next.config');
+    const rules = await mod.default.headers!();
+    expect(rules).toHaveLength(1);
+    expect(rules[0].source).toBe('/:path*');
+  });
+
+  it('sets nosniff, DENY framing (belt-and-suspenders with CSP frame-ancestors), and a strict referrer policy', async () => {
+    const headers = await loadHeaders();
+    const byKey = Object.fromEntries(headers.map((h) => [h.key, h.value]));
+    expect(byKey['X-Content-Type-Options']).toBe('nosniff');
+    expect(byKey['X-Frame-Options']).toBe('DENY');
+    expect(byKey['Referrer-Policy']).toBe('strict-origin-when-cross-origin');
+  });
+
+  it('locks down Permissions-Policy (camera/mic/geolocation/payment/usb/FLoC all denied)', async () => {
+    const headers = await loadHeaders();
+    const byKey = Object.fromEntries(headers.map((h) => [h.key, h.value]));
+    for (const feature of ['camera=()', 'microphone=()', 'geolocation=()', 'payment=()', 'usb=()', 'interest-cohort=()']) {
+      expect(byKey['Permissions-Policy']).toContain(feature);
+    }
+  });
+
+  it('sets same-origin COOP/CORP', async () => {
+    const headers = await loadHeaders();
+    const byKey = Object.fromEntries(headers.map((h) => [h.key, h.value]));
+    expect(byKey['Cross-Origin-Opener-Policy']).toBe('same-origin');
+    expect(byKey['Cross-Origin-Resource-Policy']).toBe('same-origin');
+  });
+
+  it('never sets Strict-Transport-Security (HSTS would be actively wrong over this dev environment\'s plain HTTP)', async () => {
+    const headers = await loadHeaders();
+    expect(headers.some((h) => h.key.toLowerCase() === 'strict-transport-security')).toBe(false);
+  });
+});

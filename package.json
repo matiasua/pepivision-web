@@ -9,6 +9,12 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:e2e": "playwright test --config=playwright.config.ts --project=e2e",
+    "test:a11y": "playwright test --config=playwright.config.ts --project=a11y",
+    "test:lighthouse": "lhci autorun --config=lighthouserc.cjs",
+    "ci": "npm run lint && npm run typecheck && npm run test:unit && npm run test:integration && npm run build",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
@@ -35,6 +41,9 @@
     "zod": "^4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.12.1",
+    "@lhci/cli": "0.15.1",
+    "@playwright/test": "1.61.1",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",

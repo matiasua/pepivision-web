@@ -1,0 +1,18 @@
+# syntax=docker/dockerfile:1
+# Playwright + its browsers must run inside a container (never installed on
+# the host) — the official Playwright image already bundles Chromium/
+# Firefox/WebKit plus their OS-level dependencies, which node:22-alpine
+# (used by Dockerfile.dev) cannot provide. The tag MUST match the
+# `@playwright/test` version pinned in package.json (see e2e/README.md) —
+# a mismatched browser/runner version is a common source of flaky E2E runs.
+FROM mcr.microsoft.com/playwright:v1.61.1-noble
+
+WORKDIR /app
+
+COPY package*.json ./
+COPY prisma ./prisma
+RUN npm install
+
+COPY . .
+
+CMD ["npx", "playwright", "test"]

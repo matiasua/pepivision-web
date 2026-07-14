@@ -1,0 +1,234 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Test-only, non-sensitive values for this ephemeral CI environment —
+  # never real secrets, never used outside this workflow run. Mirrors
+  # .env.example (see that file's own comments for what each var is for).
+  POSTGRES_DB: pepivision360
+  POSTGRES_USER: pepivision360
+  POSTGRES_PASSWORD: ci-test-only-password
+  POSTGRES_PORT: "5432"
+  DATABASE_URL: postgresql://pepivision360:ci-test-only-password@postgres:5432/pepivision360
+  APP_DB_USER: pepivision360_app
+  APP_DB_PASSWORD: ci-test-only-app-password
+  DATABASE_URL_APP: postgresql://pepivision360_app:ci-test-only-app-password@postgres:5432/pepivision360
+  APP_URL: http://localhost:8080
+  NEXT_PUBLIC_APP_URL: http://localhost:8080
+  SESSION_SECRET: ci-test-only-session-secret-not-a-real-value-1234567890
+  EMAIL_ASSET_BASE_URL: http://localhost:8080
+  OBJECT_STORAGE_ENDPOINT: http://minio:9000
+  OBJECT_STORAGE_PUBLIC_URL: http://localhost:9000
+  OBJECT_STORAGE_REGION: us-east-1
+  OBJECT_STORAGE_BUCKET: pepivision360-products
+  OBJECT_STORAGE_ACCESS_KEY: ci-test-only-key
+  OBJECT_STORAGE_SECRET_KEY: ci-test-only-secret
+  OBJECT_STORAGE_FORCE_PATH_STYLE: "true"
+  PRIVATE_OBJECT_STORAGE_BUCKET: pepivision360-attachments
+  MINIO_ROOT_USER: ci-test-only-key
+  MINIO_ROOT_PASSWORD: ci-test-only-secret
+  SMTP_HOST: mailpit
+  SMTP_PORT: "1025"
+  SMTP_USER: ""
+  SMTP_PASSWORD: ""
+  SMTP_FROM: no-reply@pepivision360.local
+  SMTP_SECURE: "false"
+  SMTP_REQUIRE_TLS: "false"
+  DKIM_DOMAIN_NAME: ""
+  DKIM_KEY_SELECTOR: ""
+  DKIM_PRIVATE_KEY: ""
+  ADMINER_PORT: "8081"
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history (not the default shallow single-commit checkout) —
+          # needed so the "design-reference/ untouched" check below can
+          # actually diff against the PR's base/previous push, not just an
+          # empty working tree.
+          fetch-depth: 0
+
+      # Belt-and-suspenders: this workflow must never grow cloud-provisioning
+      # or release-shipping steps — fail loudly if anyone ever adds one,
+      # rather than relying only on human review to catch it. Excludes this
+      # step's own lines (tagged "scanignore") so its own pattern string
+      # doesn't trip over itself.
+      - name: Self-check — no cloud/IaC/release-shipping keywords in this workflow
+        run: |
+          pattern='aws |aws-actions|terraform|cloudformation|\bcdk\b|pulumi|ansible|docker/login-action|docker push|docker/build-push-action|ssh-action|appleboy|deploy' # scanignore
+          if grep -v 'scanignore' .github/workflows/ci.yml | grep -Ei "$pattern"; then
+            echo "Forbidden keyword found in ci.yml (see line above)." >&2 # scanignore
+            exit 1
+          fi
+
+      - name: Write .env for Docker Compose
+        run: |
+          {
+            for var in POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD POSTGRES_PORT DATABASE_URL \
+              APP_DB_USER APP_DB_PASSWORD DATABASE_URL_APP APP_URL NEXT_PUBLIC_APP_URL SESSION_SECRET \
+              EMAIL_ASSET_BASE_URL OBJECT_STORAGE_ENDPOINT OBJECT_STORAGE_PUBLIC_URL OBJECT_STORAGE_REGION \
+              OBJECT_STORAGE_BUCKET OBJECT_STORAGE_ACCESS_KEY OBJECT_STORAGE_SECRET_KEY OBJECT_STORAGE_FORCE_PATH_STYLE \
+              PRIVATE_OBJECT_STORAGE_BUCKET MINIO_ROOT_USER MINIO_ROOT_PASSWORD SMTP_HOST SMTP_PORT SMTP_USER \
+              SMTP_PASSWORD SMTP_FROM SMTP_SECURE SMTP_REQUIRE_TLS DKIM_DOMAIN_NAME DKIM_KEY_SELECTOR DKIM_PRIVATE_KEY \
+              ADMINER_PORT; do
+              echo "$var=${!var}"
+            done
+          } > .env
+
+      - name: Validate Docker Compose config
+        run: docker compose config
+
+      - name: Build web/migrate/db-init images
+        run: docker compose build web migrate db-init
+
+      - name: Start the stack (postgres → migrate → db-init → minio → minio-init → mailpit → web → nginx)
+        run: docker compose up -d
+        # `docker compose up` (no explicit service list) resolves the full
+        # depends_on graph itself — this one command covers steps
+        # "levantar servicios" + "esperar healthchecks" + "ejecutar
+        # db-init" + "ejecutar migraciones" from the required list, since
+        # those are one-shot services gating `web`'s own startup.
+
+      - name: Wait for web to report healthy
+        run: |
+          for _ in $(seq 1 60); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' pepivision360-web-1 2>/dev/null || echo "starting")
+            if [ "$status" = "healthy" ]; then echo "web is healthy"; exit 0; fi
+            sleep 3
+          done
+          echo "web never became healthy" >&2
+          docker compose ps
+          exit 1
+
+      - name: Confirm /api/health, PostgreSQL, and MinIO are reachable
+        run: |
+          curl -fsS http://localhost:8080/api/health
+          docker compose exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+          docker compose exec -T minio mc ready local
+
+      - name: Seed test data (idempotent — products/brands/comunas the E2E suite exercises)
+        run: docker compose exec -T web npx prisma db seed
+
+      - name: Lint
+        run: docker compose exec -T web npm run lint
+
+      - name: Typecheck
+        run: docker compose exec -T web npm run typecheck
+
+      - name: Unit tests
+        run: docker compose exec -T web npm run test:unit
+
+      - name: Integration tests
+        run: docker compose exec -T web npm run test:integration
+
+      - name: Build (production)
+        run: docker compose exec -T web npm run build
+
+      - name: Build the Playwright e2e image
+        run: docker compose --profile e2e build e2e
+
+      - name: E2E + axe-core accessibility tests
+        run: docker compose --profile e2e run --rm e2e npx playwright test
+        # No --project filter: runs both the `e2e` (functional) and `a11y`
+        # (axe-core, gated on serious/critical violations only) projects.
+
+      - name: Lighthouse CI (home, catálogo, ficha de producto)
+        run: docker compose --profile e2e run --rm e2e npm run test:lighthouse
+
+      - name: npm audit (production dependencies)
+        # --omit=dev: the 5 known findings in this project all live in
+        # devDependencies (@lhci/cli's own bundled inquirer/tmp/uuid — see
+        # design.md's "Dependencias y vulnerabilidades aceptadas"), a
+        # dev/CI-only tool never bundled into the app or reachable by an
+        # end user. Gating on those would fail every CI run for a
+        # vulnerability with no real exposure; production dependencies are
+        # the ones that actually matter for this gate.
+        run: docker compose exec -T web npm audit --omit=dev
+
+      - name: OpenSpec validate — add-pepi-vision-360-v1 (active change)
+        run: docker compose exec -T web npx --yes @fission-ai/openspec@latest validate add-pepi-vision-360-v1 --strict
+
+      - name: OpenSpec validate — redesign-extensible-catalog-v2 (documented, not applied)
+        run: docker compose exec -T web npx --yes @fission-ai/openspec@latest validate redesign-extensible-catalog-v2 --strict
+
+      - name: Confirm design-reference/ was not modified by this change
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          # A push that creates a new branch (or the repo's very first
+          # commit) has no meaningful "before" — nothing to diff against.
+          if [ -z "$base" ] || ! git cat-file -e "$base" 2>/dev/null; then
+            echo "No comparable base commit — skipping (first commit or new branch)."
+          else
+            git diff --exit-code "$base" -- design-reference/
+          fi
+
+      - name: Confirm no secret-looking patterns in tracked files
+        run: |
+          # Excludes tests/**: modules/notifications' own DKIM unit tests
+          # legitimately embed the literal string "-----BEGIN PRIVATE
+          # KEY-----" as fixture input (see tests/notifications-service.test.ts)
+          # — a bare header with no actual key body, not a real credential.
+          if grep -RInE '(AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' \
+              --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=design-reference \
+              --exclude-dir=tests --exclude-dir=tests-integration --exclude-dir=e2e .; then
+            echo "Possible committed secret found — see output above." >&2
+            exit 1
+          fi
+
+      # Only on failure, and only what's needed to diagnose — never .env,
+      # cookies, storage state, tokens, prescriptions/private objects, or a
+      # full DB dump. Short retention: this is debugging material, not a
+      # durable artifact.
+      - name: Collect diagnostic logs (on failure only)
+        if: failure()
+        run: |
+          mkdir -p ci-failure-logs
+          docker compose ps > ci-failure-logs/compose-ps.txt || true
+          for svc in web nginx postgres minio mailpit migrate db-init minio-init; do
+            docker compose logs --no-color "$svc" > "ci-failure-logs/$svc.log" 2>&1 || true
+          done
+          # Defensive: strip anything that looks like a password/secret value
+          # from the collected logs before they're ever uploaded.
+          grep -RIlE 'PASSWORD|SECRET|_KEY=' ci-failure-logs/ 2>/dev/null | while read -r f; do
+            sed -i -E 's/(PASSWORD|SECRET|_KEY)=[^ ]+/\1=[redacted]/g' "$f"
+          done
+
+      - name: Upload diagnostic logs (on failure only)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-failure-logs
+          path: ci-failure-logs/
+          retention-days: 5
+
+      - name: Upload Playwright report (on failure only)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 5
+          if-no-files-found: ignore

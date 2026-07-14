@@ -55,7 +55,7 @@ function AttachmentPanel({ attachment }: { attachment: NonNullable<AdminRequestV
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2.5 rounded-lg border border-line bg-gray/40 px-3 py-2.5">
       <span className="text-[13.5px] text-grafito">
-        <span className="text-[#93a0bd]">Receta adjunta:</span> {attachment.originalFileName} (
+        <span className="text-[#5b6b85]">Receta adjunta:</span> {attachment.originalFileName} (
         {formatFileSize(attachment.sizeBytes)})
       </span>
       <button
@@ -103,7 +103,7 @@ export function RequestCard({ request }: { request: AdminRequestView }) {
       <div className="flex flex-wrap items-center gap-2.5">
         <StatusPill label={TYPE_LABELS[request.type] ?? request.type} tone="info" />
         <StatusPill label={request.status === 'NEW' ? 'Nueva' : 'Atendida'} tone={request.status === 'NEW' ? 'warning' : 'success'} />
-        <span className="text-xs text-[#93a0bd]">{new Date(request.createdAt).toLocaleString('es-CL')}</span>
+        <span className="text-xs text-[#5b6b85]">{new Date(request.createdAt).toLocaleString('es-CL')}</span>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -115,7 +115,7 @@ export function RequestCard({ request }: { request: AdminRequestView }) {
       <div className="mt-3 flex flex-col gap-1">
         {detailLines(request).map((line) => (
           <div key={line.label} className="text-[13.5px] text-grafito">
-            <span className="text-[#93a0bd]">{line.label}:</span> {line.value}
+            <span className="text-[#5b6b85]">{line.label}:</span> {line.value}
           </div>
         ))}
       </div>
@@ -140,7 +140,10 @@ export function RequestCard({ request }: { request: AdminRequestView }) {
           href={request.whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-whatsapp px-3.5 py-2 text-xs font-semibold text-white"
+          // text-navy, not text-white: white text on --color-whatsapp's
+          // light green is only a 1.98:1 contrast ratio (WCAG AA needs
+          // 4.5:1) — found by the Fase 9 axe-core scan.
+          className="inline-flex items-center gap-1.5 rounded-lg bg-whatsapp px-3.5 py-2 text-xs font-semibold text-navy"
         >
           <WhatsAppIcon className="h-3.5 w-3.5" />
           Contactar

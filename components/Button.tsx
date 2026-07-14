@@ -9,7 +9,10 @@ const base =
 const variants: Record<Variant, string> = {
   primary: 'bg-navy text-white shadow-brand',
   gradient: 'bg-brand-gradient text-white shadow-brand',
-  whatsapp: 'bg-whatsapp text-white shadow-brand',
+  // text-navy, not text-white: white text on --color-whatsapp's light green
+  // is only a 1.98:1 contrast ratio (WCAG AA needs 4.5:1 for normal text) —
+  // found by the Fase 9 axe-core scan.
+  whatsapp: 'bg-whatsapp text-navy shadow-brand',
   outline: 'bg-white border-[1.5px] border-blue text-blue',
   ghost: 'text-fucsia font-semibold hover:-translate-y-0 gap-1.5',
 };

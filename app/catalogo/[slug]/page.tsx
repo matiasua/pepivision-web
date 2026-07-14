@@ -51,10 +51,10 @@ export default async function ProductoPage({ params }: { params: Promise<Params>
             </span>
           ) : null}
           {product.brandName ? (
-            <div className="text-[12.5px] font-semibold uppercase tracking-wide text-[#93a0bd]">{product.brandName}</div>
+            <div className="text-[12.5px] font-semibold uppercase tracking-wide text-[#5b6b85]">{product.brandName}</div>
           ) : null}
           <h1 className="text-[34px] font-bold">{product.name}</h1>
-          <div className="mt-1.5 text-sm text-[#93a0bd]">Código {product.code}</div>
+          <div className="mt-1.5 text-sm text-[#5b6b85]">Código {product.code}</div>
           <div className="mt-4 font-display text-[30px] font-bold text-fucsia">{product.priceLabel}</div>
           <div className="mt-0.5 text-[13px] text-grafito">
             Valor &quot;desde&quot;. El precio final depende del armazón, cristal, aumento y tratamientos.
@@ -82,20 +82,20 @@ export default async function ProductoPage({ params }: { params: Promise<Params>
 
           <div className="mt-5.5 grid grid-cols-2 gap-3.5">
             <div className="rounded-2xl bg-gray p-3.5">
-              <div className="text-xs text-[#93a0bd]">Material</div>
+              <div className="text-xs text-[#5b6b85]">Material</div>
               <div className="mt-0.5 font-semibold text-navy">{product.materialLabel}</div>
             </div>
             <div className="rounded-2xl bg-gray p-3.5">
-              <div className="text-xs text-[#93a0bd]">Medidas</div>
+              <div className="text-xs text-[#5b6b85]">Medidas</div>
               <div className="mt-0.5 font-semibold text-navy">{product.sizes ?? '—'}</div>
             </div>
             <div className="rounded-2xl bg-gray p-3.5">
-              <div className="text-xs text-[#93a0bd]">Forma</div>
+              <div className="text-xs text-[#5b6b85]">Forma</div>
               <div className="mt-0.5 font-semibold text-navy">{product.shapeLabel}</div>
             </div>
             <div className="rounded-2xl bg-gray p-3.5">
-              <div className="text-xs text-[#93a0bd]">Disponibilidad</div>
-              <div className={`mt-0.5 font-semibold ${product.available ? 'text-success' : 'text-[#c88a1a]'}`}>
+              <div className="text-xs text-[#5b6b85]">Disponibilidad</div>
+              <div className={`mt-0.5 font-semibold ${product.available ? 'text-success' : 'text-[#b45309]'}`}>
                 {product.availabilityLabel}
               </div>
             </div>

@@ -2,7 +2,7 @@ type Tone = 'success' | 'warning' | 'error' | 'neutral' | 'info';
 
 const TONE_CLASSES: Record<Tone, string> = {
   success: 'bg-success-bg text-success',
-  warning: 'bg-[#fdf3e0] text-[#c88a1a]',
+  warning: 'bg-[#fdf3e0] text-[#b45309]',
   error: 'bg-error-bg text-error',
   neutral: 'bg-gray text-grafito',
   info: 'bg-brand-gradient-soft text-navy',

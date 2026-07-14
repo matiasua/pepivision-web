@@ -23,16 +23,16 @@ export default async function AdminProductsPage({
     <AdminShell session={session}>
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
         <Card padding="sm">
-          <div className="text-xs text-[#93a0bd]">Modelos totales</div>
+          <div className="text-xs text-[#5b6b85]">Modelos totales</div>
           <div className="mt-1 font-display text-2xl font-bold text-navy">{kpis.total}</div>
         </Card>
         <Card padding="sm">
-          <div className="text-xs text-[#93a0bd]">Disponibles</div>
+          <div className="text-xs text-[#5b6b85]">Disponibles</div>
           <div className="mt-1 font-display text-2xl font-bold text-success">{kpis.available}</div>
         </Card>
         <Card padding="sm">
-          <div className="text-xs text-[#93a0bd]">Bajo pedido</div>
-          <div className="mt-1 font-display text-2xl font-bold text-[#c88a1a]">{kpis.unavailable}</div>
+          <div className="text-xs text-[#5b6b85]">Bajo pedido</div>
+          <div className="mt-1 font-display text-2xl font-bold text-[#b45309]">{kpis.unavailable}</div>
         </Card>
       </div>
 
@@ -55,7 +55,7 @@ export default async function AdminProductsPage({
       <div className="overflow-hidden overflow-x-auto rounded-card border border-line bg-white shadow-brand-sm">
         <table className="w-full min-w-[720px] border-collapse">
           <thead>
-            <tr className="bg-gray text-left text-[11.5px] font-bold uppercase tracking-wide text-[#7a869f]">
+            <tr className="bg-gray text-left text-[11.5px] font-bold uppercase tracking-wide text-[#5b6b85]">
               <th className="px-4.5 py-3.5">Modelo</th>
               <th className="px-4.5 py-3.5">Precio</th>
               <th className="px-4.5 py-3.5">Estado</th>
@@ -68,18 +68,18 @@ export default async function AdminProductsPage({
               <tr key={product.id} className="border-t border-line align-middle">
                 <td className="px-4.5 py-3.5">
                   <div className="font-display font-semibold text-navy">{product.name}</div>
-                  <div className="text-xs text-[#93a0bd]">
+                  <div className="text-xs text-[#5b6b85]">
                     {product.code} · {product.brand?.name ?? 'Sin marca'} · {GENDER_LABELS[product.gender]}
                   </div>
                 </td>
                 <td className="px-4.5 py-3.5 font-display font-bold text-fucsia">{formatClp(product.priceFromClp)}</td>
                 <td className="px-4.5 py-3.5">
-                  <span className={`text-xs font-semibold ${product.available ? 'text-success' : 'text-[#c88a1a]'}`}>
+                  <span className={`text-xs font-semibold ${product.available ? 'text-success' : 'text-[#b45309]'}`}>
                     {product.available ? 'Disponible' : 'Bajo pedido'}
                   </span>
                 </td>
                 <td className="px-4.5 py-3.5">
-                  <span className={`text-xs font-semibold ${product.visible ? 'text-navy' : 'text-[#93a0bd]'}`}>
+                  <span className={`text-xs font-semibold ${product.visible ? 'text-navy' : 'text-[#5b6b85]'}`}>
                     {product.visible ? 'Publicado' : 'Despublicado'}
                   </span>
                 </td>

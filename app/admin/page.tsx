@@ -39,7 +39,7 @@ async function Dashboard() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((stat) => (
           <Card key={stat.label} padding="sm">
-            <div className="text-xs text-[#93a0bd]">{stat.label}</div>
+            <div className="text-xs text-[#5b6b85]">{stat.label}</div>
             <div className="mt-1 font-display text-2xl font-bold text-navy">{stat.value}</div>
           </Card>
         ))}

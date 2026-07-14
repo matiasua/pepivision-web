@@ -77,7 +77,7 @@ export function ComunaManager({ comunas }: { comunas: ComunaView[] }) {
       <div className="mt-5 overflow-hidden rounded-card border border-line bg-white shadow-brand-sm">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="bg-gray text-left text-[11.5px] font-bold uppercase tracking-wide text-[#7a869f]">
+            <tr className="bg-gray text-left text-[11.5px] font-bold uppercase tracking-wide text-[#5b6b85]">
               <th className="px-4.5 py-3.5">Comuna</th>
               <th className="px-4.5 py-3.5">Región</th>
               <th className="px-4.5 py-3.5">Estado</th>
@@ -90,7 +90,7 @@ export function ComunaManager({ comunas }: { comunas: ComunaView[] }) {
                 <td className="px-4.5 py-3.5 font-semibold text-navy">{comuna.name}</td>
                 <td className="px-4.5 py-3.5 text-sm text-grafito">{comuna.region ?? '—'}</td>
                 <td className="px-4.5 py-3.5">
-                  <span className={`text-xs font-semibold ${comuna.active ? 'text-success' : 'text-[#93a0bd]'}`}>
+                  <span className={`text-xs font-semibold ${comuna.active ? 'text-success' : 'text-[#5b6b85]'}`}>
                     {comuna.active ? 'Activa' : 'Inactiva'}
                   </span>
                 </td>

@@ -4,7 +4,7 @@
 export function ImagePlaceholder({ label, className = '' }: { label: string; className?: string }) {
   return (
     <div
-      className={`flex h-full w-full items-center justify-center bg-gray px-3 text-center text-xs text-[#93a0bd] ${className}`}
+      className={`flex h-full w-full items-center justify-center bg-gray px-3 text-center text-xs text-[#5b6b85] ${className}`}
     >
       {label}
     </div>

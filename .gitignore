@@ -24,3 +24,12 @@ pnpm-debug.log*
 # Backups locales
 backups/
 tmp/
+
+# Playwright / Lighthouse CI artifacts (reports, traces, videos, screenshots,
+# and the one-off test-admin credentials file written by e2e/global-setup.ts)
+playwright-report/
+test-results/
+blob-report/
+e2e/.auth/
+.lighthouseci/
+lhci_reports/

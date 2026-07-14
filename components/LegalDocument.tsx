@@ -19,7 +19,7 @@ export function LegalDocument({
             <p className="mt-2">{section.body}</p>
           </div>
         ))}
-        <p className="mt-5.5 text-[13px] text-[#93a0bd]">{lastUpdated}</p>
+        <p className="mt-5.5 text-[13px] text-[#5b6b85]">{lastUpdated}</p>
         {children}
       </div>
     </Container>

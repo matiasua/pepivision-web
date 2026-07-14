@@ -177,7 +177,7 @@ export function HomeVisitForm() {
       >
         {isPending ? 'Enviando…' : 'Consultar atención a domicilio'}
       </button>
-      <a href={defaultWhatsAppHref} target="_blank" rel="noopener noreferrer" className="text-center text-sm font-semibold text-[#1a9d4e]">
+      <a href={defaultWhatsAppHref} target="_blank" rel="noopener noreferrer" className="text-center text-sm font-semibold text-[#15803d]">
         o escríbenos por WhatsApp →
       </a>
     </div>

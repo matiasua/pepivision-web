@@ -163,7 +163,7 @@ export default function Home() {
                 key={index}
                 className="overflow-hidden rounded-card border border-line bg-white shadow-brand-sm"
               >
-                <div className="flex aspect-[4/3] items-center justify-center bg-gray text-xs text-[#93a0bd]">
+                <div className="flex aspect-[4/3] items-center justify-center bg-gray text-xs text-[#5b6b85]">
                   Catálogo disponible próximamente
                 </div>
                 <div className="p-4">

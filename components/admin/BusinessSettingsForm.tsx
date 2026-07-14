@@ -79,7 +79,7 @@ export function BusinessSettingsForm({ initial }: { initial: EffectiveBusinessSe
             placeholder="correo@mail.cl"
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 outline-none"
           />
-          <div className="mt-1 text-xs text-[#93a0bd]">También recibe las notificaciones internas de nuevas solicitudes.</div>
+          <div className="mt-1 text-xs text-[#5b6b85]">También recibe las notificaciones internas de nuevas solicitudes.</div>
         </div>
         <div>
           <label htmlFor="settings-instagram" className="text-[13px] font-semibold text-navy">Instagram (usuario, sin @)</label>

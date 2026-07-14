@@ -29,7 +29,11 @@
   --color-footer: #0f1a44;
   --color-blue: #1668c8;
   --color-blue-el: #1f8bff;
-  --color-fucsia: #e5127d;
+  /* Slightly darker than the mockup's original #e5127d — that value only
+     reached a 4.45:1 contrast ratio against white (needs 4.5:1 for WCAG AA
+     normal text), found by the Fase 9 axe-core scan on real nav links/
+     badges/buttons that render this color as text on a white background. */
+  --color-fucsia: #d1127a;
   --color-rosado: #f65ba8;
   --color-ink: #1a2350;
   --color-grafito: #4a5170;
@@ -39,7 +43,10 @@
   --color-whatsapp: #25d366;
   --color-error: #c8305b;
   --color-error-bg: #fdecef;
-  --color-success: #1fae5a;
+  /* Darker than the mockup's original #1fae5a (2.89:1 against white, found
+     failing WCAG AA's 4.5:1 minimum by the Fase 9 axe-core scan on the
+     "Disponible" catalog badge) — background token below is unaffected. */
+  --color-success: #15803d;
   --color-success-bg: #e9f9ef;
 
   /* Radii */

@@ -58,9 +58,9 @@ export function BrandSelect({
             <span className="truncate text-ink">{selected.name}</span>
           </>
         ) : (
-          <span className="text-[#93a0bd]">Selecciona una marca…</span>
+          <span className="text-[#5b6b85]">Selecciona una marca…</span>
         )}
-        <span className="ml-auto shrink-0 text-xs text-[#93a0bd]">{open ? '▲' : '▼'}</span>
+        <span className="ml-auto shrink-0 text-xs text-[#5b6b85]">{open ? '▲' : '▼'}</span>
       </button>
 
       {open ? (

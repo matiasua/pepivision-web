@@ -8,6 +8,7 @@ volumes:
   postgres_data:
   minio_data:
   web_node_modules:
+  e2e_node_modules:
 
 services:
   web:
@@ -217,6 +218,62 @@ services:
     ports:
       - "127.0.0.1:8080:80"
     depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - pepivision-dev
+
+  # Playwright end-to-end tests, against the real stack via `nginx`. Never
+  # starts with a plain `docker compose up` — only with
+  # `docker compose --profile e2e run --rm e2e` (or `--project e2e up`).
+  # Uses DATABASE_URL_APP (the least-privilege app role, see db-init) for
+  # its own global-setup/teardown fixtures — DML only, no DDL, same as `web`.
+  e2e:
+    profiles: ["e2e"]
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    working_dir: /app
+    ipc: host # recommended by the official Playwright image for Chromium stability
+    environment:
+      NODE_ENV: test
+      CI: ${CI:-}
+      PLAYWRIGHT_BASE_URL: http://nginx
+      # Lighthouse CI (chrome-launcher) doesn't know about Playwright's own
+      # bundled Chromium unless told explicitly — same browser install the
+      # Dockerfile.e2e image already has, no separate download needed.
+      CHROME_PATH: /ms-playwright/chromium-1228/chrome-linux/chrome
+      DATABASE_URL: ${DATABASE_URL_APP}
+      APP_URL: ${APP_URL}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      EMAIL_ASSET_BASE_URL: ${EMAIL_ASSET_BASE_URL}
+      OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT}
+      OBJECT_STORAGE_PUBLIC_URL: ${OBJECT_STORAGE_PUBLIC_URL}
+      OBJECT_STORAGE_REGION: ${OBJECT_STORAGE_REGION}
+      OBJECT_STORAGE_BUCKET: ${OBJECT_STORAGE_BUCKET}
+      OBJECT_STORAGE_ACCESS_KEY: ${OBJECT_STORAGE_ACCESS_KEY}
+      OBJECT_STORAGE_SECRET_KEY: ${OBJECT_STORAGE_SECRET_KEY}
+      OBJECT_STORAGE_FORCE_PATH_STYLE: ${OBJECT_STORAGE_FORCE_PATH_STYLE}
+      PRIVATE_OBJECT_STORAGE_BUCKET: ${PRIVATE_OBJECT_STORAGE_BUCKET}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS}
+      DKIM_DOMAIN_NAME: ${DKIM_DOMAIN_NAME}
+      DKIM_KEY_SELECTOR: ${DKIM_KEY_SELECTOR}
+      DKIM_PRIVATE_KEY: ${DKIM_PRIVATE_KEY}
+    volumes:
+      - ./:/app
+      - e2e_node_modules:/app/node_modules
+      - ./playwright-report:/app/playwright-report
+      - ./test-results:/app/test-results
+    depends_on:
+      nginx:
+        condition: service_started
       web:
         condition: service_healthy
     networks:

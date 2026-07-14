@@ -31,7 +31,7 @@ export function CatalogSearchInput() {
   return (
     <div className="relative flex-1">
       <svg
-        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#93a0bd]"
+        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#5b6b85]"
         width="18"
         height="18"
         viewBox="0 0 24 24"

@@ -20,6 +20,17 @@ const objectStoragePublicUrl = process.env.OBJECT_STORAGE_PUBLIC_URL
 // The explicit watchOptions below are a defensive fallback for the same
 // reason, in case WATCHPACK_POLLING alone isn't picked up in some setups.
 const nextConfig: NextConfig = {
+  // Next.js dev mode blocks cross-origin requests to its own dev-only
+  // introspection resources (e.g. `/__nextjs_original-stack-frames`, and the
+  // HMR websocket) unless the request's Host is explicitly allow-listed.
+  // Browsers always reach `web` through `nginx` (see compose.yaml/nginx —
+  // `web` publishes no port of its own), so the Host header on every one of
+  // those requests is literally "nginx", not "localhost" — discovered via
+  // Playwright E2E tests (Fase 9) failing to hydrate at all when driven
+  // through the `e2e` container, which reaches the app via `http://nginx`
+  // rather than a host-mapped `localhost:8080`. Dev-only: `allowedDevOrigins`
+  // has no effect on a production build.
+  ...(isProd ? {} : { allowedDevOrigins: ['nginx', 'localhost', '127.0.0.1'] }),
   // Next.js's dev-mode default (`logging.serverFunctions: true`) prints
   // every Server Action's arguments to the terminal — for `loginAction`,
   // that means the plaintext password lands in `docker compose logs web`.

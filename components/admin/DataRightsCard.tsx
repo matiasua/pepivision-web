@@ -73,7 +73,7 @@ export function DataRightsCard({ request }: { request: DataRightsRequestView }) 
       <div className="flex flex-wrap items-center gap-2.5">
         <StatusPill label={RIGHT_TYPE_LABELS[request.rightType] ?? request.rightType} tone="info" />
         <StatusPill label={STATUS_LABELS[request.status] ?? request.status} tone={STATUS_TONES[request.status] ?? 'neutral'} />
-        <span className="text-xs text-[#93a0bd]">{new Date(request.createdAt).toLocaleString('es-CL')}</span>
+        <span className="text-xs text-[#5b6b85]">{new Date(request.createdAt).toLocaleString('es-CL')}</span>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3">

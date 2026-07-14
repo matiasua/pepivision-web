@@ -206,6 +206,7 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
         <select
           value={price}
           onChange={(event) => onPriceChange(event.target.value)}
+          aria-label="Rango de precio"
           className="w-full rounded-input border border-line bg-white px-3 py-2.5 text-sm text-ink"
         >
           <option value="Todos">Todos los precios</option>

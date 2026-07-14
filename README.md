@@ -2,7 +2,7 @@
 
 Este repositorio se desarrolla y ejecuta **exclusivamente dentro de contenedores Docker**. El host de cada desarrollador solo necesita tener instalados **Docker** y **Docker Compose** — no se instala Node.js, PostgreSQL, MinIO ni Nginx localmente, y ningún comando de la aplicación (`npm`, Prisma, lint, tests, build) se ejecuta directamente en el host.
 
-> **Estado actual: solo Fase 1 (Entorno local Docker Compose).** El servicio `web` corre hoy un servidor Node mínimo de bootstrap (`server.js`), no la aplicación Next.js real — eso se construye en la Fase 2 (Fundación técnica). El servicio `migrate` está definido y funcional como job puntual, pero todavía no ejecuta ninguna migración de Prisma real porque `schema.prisma` no existe aún. Ver la sección "Qué queda pendiente" más abajo.
+> **Estado actual: Fases 1-9 de `add-pepi-vision-360-v1` implementadas** (sitio público, catálogo, solicitudes, autenticación/administración, almacenamiento de imágenes, seguridad/auditoría/accesibilidad, y pruebas/CI). La Fase 10 (infraestructura productiva) queda deliberadamente fuera de alcance — ver `openspec/changes/add-pepi-vision-360-v1/design.md`.
 
 ## Prerrequisitos
 
@@ -65,14 +65,17 @@ docker compose exec web <comando>
 docker compose run --rm web <comando>
 ```
 
-Ejemplos (algunos solo tendrán sentido a partir de la Fase 2, cuando exista el proyecto Next.js/Prisma real):
+Ejemplos:
 
 ```bash
 docker compose exec web npm run lint
 docker compose exec web npm run typecheck
-docker compose exec web npm test
-docker compose run --rm migrate       # ejecuta el job de migraciones
+docker compose exec web npm test              # alias de test:unit
+docker compose run --rm migrate               # ejecuta el job de migraciones
+docker compose exec web npx prisma db seed    # datos de ejemplo (productos, marcas, comunas)
 ```
+
+Ver la sección **Pruebas** más abajo para unitarias, integración, E2E, accesibilidad automatizada y Lighthouse.
 
 ## Adminer (opcional)
 
@@ -90,9 +93,60 @@ docker compose --profile tools up -d adminer
 docker compose down -v
 ```
 
-## Qué queda pendiente (fuera de esta fase)
+## Pruebas
 
-- El scaffold real de Next.js (App Router, TypeScript estricto, Tailwind) — Fase 2.
-- `schema.prisma` y las migraciones reales — Fase 2. Hasta entonces, `npm run migrate` es un placeholder que no simula ninguna migración.
-- Lint, typecheck, tests y build reales — hoy son placeholders (`echo ...`) en `package.json`; se implementan a medida que avanzan las fases correspondientes.
-- Toda infraestructura productiva (dominio, TLS, despliegue, backups en la nube, etc.) — explícitamente fuera de alcance de este proyecto por ahora; ver `openspec/changes/add-pepi-vision-360-v1/design.md`.
+Todos los comandos corren dentro de Docker Compose — nunca `npm install`/`npm run` directo en el host.
+
+| Suite | Comando | Requiere |
+|---|---|---|
+| Lint | `docker compose exec web npm run lint` | solo `web` |
+| Typecheck | `docker compose exec web npm run typecheck` | solo `web` |
+| Unitarias/componentes | `docker compose exec web npm run test:unit` (= `npm test`) | solo `web` |
+| Integración | `docker compose exec web npm run test:integration` | `web` + `postgres` + `minio` + `mailpit` |
+| Build (producción) | `docker compose exec web npm run build` | solo `web` |
+| E2E (Playwright, flujos funcionales) | `docker compose --profile e2e run --rm e2e npm run test:e2e` | stack completo (`nginx`) |
+| Accesibilidad automatizada (axe-core) | `docker compose --profile e2e run --rm e2e npm run test:a11y` | stack completo (`nginx`) |
+| Lighthouse CI (home, catálogo, ficha de producto) | `docker compose --profile e2e run --rm e2e npm run test:lighthouse` | stack completo (`nginx`) |
+| Todo lo anterior salvo E2E/a11y/Lighthouse | `docker compose exec web npm run ci` | `web` + `postgres` + `minio` + `mailpit` |
+
+Los tests de integración viven en `tests-integration/` (no en `tests/`, que solo cubre unitarias/componentes) — ver `tests-integration/README.md` para el detalle de qué servicio requiere cada archivo y cómo se aíslan/limpian los datos que crean.
+
+### Playwright (E2E + axe): primera vez
+
+El servicio `e2e` (perfil `e2e`, nunca se levanta con un `docker compose up` normal) usa una imagen aparte (`Dockerfile.e2e`, basada en la imagen oficial de Playwright — trae los navegadores ya instalados, nunca se instalan en el host). Antes de la primera corrida, o después de cambiar `package.json`:
+
+```bash
+docker compose --profile e2e build e2e
+docker compose --profile e2e run --rm e2e npm install   # rellena el volumen e2e_node_modules
+```
+
+Luego, con el stack principal arriba (`docker compose up -d`):
+
+```bash
+docker compose --profile e2e run --rm e2e npx playwright test   # e2e + a11y juntos
+```
+
+`e2e/global-setup.ts` crea usuarios administradores de prueba (un `SUPERADMIN` y un `ADMIN`, contraseña generada al azar en cada corrida) y una comuna habilitada de prueba directamente vía Prisma — nunca credenciales fijas ni versionadas — y `e2e/global-teardown.ts` los elimina al terminar (éxito o falla). Los formularios públicos (cotizador, domicilio, ARCO) crean sus propias solicitudes de prueba, con datos únicos por corrida, y cada spec las limpia en su propio `afterAll`.
+
+**Rate limiting**: correr la suite completa varias veces seguidas en pocos minutos puede activar el límite de envíos de los formularios públicos (5 cada 15 min por IP — ver Fase 8). Es el comportamiento esperado, no un bug; `docker compose restart web` reinicia el contador (vive en memoria).
+
+### Revisar Mailpit y MinIO durante/después de las pruebas
+
+- Mailpit (bandeja de correos capturados): http://localhost:8025
+- Consola de MinIO (buckets `pepivision360-products` y `pepivision360-attachments`): http://localhost:9001
+
+### Reportes y limpieza
+
+- Reporte HTML de Playwright: `playwright-report/index.html` (abrir en el navegador del host — el volumen se monta desde el contenedor `e2e`).
+- Trazas/capturas/videos de fallas: `test-results/` (solo se conservan en fallas, ver `playwright.config.ts`).
+- Reportes de Lighthouse: `.lighthouseci/*.report.json` (piloto de assertions definido en `lighthouserc.cjs`).
+- Ambos directorios (más `blob-report/`) están en `.gitignore` — seguros de borrar en cualquier momento (`rm -rf playwright-report test-results .lighthouseci`).
+- Los datos sintéticos de integración/E2E se autolimpian (`afterAll`/`global-teardown.ts`); si una corrida se interrumpe a mitad de camino, buscar por el dominio `@integration.test.pepivision360.invalid` / `@e2e.test.pepivision360.invalid` o el prefijo `e2e_`/`it_` en nombres/códigos para limpiar manualmente.
+
+### Reproducir el workflow de CI localmente
+
+`.github/workflows/ci.yml` no hace nada que no puedas correr vos mismo con Docker Compose — no instala Node en el runner, no usa AWS ni Terraform, no publica imágenes ni despliega nada. Para reproducirlo paso a paso: `docker compose config` → `docker compose up -d` → esperar que `web` esté `healthy` → `npx prisma db seed` → lint → typecheck → `test:unit` → `test:integration` → `build` → Playwright (`e2e`+`a11y`) → `test:lighthouse` → `npm audit --omit=dev` → `openspec validate <cambio> --strict` (vía `npx --yes @fission-ai/openspec@latest` dentro del contenedor `web`) → confirmar que `design-reference/` no cambió.
+
+## Qué queda fuera de alcance (Fase 10)
+
+Toda infraestructura productiva (dominio, TLS, despliegue, base de datos gestionada, object storage/backups productivos, pipelines de despliegue) — explícitamente fuera de alcance de este proyecto por ahora; se aborda en una futura propuesta OpenSpec separada. Ver `openspec/changes/add-pepi-vision-360-v1/design.md`.

@@ -308,7 +308,7 @@ export function ProductGalleryManager({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <label className="text-[13px] font-semibold text-navy">Fotografías del producto</label>
-        <span className="text-xs text-[#93a0bd]">
+        <span className="text-xs text-[#5b6b85]">
           {images.length}/{MAX_PRODUCT_IMAGES}
         </span>
       </div>
@@ -341,7 +341,7 @@ export function ProductGalleryManager({
                   <ColorSwatch hex={color.hex} />
                   <span>
                     <span className={`block text-[13px] font-semibold ${active ? 'text-fucsia' : 'text-navy'}`}>{color.name}</span>
-                    <span className="block text-[11px] text-[#93a0bd]">
+                    <span className="block text-[11px] text-[#5b6b85]">
                       {count === 1 ? '1 foto' : `${count} fotos`}
                     </span>
                   </span>
@@ -389,11 +389,11 @@ export function ProductGalleryManager({
               className="hidden"
               onChange={(event) => handleFilesSelected(event.target.files)}
             />
-            <p className="mt-2 text-[11px] text-[#93a0bd]">
+            <p className="mt-2 text-[11px] text-[#5b6b85]">
               JPG, PNG o WEBP · máximo {MAX_MB} MB por archivo · {remainingSlots} de {MAX_PRODUCT_IMAGES} espacios disponibles
             </p>
             {atMax ? (
-              <p className="mt-1 text-[11px] font-semibold text-[#c88a1a]">
+              <p className="mt-1 text-[11px] font-semibold text-[#b45309]">
                 Alcanzaste el máximo de {MAX_PRODUCT_IMAGES} fotografías para este producto.
               </p>
             ) : null}
@@ -440,7 +440,7 @@ export function ProductGalleryManager({
                   <div className="flex items-center gap-2">
                     <ColorSwatch hex={color.hex} />
                     <span className="text-[13.5px] font-bold uppercase tracking-wide text-navy">{color.name}</span>
-                    <span className="text-xs text-[#93a0bd]">
+                    <span className="text-xs text-[#5b6b85]">
                       {colorImages.length === 1 ? '1 fotografía' : `${colorImages.length} fotografías`}
                     </span>
                   </div>

@@ -54,7 +54,7 @@ export function quoteCustomerConfirmation(input: QuoteCustomerConfirmationInput)
       'Próximos pasos: nuestro equipo revisará tu solicitud y te contactará por WhatsApp o correo con un presupuesto referencial a la brevedad.'
     )}
     ${renderButton('Continuar por WhatsApp', input.whatsappHref, 'whatsapp')}
-    <p style="margin:18px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12.5px;color:#93a0bd;">
+    <p style="margin:18px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12.5px;color:#5b6b85;">
       Gracias por escribirnos.
     </p>`;
 

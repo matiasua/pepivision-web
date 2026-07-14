@@ -23,10 +23,10 @@ export function ProductCard({ product }: { product: CatalogProductView }) {
       </Link>
       <div className="flex flex-1 flex-col p-4">
         {product.brandName ? (
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-[#93a0bd]">{product.brandName}</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-[#5b6b85]">{product.brandName}</div>
         ) : null}
         <div className="font-display text-[16.5px] font-semibold text-navy">{product.name}</div>
-        <div className="mt-0.5 text-xs text-[#93a0bd]">
+        <div className="mt-0.5 text-xs text-[#5b6b85]">
           {product.code} · {product.shapeLabel} · {product.materialLabel}
         </div>
         {product.colors.length > 0 ? (
@@ -45,7 +45,7 @@ export function ProductCard({ product }: { product: CatalogProductView }) {
         ) : null}
         <div className="mt-3.5 flex items-center justify-between">
           <div className="font-display text-[19px] font-bold text-fucsia">{product.priceLabel}</div>
-          <span className={`text-xs font-semibold ${product.available ? 'text-success' : 'text-[#c88a1a]'}`}>
+          <span className={`text-xs font-semibold ${product.available ? 'text-success' : 'text-[#b45309]'}`}>
             {product.availabilityLabel}
           </span>
         </div>
