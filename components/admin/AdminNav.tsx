@@ -24,6 +24,7 @@ export function AdminNav({ role }: { role: AdminRole }) {
           <Link
             key={item.href}
             href={item.href}
+            aria-current={active ? 'page' : undefined}
             className={`rounded-t-lg border-b-2 px-3.5 py-2.5 text-[13.5px] font-semibold transition-colors ${
               active ? 'border-fucsia text-fucsia' : 'border-transparent text-grafito hover:text-navy'
             }`}

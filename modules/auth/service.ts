@@ -2,6 +2,7 @@ import { cache } from 'react';
 import { redirect } from 'next/navigation';
 import type { AdminRole } from '@prisma/client';
 import { ForbiddenError, ValidationError } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 import { isRateLimited, recordFailure, resetRateLimit } from '@/lib/rate-limit';
 import { hashPassword, verifyPassword } from './password';
 import {
@@ -32,6 +33,18 @@ import type { CreateAdminUserInput, LoginInput } from './schemas';
 
 const LOGIN_RATE_LIMIT_MAX = 5;
 const LOGIN_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+
+// Separate, looser per-IP-only bucket (independent of the per-IP+identifier
+// bucket below). Rationale: keying solely by `${ip}:${identifier}` lets an
+// attacker at a single IP spray a handful of guesses across many different
+// *identifiers* (credential stuffing / user enumeration) without ever
+// tripping a limit, because each identifier gets its own fresh bucket. This
+// second bucket caps *total* failed attempts from one IP regardless of which
+// identifier was tried, closing that gap, while staying loose enough
+// (higher max, same window) not to lock out a legitimate shared office IP
+// after a handful of ordinary typos.
+const LOGIN_IP_RATE_LIMIT_MAX = 20;
+const LOGIN_IP_RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 
 // Every login failure (unknown identifier, wrong password, inactive user)
 // returns this exact same message — see specs/admin-auth/spec.md: never
@@ -80,9 +93,17 @@ export async function login(
   input: LoginInput,
   context: { ip: string | null; userAgent: string | null }
 ): Promise<LoginResult> {
+  const ipKey = `ip:${context.ip ?? 'unknown'}`;
   const rateLimitKey = `${context.ip ?? 'unknown'}:${input.identifier}`;
 
-  if (isRateLimited(rateLimitKey, LOGIN_RATE_LIMIT_MAX, LOGIN_RATE_LIMIT_WINDOW_MS)) {
+  if (
+    isRateLimited(ipKey, LOGIN_IP_RATE_LIMIT_MAX, LOGIN_IP_RATE_LIMIT_WINDOW_MS) ||
+    isRateLimited(rateLimitKey, LOGIN_RATE_LIMIT_MAX, LOGIN_RATE_LIMIT_WINDOW_MS)
+  ) {
+    // Deliberately the same generic message as a wrong-credentials result:
+    // distinguishing "rate limited" from "wrong password" in the response
+    // would itself leak information to an attacker probing the limiter.
+    logger.warn('admin.login_rate_limited', { ip: context.ip ?? 'unknown' });
     return { ok: false, message: 'Demasiados intentos. Espera unos minutos antes de volver a intentarlo.' };
   }
 
@@ -90,6 +111,7 @@ export async function login(
   const passwordValid = admin ? await verifyPassword(input.password, admin.passwordHash) : false;
 
   if (!admin || !admin.active || !passwordValid) {
+    recordFailure(ipKey, LOGIN_IP_RATE_LIMIT_WINDOW_MS);
     recordFailure(rateLimitKey, LOGIN_RATE_LIMIT_WINDOW_MS);
     await createAuditLogEntry({
       adminUserId: admin?.id ?? null,
@@ -103,6 +125,7 @@ export async function login(
   }
 
   resetRateLimit(rateLimitKey);
+  resetRateLimit(ipKey);
 
   // A brand-new random token + a brand-new Session row on every login —
   // never reusing or upgrading an existing token — prevents session fixation.

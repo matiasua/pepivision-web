@@ -79,8 +79,9 @@ export function HomeVisitForm() {
   return (
     <div className="flex flex-col gap-3.5">
       <div>
-        <label className="text-[13px] font-semibold text-navy">Nombre *</label>
+        <label htmlFor="homevisit-name" className="text-[13px] font-semibold text-navy">Nombre *</label>
         <input
+          id="homevisit-name"
           value={name}
           onChange={(event) => setName(event.target.value)}
           placeholder="Tu nombre"
@@ -88,8 +89,9 @@ export function HomeVisitForm() {
         />
       </div>
       <div>
-        <label className="text-[13px] font-semibold text-navy">Comuna *</label>
+        <label htmlFor="homevisit-comuna" className="text-[13px] font-semibold text-navy">Comuna *</label>
         <input
+          id="homevisit-comuna"
           value={comuna}
           onChange={(event) => setComuna(event.target.value)}
           placeholder="Ej: Ñuñoa"
@@ -97,8 +99,9 @@ export function HomeVisitForm() {
         />
       </div>
       <div>
-        <label className="text-[13px] font-semibold text-navy">Teléfono *</label>
+        <label htmlFor="homevisit-phone" className="text-[13px] font-semibold text-navy">Teléfono *</label>
         <input
+          id="homevisit-phone"
           value={phone}
           onChange={(event) => setPhone(event.target.value)}
           placeholder="+56 9 ..."
@@ -106,8 +109,9 @@ export function HomeVisitForm() {
         />
       </div>
       <div>
-        <label className="text-[13px] font-semibold text-navy">Correo</label>
+        <label htmlFor="homevisit-email" className="text-[13px] font-semibold text-navy">Correo</label>
         <input
+          id="homevisit-email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           placeholder="tucorreo@mail.cl"
@@ -115,8 +119,9 @@ export function HomeVisitForm() {
         />
       </div>
       <div>
-        <label className="text-[13px] font-semibold text-navy">Tipo de atención requerida</label>
+        <label htmlFor="homevisit-attention-type" className="text-[13px] font-semibold text-navy">Tipo de atención requerida</label>
         <select
+          id="homevisit-attention-type"
           value={attentionType}
           onChange={(event) => setAttentionType(event.target.value)}
           className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 text-ink"
@@ -156,11 +161,13 @@ export function HomeVisitForm() {
         </span>
       </label>
 
-      {result.status === 'error' ? (
-        <div className="rounded-input bg-error-bg px-3.5 py-3 text-[13.5px] font-semibold text-error">
-          {result.formError ?? Object.values(result.fieldErrors)[0] ?? 'Revisa los datos ingresados.'}
-        </div>
-      ) : null}
+      <div aria-live="polite">
+        {result.status === 'error' ? (
+          <div className="rounded-input bg-error-bg px-3.5 py-3 text-[13.5px] font-semibold text-error">
+            {result.formError ?? Object.values(result.fieldErrors)[0] ?? 'Revisa los datos ingresados.'}
+          </div>
+        ) : null}
+      </div>
 
       <button
         type="button"

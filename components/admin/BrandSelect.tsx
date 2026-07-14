@@ -19,10 +19,13 @@ export function BrandSelect({
   brands,
   value,
   onChange,
+  labelledBy,
 }: {
   brands: BrandOption[];
   value: string;
   onChange: (brandId: string) => void;
+  /** id of an external <label> this control should be announced with. */
+  labelledBy?: string;
 }) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -42,6 +45,7 @@ export function BrandSelect({
         onClick={() => setOpen((current) => !current)}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-labelledby={labelledBy}
         className="flex w-full items-center gap-2.5 rounded-input border border-line bg-white px-3.5 py-3 text-left outline-none"
       >
         {selected ? (

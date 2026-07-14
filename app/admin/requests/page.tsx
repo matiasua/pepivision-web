@@ -64,6 +64,7 @@ export default async function AdminRequestsPage({ searchParams }: { searchParams
             <Link
               key={option.label}
               href={typeLink(option.type)}
+              aria-current={active}
               className={`rounded-pill border-[1.5px] px-3.5 py-1.5 text-[13px] font-semibold ${
                 active ? 'border-fucsia bg-brand-gradient-soft text-fucsia' : 'border-line bg-white text-grafito'
               }`}
@@ -92,6 +93,7 @@ function RequestTabs({ activeTab }: { activeTab: string }) {
     <div className="mb-5 flex gap-1.5 border-b border-line pb-1">
       <Link
         href={tabLink('comercial')}
+        aria-current={activeTab === 'comercial' ? 'page' : undefined}
         className={`rounded-t-lg border-b-2 px-3.5 py-2 text-[13.5px] font-semibold ${
           activeTab === 'comercial' ? 'border-fucsia text-fucsia' : 'border-transparent text-grafito'
         }`}
@@ -100,6 +102,7 @@ function RequestTabs({ activeTab }: { activeTab: string }) {
       </Link>
       <Link
         href={tabLink('arco')}
+        aria-current={activeTab === 'arco' ? 'page' : undefined}
         className={`rounded-t-lg border-b-2 px-3.5 py-2 text-[13.5px] font-semibold ${
           activeTab === 'arco' ? 'border-fucsia text-fucsia' : 'border-transparent text-grafito'
         }`}

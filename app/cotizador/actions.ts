@@ -2,6 +2,8 @@
 
 import { toErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
+import { checkPublicFormRateLimit, PUBLIC_FORM_RATE_LIMIT_MESSAGE } from '@/lib/public-form-rate-limit';
+import { getClientIp } from '@/lib/request-ip';
 import { quoteRequestSchema } from '@/modules/requests/schemas';
 import { submitQuote } from '@/modules/requests/service';
 
@@ -11,6 +13,11 @@ export type QuoteActionState =
   | { status: 'success'; customerName: string; whatsappHref: string };
 
 export async function submitQuoteAction(input: unknown, formData: FormData): Promise<QuoteActionState> {
+  const ip = await getClientIp();
+  if (checkPublicFormRateLimit('quote', ip)) {
+    return { status: 'error', fieldErrors: {}, formError: PUBLIC_FORM_RATE_LIMIT_MESSAGE };
+  }
+
   const parsed = quoteRequestSchema.safeParse(input);
 
   if (!parsed.success) {

@@ -1,4 +1,5 @@
 import type { AdminRole, Prisma } from '@prisma/client';
+import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 
 export function findAdminByEmail(email: string) {
@@ -70,7 +71,19 @@ export function deleteSessionByTokenHash(tokenHash: string) {
   return prisma.session.deleteMany({ where: { tokenHash } });
 }
 
-export function createAuditLogEntry(data: {
+/**
+ * Best-effort: audit logging must never be able to turn an
+ * already-succeeded admin mutation into a reported failure. Every caller
+ * (recordAudit() and the direct calls in modules/auth/service.ts for
+ * login/logout/user management) writes the audit row *after* the real
+ * mutation has already committed — so a failure here (e.g. a transient DB
+ * hiccup, or a bug producing non-serializable metadata) is swallowed and
+ * logged instead of thrown, keeping the caller's already-successful result
+ * intact. The trade-off is an occasional missing audit row instead of an
+ * admin being told a save/login "failed" when it didn't — accepted and
+ * documented in design.md → "Política de auditoría".
+ */
+export async function createAuditLogEntry(data: {
   adminUserId: string | null;
   action: string;
   targetType: string;
@@ -78,7 +91,17 @@ export function createAuditLogEntry(data: {
   metadata: Prisma.InputJsonValue | undefined;
   ip: string | null;
 }) {
-  return prisma.auditLogEntry.create({ data });
+  try {
+    return await prisma.auditLogEntry.create({ data });
+  } catch (error) {
+    logger.error('audit_log.write_failed', {
+      action: data.action,
+      targetType: data.targetType,
+      targetId: data.targetId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 export function listAuditLogEntries(take = 50) {

@@ -26,7 +26,7 @@ async function CatalogResults({ filters }: { filters: CatalogFiltersType }) {
 
   return (
     <div>
-      <div className="mb-4 text-sm text-grafito">{products.length} modelos encontrados</div>
+      <div aria-live="polite" className="mb-4 text-sm text-grafito">{products.length} modelos encontrados</div>
 
       {products.length > 0 ? (
         <div className="grid grid-cols-2 gap-5 lg:grid-cols-3">

@@ -52,8 +52,9 @@ export function BusinessSettingsForm({ initial }: { initial: EffectiveBusinessSe
 
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="text-[13px] font-semibold text-navy">WhatsApp (número internacional, sin +)</label>
+          <label htmlFor="settings-whatsapp" className="text-[13px] font-semibold text-navy">WhatsApp (número internacional, sin +)</label>
           <input
+            id="settings-whatsapp"
             value={values.whatsappNumber}
             onChange={(e) => set('whatsappNumber', e.target.value)}
             placeholder="56936992313"
@@ -61,16 +62,18 @@ export function BusinessSettingsForm({ initial }: { initial: EffectiveBusinessSe
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Teléfono visible</label>
+          <label htmlFor="settings-phone" className="text-[13px] font-semibold text-navy">Teléfono visible</label>
           <input
+            id="settings-phone"
             value={values.phoneDisplay}
             onChange={(e) => set('phoneDisplay', e.target.value)}
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 outline-none"
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Correo</label>
+          <label htmlFor="settings-email" className="text-[13px] font-semibold text-navy">Correo</label>
           <input
+            id="settings-email"
             value={values.email}
             onChange={(e) => set('email', e.target.value)}
             placeholder="correo@mail.cl"
@@ -79,8 +82,9 @@ export function BusinessSettingsForm({ initial }: { initial: EffectiveBusinessSe
           <div className="mt-1 text-xs text-[#93a0bd]">También recibe las notificaciones internas de nuevas solicitudes.</div>
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Instagram (usuario, sin @)</label>
+          <label htmlFor="settings-instagram" className="text-[13px] font-semibold text-navy">Instagram (usuario, sin @)</label>
           <input
+            id="settings-instagram"
             value={values.instagramHandle}
             onChange={(e) => set('instagramHandle', e.target.value)}
             placeholder="pepivision360"
@@ -88,8 +92,9 @@ export function BusinessSettingsForm({ initial }: { initial: EffectiveBusinessSe
           />
         </div>
         <div className="sm:col-span-2">
-          <label className="text-[13px] font-semibold text-navy">Horario de atención</label>
+          <label htmlFor="settings-hours" className="text-[13px] font-semibold text-navy">Horario de atención</label>
           <input
+            id="settings-hours"
             value={values.hoursText}
             onChange={(e) => set('hoursText', e.target.value)}
             placeholder="Lunes a sábado de 10:00 a 18:00 hrs"
@@ -97,8 +102,9 @@ export function BusinessSettingsForm({ initial }: { initial: EffectiveBusinessSe
           />
         </div>
         <div className="sm:col-span-2">
-          <label className="text-[13px] font-semibold text-navy">Ubicación</label>
+          <label htmlFor="settings-location" className="text-[13px] font-semibold text-navy">Ubicación</label>
           <input
+            id="settings-location"
             value={values.locationText}
             onChange={(e) => set('locationText', e.target.value)}
             placeholder="Quilicura, Región Metropolitana"
@@ -106,8 +112,9 @@ export function BusinessSettingsForm({ initial }: { initial: EffectiveBusinessSe
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Retención de solicitudes (meses)</label>
+          <label htmlFor="settings-request-retention" className="text-[13px] font-semibold text-navy">Retención de solicitudes (meses)</label>
           <input
+            id="settings-request-retention"
             value={values.requestRetentionMonths}
             onChange={(e) => set('requestRetentionMonths', e.target.value)}
             inputMode="numeric"
@@ -115,8 +122,9 @@ export function BusinessSettingsForm({ initial }: { initial: EffectiveBusinessSe
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Retención de derechos ARCO (meses)</label>
+          <label htmlFor="settings-arco-retention" className="text-[13px] font-semibold text-navy">Retención de derechos ARCO (meses)</label>
           <input
+            id="settings-arco-retention"
             value={values.dataRightsRetentionMonths}
             onChange={(e) => set('dataRightsRetentionMonths', e.target.value)}
             inputMode="numeric"
@@ -125,7 +133,9 @@ export function BusinessSettingsForm({ initial }: { initial: EffectiveBusinessSe
         </div>
       </div>
 
-      {error ? <div className="mt-4 rounded-input bg-error-bg px-3.5 py-3 text-[13px] font-semibold text-error">{error}</div> : null}
+      <div aria-live="polite">
+        {error ? <div className="mt-4 rounded-input bg-error-bg px-3.5 py-3 text-[13px] font-semibold text-error">{error}</div> : null}
+      </div>
 
       <div className="mt-6 flex items-center gap-3.5">
         <button
@@ -136,12 +146,14 @@ export function BusinessSettingsForm({ initial }: { initial: EffectiveBusinessSe
         >
           {isPending ? 'Guardando…' : 'Guardar cambios'}
         </button>
-        {saved ? (
-          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-success">
-            <CheckIcon className="h-4.5 w-4.5" />
-            Cambios guardados
-          </span>
-        ) : null}
+        <span aria-live="polite">
+          {saved ? (
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-success">
+              <CheckIcon className="h-4.5 w-4.5" />
+              Cambios guardados
+            </span>
+          ) : null}
+        </span>
       </div>
     </div>
   );

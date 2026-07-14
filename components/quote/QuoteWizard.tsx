@@ -276,11 +276,21 @@ export function QuoteWizard({
               Selecciona un modelo del catálogo o pide asesoría para elegirlo juntos.
             </p>
             <div className="mt-5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
-              <button type="button" className={choiceClass(frameChoice === 'catalog')} onClick={() => setFrameChoice('catalog')}>
+              <button
+                type="button"
+                aria-pressed={frameChoice === 'catalog'}
+                className={choiceClass(frameChoice === 'catalog')}
+                onClick={() => setFrameChoice('catalog')}
+              >
                 <div className="font-semibold text-navy">Elegir del catálogo</div>
                 <div className="mt-1 text-[13px] text-grafito">Escoge un modelo disponible</div>
               </button>
-              <button type="button" className={choiceClass(frameChoice === 'advice')} onClick={() => { setFrameChoice('advice'); selectFrameProduct(''); }}>
+              <button
+                type="button"
+                aria-pressed={frameChoice === 'advice'}
+                className={choiceClass(frameChoice === 'advice')}
+                onClick={() => { setFrameChoice('advice'); selectFrameProduct(''); }}
+              >
                 <div className="font-semibold text-navy">Necesito asesoría</div>
                 <div className="mt-1 text-[13px] text-grafito">Ayúdenme a elegir</div>
               </button>
@@ -351,6 +361,7 @@ export function QuoteWizard({
                 <button
                   key={option}
                   type="button"
+                  aria-pressed={glassType === option}
                   className={choiceClass(glassType === option)}
                   onClick={() => setGlassType(option)}
                 >
@@ -373,13 +384,16 @@ export function QuoteWizard({
                   <button
                     key={treatment.id}
                     type="button"
+                    aria-pressed={active}
                     onClick={() => toggleTreatment(treatment.id)}
                     className={`flex items-center justify-between rounded-2xl border-2 p-4 text-left transition-colors ${
                       active ? 'border-fucsia bg-brand-gradient-soft' : 'border-line bg-white'
                     }`}
                   >
                     <span className="font-semibold text-navy">{treatment.name}</span>
-                    <span className={`text-base font-bold text-fucsia ${active ? 'opacity-100' : 'opacity-0'}`}>✓</span>
+                    <span aria-hidden="true" className={`text-base font-bold text-fucsia ${active ? 'opacity-100' : 'opacity-0'}`}>
+                      ✓
+                    </span>
                   </button>
                 );
               })}
@@ -398,6 +412,7 @@ export function QuoteWizard({
                 <button
                   key={option}
                   type="button"
+                  aria-pressed={hasPrescription === option}
                   className={choiceClass(hasPrescription === option)}
                   onClick={() => selectPrescriptionAnswer(option)}
                 >
@@ -509,8 +524,9 @@ export function QuoteWizard({
             <h3 className="text-xl font-semibold">5 · Tus datos de contacto</h3>
             <div className="mt-5 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
               <div>
-                <label className="text-[13px] font-semibold text-navy">Nombre *</label>
+                <label htmlFor="quote-name" className="text-[13px] font-semibold text-navy">Nombre *</label>
                 <input
+                  id="quote-name"
                   value={name}
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Tu nombre"
@@ -518,8 +534,9 @@ export function QuoteWizard({
                 />
               </div>
               <div>
-                <label className="text-[13px] font-semibold text-navy">Teléfono *</label>
+                <label htmlFor="quote-phone" className="text-[13px] font-semibold text-navy">Teléfono *</label>
                 <input
+                  id="quote-phone"
                   value={phone}
                   onChange={(event) => setPhone(event.target.value)}
                   placeholder="+56 9 ..."
@@ -527,8 +544,9 @@ export function QuoteWizard({
                 />
               </div>
               <div>
-                <label className="text-[13px] font-semibold text-navy">Correo</label>
+                <label htmlFor="quote-email" className="text-[13px] font-semibold text-navy">Correo</label>
                 <input
+                  id="quote-email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="tucorreo@mail.cl"
@@ -536,8 +554,9 @@ export function QuoteWizard({
                 />
               </div>
               <div>
-                <label className="text-[13px] font-semibold text-navy">Comuna</label>
+                <label htmlFor="quote-comuna" className="text-[13px] font-semibold text-navy">Comuna</label>
                 <input
+                  id="quote-comuna"
                   value={comuna}
                   onChange={(event) => setComuna(event.target.value)}
                   placeholder="Ej: Providencia"
@@ -545,8 +564,9 @@ export function QuoteWizard({
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="text-[13px] font-semibold text-navy">Mensaje o requerimiento</label>
+                <label htmlFor="quote-message" className="text-[13px] font-semibold text-navy">Mensaje o requerimiento</label>
                 <textarea
+                  id="quote-message"
                   value={message}
                   onChange={(event) => setMessage(event.target.value)}
                   placeholder="Cuéntanos qué necesitas"
@@ -594,11 +614,13 @@ export function QuoteWizard({
               </span>
             </label>
 
-            {result.status === 'error' ? (
-              <div className="mt-3.5 rounded-input bg-error-bg px-3.5 py-3 text-[13.5px] font-semibold text-error">
-                {result.formError ?? Object.values(result.fieldErrors)[0] ?? 'Revisa los datos ingresados.'}
-              </div>
-            ) : null}
+            <div aria-live="polite">
+              {result.status === 'error' ? (
+                <div className="mt-3.5 rounded-input bg-error-bg px-3.5 py-3 text-[13.5px] font-semibold text-error">
+                  {result.formError ?? Object.values(result.fieldErrors)[0] ?? 'Revisa los datos ingresados.'}
+                </div>
+              ) : null}
+            </div>
 
             <div className="mt-4 rounded-2xl bg-gray p-3.5 text-[13px] leading-relaxed text-grafito">
               Los precios son referenciales. La cotización final dependerá de la receta, el armazón y los
@@ -607,11 +629,13 @@ export function QuoteWizard({
           </div>
         ) : null}
 
-        {stepError ? (
-          <div className="mt-3.5 rounded-input bg-error-bg px-3.5 py-3 text-[13.5px] font-semibold text-error">
-            {stepError}
-          </div>
-        ) : null}
+        <div aria-live="polite">
+          {stepError ? (
+            <div className="mt-3.5 rounded-input bg-error-bg px-3.5 py-3 text-[13.5px] font-semibold text-error">
+              {stepError}
+            </div>
+          ) : null}
+        </div>
 
         <div className="mt-6.5 flex items-center justify-between gap-3">
           <button

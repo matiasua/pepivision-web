@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useId, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { StatusPill } from './StatusPill';
 import { changeArcoStatusAction } from '@/app/admin/requests/actions';
@@ -46,6 +46,9 @@ export function DataRightsCard({ request }: { request: DataRightsRequestView }) 
   const [error, setError] = useState('');
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+  const reactId = useId();
+  const statusFieldId = `arco-status-${reactId}`;
+  const notesFieldId = `arco-notes-${reactId}`;
 
   const requiresNotes = status === 'RESOLVED' || status === 'REJECTED';
 
@@ -83,8 +86,9 @@ export function DataRightsCard({ request }: { request: DataRightsRequestView }) 
 
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[200px_1fr]">
         <div>
-          <label className="text-xs font-semibold text-navy">Estado</label>
+          <label htmlFor={statusFieldId} className="text-xs font-semibold text-navy">Estado</label>
           <select
+            id={statusFieldId}
             value={status}
             onChange={(e) => setStatus(e.target.value)}
             className="mt-1 w-full rounded-input border border-line bg-white px-3 py-2 text-sm text-ink"
@@ -97,10 +101,11 @@ export function DataRightsCard({ request }: { request: DataRightsRequestView }) 
           </select>
         </div>
         <div>
-          <label className="text-xs font-semibold text-navy">
+          <label htmlFor={notesFieldId} className="text-xs font-semibold text-navy">
             Nota de resolución {requiresNotes ? '*' : '(opcional)'}
           </label>
           <textarea
+            id={notesFieldId}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
@@ -110,7 +115,9 @@ export function DataRightsCard({ request }: { request: DataRightsRequestView }) 
         </div>
       </div>
 
-      {error ? <div className="mt-3 rounded-input bg-error-bg px-3 py-2 text-xs font-semibold text-error">{error}</div> : null}
+      <div aria-live="polite">
+        {error ? <div className="mt-3 rounded-input bg-error-bg px-3 py-2 text-xs font-semibold text-error">{error}</div> : null}
+      </div>
 
       <div className="mt-3.5 flex justify-end">
         <button

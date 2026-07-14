@@ -1,5 +1,7 @@
 'use server';
 
+import { checkPublicFormRateLimit, PUBLIC_FORM_RATE_LIMIT_MESSAGE } from '@/lib/public-form-rate-limit';
+import { getClientIp } from '@/lib/request-ip';
 import { dataRightsRequestSchema } from '@/modules/data-rights/schemas';
 import { submitDataRightsRequest } from '@/modules/data-rights/service';
 
@@ -9,6 +11,11 @@ export type DataRightsActionState =
   | { status: 'success'; customerName: string };
 
 export async function submitDataRightsAction(input: unknown): Promise<DataRightsActionState> {
+  const ip = await getClientIp();
+  if (checkPublicFormRateLimit('data_rights', ip)) {
+    return { status: 'error', fieldErrors: {}, formError: PUBLIC_FORM_RATE_LIMIT_MESSAGE };
+  }
+
   const parsed = dataRightsRequestSchema.safeParse(input);
 
   if (!parsed.success) {

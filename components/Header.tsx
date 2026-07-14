@@ -41,6 +41,7 @@ export function Header() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive(pathname, item.href) ? 'page' : undefined}
               className={`whitespace-nowrap rounded-xl px-3 py-2 text-[13.5px] font-semibold transition-colors ${
                 isActive(pathname, item.href)
                   ? 'bg-brand-gradient-soft text-fucsia'
@@ -66,6 +67,7 @@ export function Header() {
             type="button"
             aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
             aria-expanded={mobileOpen}
+            aria-controls="mobile-nav-panel"
             onClick={() => setMobileOpen((open) => !open)}
             className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray text-navy lg:hidden"
           >
@@ -75,13 +77,14 @@ export function Header() {
       </div>
 
       {mobileOpen ? (
-        <div className="border-t border-line bg-white px-4 pb-4.5 pt-2.5 lg:hidden">
+        <div id="mobile-nav-panel" className="border-t border-line bg-white px-4 pb-4.5 pt-2.5 lg:hidden">
           <nav aria-label="Navegación móvil" className="flex flex-col gap-0.5">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
+                aria-current={isActive(pathname, item.href) ? 'page' : undefined}
                 className={`rounded-xl px-3 py-3.5 text-left text-[15px] font-semibold ${
                   isActive(pathname, item.href) ? 'bg-brand-gradient-soft text-fucsia' : 'text-ink'
                 }`}

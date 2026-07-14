@@ -44,13 +44,17 @@ export function ComunaManager({ comunas }: { comunas: ComunaView[] }) {
       <div className="rounded-card border border-line bg-white p-5.5 shadow-brand-sm">
         <h2 className="text-base font-semibold text-navy">Agregar comuna</h2>
         <div className="mt-3 flex flex-wrap gap-2.5">
+          <label htmlFor="comuna-name" className="sr-only">Nombre de la comuna</label>
           <input
+            id="comuna-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Nombre de la comuna"
             className="min-w-[200px] flex-1 rounded-input border border-line bg-white px-3.5 py-2.5 outline-none"
           />
+          <label htmlFor="comuna-region" className="sr-only">Región</label>
           <input
+            id="comuna-region"
             value={region}
             onChange={(e) => setRegion(e.target.value)}
             placeholder="Región (opcional)"
@@ -65,7 +69,9 @@ export function ComunaManager({ comunas }: { comunas: ComunaView[] }) {
             Agregar
           </button>
         </div>
-        {error ? <div className="mt-3 rounded-input bg-error-bg px-3.5 py-2.5 text-[13px] font-semibold text-error">{error}</div> : null}
+        <div aria-live="polite">
+          {error ? <div className="mt-3 rounded-input bg-error-bg px-3.5 py-2.5 text-[13px] font-semibold text-error">{error}</div> : null}
+        </div>
       </div>
 
       <div className="mt-5 overflow-hidden rounded-card border border-line bg-white shadow-brand-sm">

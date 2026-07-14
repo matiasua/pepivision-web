@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next';
 
+const isProd = process.env.NODE_ENV === 'production';
+
 // Configured for when next/image's built-in optimizer *can* be used
 // against this host (see the `unoptimized` note in design.md — in this
 // local dev environment it currently can't, because MinIO only ever has
@@ -56,6 +58,86 @@ const nextConfig: NextConfig = {
     }
     return config;
   },
+  // Single source of truth for security headers (Fase 8) — nginx/dev.conf
+  // deliberately only forwards proxy headers and never sets these, to avoid
+  // two places disagreeing on the same header. See design.md → "Cabeceras
+  // de seguridad" for the full rationale, including why HSTS is absent here
+  // (meaningless — and actively wrong to send — over the plain HTTP this
+  // dev environment always serves; it belongs at the production reverse
+  // proxy once real TLS terminates there).
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Content-Security-Policy', value: buildContentSecurityPolicy() },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Belt-and-suspenders with the CSP's own frame-ancestors 'none'
+          // below — X-Frame-Options is what pre-CSP3 browsers still honor.
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()',
+          },
+          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
+        ],
+      },
+    ];
+  },
 };
+
+/**
+ * Built once per config load (not per-request — Next.js reads `headers()`
+ * per request, but the policy string itself never varies with the request,
+ * only with NODE_ENV, so no per-request nonce/state is involved).
+ *
+ * Dev vs prod split:
+ * - `script-src` allows `unsafe-eval`/`unsafe-inline` ONLY in development —
+ *   required by webpack's dev-mode React Refresh/HMR runtime, which
+ *   `eval()`s module code for fast refresh. Production builds never need
+ *   either: Next.js's production script output is entirely external
+ *   `<script src="/_next/...">` tags, so `'self'` is enough there.
+ * - `style-src` keeps `unsafe-inline` in both environments: several
+ *   components use React's inline `style={{...}}` prop (dynamic color
+ *   swatches, computed layout values), which is a real, deliberate,
+ *   low-risk usage — not worth the complexity of a nonce/hash pipeline for
+ *   this app's threat model. Documented as an accepted trade-off in
+ *   design.md rather than left implicit.
+ * - `connect-src`/`img-src` include the object-storage public origin (MinIO
+ *   in dev) so `next/image`'s `unoptimized` `<img>` tags and any
+ *   client-side fetch to it aren't blocked; the dev-only HMR WebSocket
+ *   origin is added explicitly rather than relying on browsers to treat
+ *   `'self'` as covering the `ws:`/`wss:` scheme.
+ * - No `unsafe-eval` and no wildcard origins in production, per Fase 8
+ *   requirements.
+ */
+export function buildContentSecurityPolicy(): string {
+  const scriptSrc = isProd ? ["'self'"] : ["'self'", "'unsafe-eval'", "'unsafe-inline'"];
+
+  const connectSrc = ["'self'"];
+  const imgSrc = ["'self'", 'data:'];
+  if (objectStoragePublicUrl) {
+    connectSrc.push(objectStoragePublicUrl.origin);
+    imgSrc.push(objectStoragePublicUrl.origin);
+  }
+  if (!isProd) {
+    connectSrc.push('ws://localhost:8080', 'ws://127.0.0.1:8080');
+  }
+
+  return [
+    `default-src 'self'`,
+    `script-src ${scriptSrc.join(' ')}`,
+    `style-src 'self' 'unsafe-inline'`,
+    `img-src ${imgSrc.join(' ')}`,
+    `font-src 'self'`,
+    `connect-src ${connectSrc.join(' ')}`,
+    `frame-ancestors 'none'`,
+    `base-uri 'self'`,
+    `form-action 'self'`,
+    `object-src 'none'`,
+  ].join('; ');
+}
 
 export default nextConfig;

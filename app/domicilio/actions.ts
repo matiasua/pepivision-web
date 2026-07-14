@@ -1,5 +1,7 @@
 'use server';
 
+import { checkPublicFormRateLimit, PUBLIC_FORM_RATE_LIMIT_MESSAGE } from '@/lib/public-form-rate-limit';
+import { getClientIp } from '@/lib/request-ip';
 import { homeVisitRequestSchema } from '@/modules/requests/schemas';
 import { submitHomeVisit } from '@/modules/requests/service';
 
@@ -9,6 +11,11 @@ export type HomeVisitActionState =
   | { status: 'success'; customerName: string; whatsappHref: string; comunaCovered: boolean };
 
 export async function submitHomeVisitAction(input: unknown): Promise<HomeVisitActionState> {
+  const ip = await getClientIp();
+  if (checkPublicFormRateLimit('home_visit', ip)) {
+    return { status: 'error', fieldErrors: {}, formError: PUBLIC_FORM_RATE_LIMIT_MESSAGE };
+  }
+
   const parsed = homeVisitRequestSchema.safeParse(input);
 
   if (!parsed.success) {

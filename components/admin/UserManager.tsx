@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useId, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { AdminRole } from '@prisma/client';
 import { createUserAction, resetPasswordAction, toggleUserActiveAction } from '@/app/admin/users/actions';
@@ -46,19 +46,25 @@ function NewUserForm({ onCreated }: { onCreated: () => void }) {
     <div className="rounded-card border border-line bg-white p-5.5 shadow-brand-sm">
       <h2 className="text-base font-semibold text-navy">Crear usuario administrador</h2>
       <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+        <label htmlFor="new-user-name" className="sr-only">Nombre</label>
         <input
+          id="new-user-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Nombre"
           className="rounded-input border border-line bg-white px-3.5 py-2.5 outline-none"
         />
+        <label htmlFor="new-user-email" className="sr-only">Correo</label>
         <input
+          id="new-user-email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="correo@pepivision360.cl"
           className="rounded-input border border-line bg-white px-3.5 py-2.5 outline-none"
         />
+        <label htmlFor="new-user-username" className="sr-only">Nombre de usuario</label>
         <input
+          id="new-user-username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="nombre de usuario"
@@ -66,14 +72,18 @@ function NewUserForm({ onCreated }: { onCreated: () => void }) {
           autoCorrect="off"
           className="rounded-input border border-line bg-white px-3.5 py-2.5 outline-none"
         />
+        <label htmlFor="new-user-password" className="sr-only">Contraseña inicial</label>
         <input
+          id="new-user-password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Contraseña inicial (mín. 10 caracteres)"
           className="rounded-input border border-line bg-white px-3.5 py-2.5 outline-none"
         />
+        <label htmlFor="new-user-role" className="sr-only">Rol</label>
         <select
+          id="new-user-role"
           value={role}
           onChange={(e) => setRole(e.target.value as AdminRole)}
           className="rounded-input border border-line bg-white px-3.5 py-2.5 text-ink"
@@ -82,7 +92,9 @@ function NewUserForm({ onCreated }: { onCreated: () => void }) {
           <option value="SUPERADMIN">Superadministrador</option>
         </select>
       </div>
-      {error ? <div className="mt-3 rounded-input bg-error-bg px-3.5 py-2.5 text-[13px] font-semibold text-error">{error}</div> : null}
+      <div aria-live="polite">
+        {error ? <div className="mt-3 rounded-input bg-error-bg px-3.5 py-2.5 text-[13px] font-semibold text-error">{error}</div> : null}
+      </div>
       <button
         type="button"
         onClick={handleSubmit}
@@ -96,6 +108,7 @@ function NewUserForm({ onCreated }: { onCreated: () => void }) {
 }
 
 function ResetPasswordControl({ userId }: { userId: string }) {
+  const resetFieldId = useId();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -112,7 +125,9 @@ function ResetPasswordControl({ userId }: { userId: string }) {
 
   return (
     <span className="inline-flex items-center gap-1.5">
+      <label htmlFor={resetFieldId} className="sr-only">Nueva contraseña</label>
       <input
+        id={resetFieldId}
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
@@ -141,8 +156,10 @@ function ResetPasswordControl({ userId }: { userId: string }) {
       <button type="button" onClick={() => setOpen(false)} className="rounded-lg bg-gray px-3 py-1.5 text-xs font-semibold text-grafito">
         Cerrar
       </button>
-      {error ? <span className="text-xs font-semibold text-error">{error}</span> : null}
-      {done ? <span className="text-xs font-semibold text-success">Actualizada</span> : null}
+      <span aria-live="polite">
+        {error ? <span className="text-xs font-semibold text-error">{error}</span> : null}
+        {done ? <span className="text-xs font-semibold text-success">Actualizada</span> : null}
+      </span>
     </span>
   );
 }
@@ -168,9 +185,11 @@ export function UserManager({ users, currentUserId }: { users: AdminUserView[]; 
     <div>
       <NewUserForm onCreated={() => router.refresh()} />
 
-      {toggleError ? (
-        <div className="mt-4 rounded-input bg-error-bg px-3.5 py-2.5 text-[13px] font-semibold text-error">{toggleError}</div>
-      ) : null}
+      <div aria-live="polite">
+        {toggleError ? (
+          <div className="mt-4 rounded-input bg-error-bg px-3.5 py-2.5 text-[13px] font-semibold text-error">{toggleError}</div>
+        ) : null}
+      </div>
 
       <div className="mt-5 overflow-hidden overflow-x-auto rounded-card border border-line bg-white shadow-brand-sm">
         <table className="w-full min-w-[640px] border-collapse">

@@ -31,6 +31,13 @@ export function FaqAccordion({ items }: { items: { q: string; a: string }[] }) {
               id={panelId}
               role="region"
               aria-labelledby={buttonId}
+              aria-hidden={!open}
+              // `inert` (not `hidden`) so the CSS grid-row transition below
+              // still animates — `hidden` would force display:none with no
+              // transition. `inert` still removes the collapsed answer from
+              // the accessibility tree and from tab order, which the
+              // previous opacity/overflow-only approach didn't.
+              inert={!open}
               className="grid transition-[grid-template-rows] duration-300 ease-in-out"
               style={{ gridTemplateRows: open ? '1fr' : '0fr' }}
             >

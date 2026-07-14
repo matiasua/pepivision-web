@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Gender, ProductMaterial, ProductShape } from '@prisma/client';
@@ -32,6 +32,51 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previouslyFocused = useRef<HTMLElement | null>(null);
+
+  // Same focus-trap/scroll-lock/restore pattern as GalleryLightbox — this
+  // drawer is functionally a modal on mobile, so it gets the same modal
+  // semantics rather than a plain overlay <div>.
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    previouslyFocused.current = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMobileOpen(false);
+        return;
+      }
+      if (event.key === 'Tab') {
+        const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable || focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+      previouslyFocused.current?.focus();
+    };
+  }, [mobileOpen]);
 
   const gender = searchParams.get('gender');
   const shape = searchParams.get('shape');
@@ -62,13 +107,14 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
         <div className="mt-4">
           <div className="mb-2.5 text-[13px] font-semibold text-navy">Marca</div>
           <div className="flex flex-wrap gap-1.5">
-            <Link href={buildFilterHref(searchParams, 'brand', null)} className={chipClass(!brand)}>
+            <Link href={buildFilterHref(searchParams, 'brand', null)} aria-current={!brand} className={chipClass(!brand)}>
               Todas
             </Link>
             {brands.map((option) => (
               <Link
                 key={option.slug}
                 href={buildToggleHref(searchParams, 'brand', option.slug)}
+                aria-current={brand === option.slug}
                 className={chipClass(brand === option.slug)}
               >
                 {option.name}
@@ -81,13 +127,14 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
       <div className="mt-4">
         <div className="mb-2.5 text-[13px] font-semibold text-navy">Público</div>
         <div className="flex flex-wrap gap-1.5">
-          <Link href={buildFilterHref(searchParams, 'gender', null)} className={chipClass(!gender)}>
+          <Link href={buildFilterHref(searchParams, 'gender', null)} aria-current={!gender} className={chipClass(!gender)}>
             Todos
           </Link>
           {GENDER_OPTIONS.map((option) => (
             <Link
               key={option}
               href={buildFilterHref(searchParams, 'gender', option)}
+              aria-current={gender === option}
               className={chipClass(gender === option)}
             >
               {GENDER_LABELS[option]}
@@ -99,13 +146,14 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
       <div className="mt-4.5">
         <div className="mb-2.5 text-[13px] font-semibold text-navy">Forma</div>
         <div className="flex flex-wrap gap-1.5">
-          <Link href={buildFilterHref(searchParams, 'shape', null)} className={chipClass(!shape)}>
+          <Link href={buildFilterHref(searchParams, 'shape', null)} aria-current={!shape} className={chipClass(!shape)}>
             Todas
           </Link>
           {SHAPE_OPTIONS.map((option) => (
             <Link
               key={option}
               href={buildFilterHref(searchParams, 'shape', option)}
+              aria-current={shape === option}
               className={chipClass(shape === option)}
             >
               {SHAPE_LABELS[option]}
@@ -117,13 +165,14 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
       <div className="mt-4.5">
         <div className="mb-2.5 text-[13px] font-semibold text-navy">Material</div>
         <div className="flex flex-wrap gap-1.5">
-          <Link href={buildFilterHref(searchParams, 'material', null)} className={chipClass(!material)}>
+          <Link href={buildFilterHref(searchParams, 'material', null)} aria-current={!material} className={chipClass(!material)}>
             Todos
           </Link>
           {MATERIAL_OPTIONS.map((option) => (
             <Link
               key={option}
               href={buildFilterHref(searchParams, 'material', option)}
+              aria-current={material === option}
               className={chipClass(material === option)}
             >
               {MATERIAL_LABELS[option]}
@@ -140,6 +189,7 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
               key={name}
               href={buildToggleHref(searchParams, 'color', name)}
               aria-label={name}
+              aria-current={color === name}
               title={name}
               className="h-[26px] w-[26px] rounded-full border-2 border-white"
               style={{
@@ -200,8 +250,15 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
             onClick={() => setMobileOpen(false)}
             className="absolute inset-0 bg-black/40"
           />
-          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-[24px] bg-white p-5">
+          <div
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Filtros del catálogo"
+            className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-[24px] bg-white p-5"
+          >
             <button
+              ref={closeButtonRef}
               type="button"
               onClick={() => setMobileOpen(false)}
               aria-label="Cerrar filtros"

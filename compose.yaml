@@ -25,7 +25,11 @@ services:
       # deliver native fs-change events into the container (see Fase 1
       # notes) — polling makes Next.js's dev watcher work regardless of host.
       WATCHPACK_POLLING: "true"
-      DATABASE_URL: ${DATABASE_URL}
+      # Least-privilege application role (DML only), not the Postgres
+      # bootstrap superuser — see the `db-init` service and
+      # db/init-app-role.sql. Only `migrate` (DDL) uses the superuser
+      # DATABASE_URL.
+      DATABASE_URL: ${DATABASE_URL_APP}
       SESSION_SECRET: ${SESSION_SECRET}
       APP_URL: ${APP_URL}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
@@ -67,6 +71,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
 
   postgres:
     image: postgres:16.4-alpine
@@ -104,6 +110,45 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - pepivision-dev
+    restart: "no"
+
+  # One-shot: provisions/updates the least-privilege app role `web` connects
+  # as (see db/init-app-role.sql) — DML only, no DDL, no superuser. Runs
+  # after `migrate` so its catch-all grant on existing tables covers
+  # everything `migrate` just created; `ALTER DEFAULT PRIVILEGES` in the
+  # script also covers tables created by any *future* `migrate` run, so this
+  # doesn't need to be sequenced again after that. Connects as the Postgres
+  # bootstrap superuser (POSTGRES_USER) purely to grant/manage the app role —
+  # that superuser is never in `web`'s own environment.
+  db-init:
+    image: postgres:16.4-alpine
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./db/init-app-role.sql:/sql/init-app-role.sql:ro
+    command:
+      - psql
+      - -v
+      - ON_ERROR_STOP=1
+      - -v
+      - app_user=${APP_DB_USER}
+      - -v
+      - app_password=${APP_DB_PASSWORD}
+      - -v
+      - pg_database=${POSTGRES_DB}
+      - -v
+      - pg_owner=${POSTGRES_USER}
+      - -f
+      - /sql/init-app-role.sql
     networks:
       - pepivision-dev
     restart: "no"

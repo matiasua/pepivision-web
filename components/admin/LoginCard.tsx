@@ -31,32 +31,38 @@ export function LoginCard() {
       </div>
 
       <div className="rounded-card border border-line bg-white p-6.5 shadow-brand">
-        <label className="text-[13px] font-semibold text-navy">Correo o nombre de usuario</label>
+        <label htmlFor="login-identifier" className="text-[13px] font-semibold text-navy">Correo o nombre de usuario</label>
         <input
+          id="login-identifier"
           type="text"
           value={identifier}
           onChange={(event) => setIdentifier(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && handleSubmit()}
           placeholder="tu@correo.cl o tu-usuario"
           autoComplete="username"
+          aria-invalid={error ? true : undefined}
           className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 outline-none"
         />
-        <label className="mt-3.5 block text-[13px] font-semibold text-navy">Contraseña</label>
+        <label htmlFor="login-password" className="mt-3.5 block text-[13px] font-semibold text-navy">Contraseña</label>
         <input
+          id="login-password"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && handleSubmit()}
           placeholder="••••••••"
           autoComplete="current-password"
+          aria-invalid={error ? true : undefined}
           className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 outline-none"
         />
 
-        {error ? (
-          <div className="mt-3.5 rounded-input bg-error-bg px-3.5 py-3 text-[13px] font-semibold text-error">
-            {error}
-          </div>
-        ) : null}
+        <div aria-live="polite">
+          {error ? (
+            <div className="mt-3.5 rounded-input bg-error-bg px-3.5 py-3 text-[13px] font-semibold text-error">
+              {error}
+            </div>
+          ) : null}
+        </div>
 
         <button
           type="button"

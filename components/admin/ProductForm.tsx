@@ -220,8 +220,9 @@ export function ProductForm({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="text-[13px] font-semibold text-navy">Nombre *</label>
+          <label htmlFor="product-name" className="text-[13px] font-semibold text-navy">Nombre *</label>
           <input
+            id="product-name"
             value={values.name}
             onChange={(e) => set('name', e.target.value)}
             placeholder="Ej: Aurora"
@@ -229,8 +230,9 @@ export function ProductForm({
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Código *</label>
+          <label htmlFor="product-code" className="text-[13px] font-semibold text-navy">Código *</label>
           <input
+            id="product-code"
             value={values.code}
             onChange={(e) => set('code', e.target.value)}
             placeholder="Ej: PV-111"
@@ -238,14 +240,20 @@ export function ProductForm({
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Marca *</label>
+          <label id="product-brand-label" className="text-[13px] font-semibold text-navy">Marca *</label>
           <div className="mt-1.5">
-            <BrandSelect brands={brands} value={values.brandId} onChange={(brandId) => set('brandId', brandId)} />
+            <BrandSelect
+              brands={brands}
+              value={values.brandId}
+              onChange={(brandId) => set('brandId', brandId)}
+              labelledBy="product-brand-label"
+            />
           </div>
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Precio desde (CLP) *</label>
+          <label htmlFor="product-price" className="text-[13px] font-semibold text-navy">Precio desde (CLP) *</label>
           <input
+            id="product-price"
             value={values.priceFromClp}
             onChange={(e) => set('priceFromClp', e.target.value)}
             placeholder="39900"
@@ -254,8 +262,9 @@ export function ProductForm({
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Medidas</label>
+          <label htmlFor="product-sizes" className="text-[13px] font-semibold text-navy">Medidas</label>
           <input
+            id="product-sizes"
             value={values.sizes}
             onChange={(e) => set('sizes', e.target.value)}
             placeholder="52-18-140 mm"
@@ -263,8 +272,9 @@ export function ProductForm({
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Público</label>
+          <label htmlFor="product-gender" className="text-[13px] font-semibold text-navy">Público</label>
           <select
+            id="product-gender"
             value={values.gender}
             onChange={(e) => set('gender', e.target.value as Gender)}
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 text-ink"
@@ -277,8 +287,9 @@ export function ProductForm({
           </select>
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Forma</label>
+          <label htmlFor="product-shape" className="text-[13px] font-semibold text-navy">Forma</label>
           <select
+            id="product-shape"
             value={values.shape}
             onChange={(e) => set('shape', e.target.value as ProductShape)}
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 text-ink"
@@ -291,8 +302,9 @@ export function ProductForm({
           </select>
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Material</label>
+          <label htmlFor="product-material" className="text-[13px] font-semibold text-navy">Material</label>
           <select
+            id="product-material"
             value={values.material}
             onChange={(e) => set('material', e.target.value as ProductMaterial)}
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 text-ink"
@@ -305,8 +317,9 @@ export function ProductForm({
           </select>
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Disponibilidad</label>
+          <label htmlFor="product-available" className="text-[13px] font-semibold text-navy">Disponibilidad</label>
           <select
+            id="product-available"
             value={values.available ? 'true' : 'false'}
             onChange={(e) => set('available', e.target.value === 'true')}
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 text-ink"
@@ -316,8 +329,9 @@ export function ProductForm({
           </select>
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Etiqueta</label>
+          <label htmlFor="product-badge" className="text-[13px] font-semibold text-navy">Etiqueta</label>
           <select
+            id="product-badge"
             value={values.badge}
             onChange={(e) => set('badge', e.target.value as ProductBadge | '')}
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 text-ink"
@@ -331,8 +345,9 @@ export function ProductForm({
           </select>
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Visibilidad en catálogo</label>
+          <label htmlFor="product-visible" className="text-[13px] font-semibold text-navy">Visibilidad en catálogo</label>
           <select
+            id="product-visible"
             value={values.visible ? 'true' : 'false'}
             onChange={(e) => set('visible', e.target.value === 'true')}
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 text-ink"
@@ -354,6 +369,7 @@ export function ProductForm({
                 key={name}
                 type="button"
                 disabled={busy}
+                aria-pressed={active}
                 onClick={() => (active ? handleRemoveColor(colors.find((c) => c.name === name)!) : handleAddColor(name, hex))}
                 className={`inline-flex items-center gap-1.5 rounded-pill border-[1.5px] px-3 py-1.5 text-xs font-semibold disabled:opacity-50 ${
                   active ? 'border-fucsia bg-brand-gradient-soft text-fucsia' : 'border-line text-grafito'
@@ -468,8 +484,9 @@ export function ProductForm({
       </div>
 
       <div className="mt-5">
-        <label className="text-[13px] font-semibold text-navy">Descripción</label>
+        <label htmlFor="product-description" className="text-[13px] font-semibold text-navy">Descripción</label>
         <textarea
+          id="product-description"
           value={values.description}
           onChange={(e) => set('description', e.target.value)}
           rows={3}
@@ -497,9 +514,11 @@ export function ProductForm({
         )}
       </div>
 
-      {error ? (
-        <div className="mt-4 rounded-input bg-error-bg px-3.5 py-3 text-[13px] font-semibold text-error">{error}</div>
-      ) : null}
+      <div aria-live="polite">
+        {error ? (
+          <div className="mt-4 rounded-input bg-error-bg px-3.5 py-3 text-[13px] font-semibold text-error">{error}</div>
+        ) : null}
+      </div>
 
       <div className="mt-6 flex justify-end gap-3">
         <button type="button" onClick={() => router.push('/admin/products')} className="rounded-input bg-gray px-6 py-3 font-semibold text-navy">

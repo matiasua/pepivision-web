@@ -1,0 +1,24 @@
+# Automated dependency vulnerability monitoring (Fase 8, tarea 8.5) — opens
+# PRs for outdated/vulnerable npm dependencies. This is Dependabot's own
+# native GitHub feature (not a GitHub Actions workflow/CI pipeline, which
+# is explicitly out of scope until Fase 9): it requires no runner, no
+# secrets, and does not run or gate builds by itself.
+#
+# Prisma (`prisma`, `@prisma/client`) is pinned to an exact version
+# elsewhere in package.json by deliberate project choice, and any major
+# version bump for either needs the same manual review as any other major
+# upgrade — see design.md → "Dependencias y vulnerabilidades aceptadas".
+# Ignoring only major-version PRs for those two here still lets Dependabot
+# flag them (and any real CVE) without silently auto-bumping a pinned major.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    ignore:
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]

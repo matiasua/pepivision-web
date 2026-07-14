@@ -34,6 +34,8 @@ export function ProductCard({ product }: { product: CatalogProductView }) {
             {product.colors.map((color) => (
               <span
                 key={color.id}
+                role="img"
+                aria-label={color.name}
                 title={color.name}
                 className="h-4 w-4 rounded-full border-[1.5px] border-white shadow-[0_0_0_1px_#d7dceb]"
                 style={{ backgroundColor: color.hex }}

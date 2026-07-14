@@ -72,8 +72,9 @@ export function DataRightsForm() {
       </p>
       <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
         <div>
-          <label className="text-[13px] font-semibold text-navy">Nombre completo *</label>
+          <label htmlFor="arco-name" className="text-[13px] font-semibold text-navy">Nombre completo *</label>
           <input
+            id="arco-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="Tu nombre"
@@ -81,8 +82,9 @@ export function DataRightsForm() {
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Correo *</label>
+          <label htmlFor="arco-email" className="text-[13px] font-semibold text-navy">Correo *</label>
           <input
+            id="arco-email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             placeholder="tucorreo@mail.cl"
@@ -90,8 +92,9 @@ export function DataRightsForm() {
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Teléfono</label>
+          <label htmlFor="arco-phone" className="text-[13px] font-semibold text-navy">Teléfono</label>
           <input
+            id="arco-phone"
             value={phone}
             onChange={(event) => setPhone(event.target.value)}
             placeholder="+56 9 ..."
@@ -99,8 +102,9 @@ export function DataRightsForm() {
           />
         </div>
         <div>
-          <label className="text-[13px] font-semibold text-navy">Derecho a ejercer *</label>
+          <label htmlFor="arco-right-type" className="text-[13px] font-semibold text-navy">Derecho a ejercer *</label>
           <select
+            id="arco-right-type"
             value={rightType}
             onChange={(event) => setRightType(event.target.value)}
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 text-ink"
@@ -114,8 +118,9 @@ export function DataRightsForm() {
           </select>
         </div>
         <div className="sm:col-span-2">
-          <label className="text-[13px] font-semibold text-navy">Detalle de tu solicitud *</label>
+          <label htmlFor="arco-description" className="text-[13px] font-semibold text-navy">Detalle de tu solicitud *</label>
           <textarea
+            id="arco-description"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
             rows={3}
@@ -148,11 +153,13 @@ export function DataRightsForm() {
         <span>Autorizo el tratamiento de estos datos con el único fin de gestionar esta solicitud.</span>
       </label>
 
-      {result.status === 'error' ? (
-        <div className="mt-3.5 rounded-input bg-error-bg px-3.5 py-3 text-[13.5px] font-semibold text-error">
-          {result.formError ?? Object.values(result.fieldErrors)[0] ?? 'Revisa los datos ingresados.'}
-        </div>
-      ) : null}
+      <div aria-live="polite">
+        {result.status === 'error' ? (
+          <div className="mt-3.5 rounded-input bg-error-bg px-3.5 py-3 text-[13.5px] font-semibold text-error">
+            {result.formError ?? Object.values(result.fieldErrors)[0] ?? 'Revisa los datos ingresados.'}
+          </div>
+        ) : null}
+      </div>
 
       <button
         type="button"

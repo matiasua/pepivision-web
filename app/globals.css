@@ -103,6 +103,20 @@
   }
 }
 
+.animate-pulse-whatsapp {
+  animation: pulse-whatsapp 2.4s infinite;
+}
+
+/* WCAG 2.2.2: an infinite animation must respect prefers-reduced-motion —
+   unlike BrandCarousel (which already handles this per-component), this
+   button had no way to condition its inline `style` on a media query, so
+   the animation moved into this class instead. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-whatsapp {
+    animation: none;
+  }
+}
+
 /* BrandCarousel (home, "Marcas que trabajamos"): the track renders the
    logo list twice back-to-back and scrolls exactly half its own width, so
    the loop point is invisible. Pause-on-hover/focus and the
