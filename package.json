@@ -13,7 +13,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test --config=playwright.config.ts --project=e2e",
     "test:a11y": "playwright test --config=playwright.config.ts --project=a11y",
-    "test:lighthouse": "lhci autorun --config=lighthouserc.cjs",
+    "test:lighthouse": "node scripts/run-lighthouse.mjs",
     "ci": "npm run lint && npm run typecheck && npm run test:unit && npm run test:integration && npm run build",
     "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",

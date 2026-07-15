@@ -3,7 +3,10 @@
 // contra el stack real vía `nginx` (no arranca un servidor propio: la app
 // ya está arriba). Usa el Chromium que trae la imagen oficial de
 // Playwright (ver Dockerfile.e2e) en vez de depender de que
-// chrome-launcher descargue el suyo.
+// chrome-launcher descargue el suyo — la ruta se resuelve dinámicamente en
+// scripts/run-lighthouse.mjs (chromium.executablePath()) y se pasa acá
+// exclusivamente vía CHROME_PATH, nunca hardcodeada con un número de
+// revisión (esos cambian entre versiones/reconstrucciones de la imagen).
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://nginx';
 
 module.exports = {
@@ -16,8 +19,12 @@ module.exports = {
       url: [`${BASE_URL}/`, `${BASE_URL}/catalogo`, `${BASE_URL}/catalogo/coral`],
       numberOfRuns: 1,
       settings: {
-        chromePath: process.env.LHCI_CHROME_PATH || '/ms-playwright/chromium-1228/chrome-linux/chrome',
-        chromeFlags: '--headless=new --no-sandbox --disable-gpu',
+        // Set by scripts/run-lighthouse.mjs right before invoking `lhci` —
+        // no hardcoded fallback: if it's ever missing, fail loudly via
+        // chrome-launcher's own error rather than silently trying a stale
+        // path from a different Playwright version.
+        chromePath: process.env.CHROME_PATH,
+        chromeFlags: '--headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage',
       },
     },
     assert: {

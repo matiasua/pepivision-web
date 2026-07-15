@@ -239,10 +239,11 @@ services:
       NODE_ENV: test
       CI: ${CI:-}
       PLAYWRIGHT_BASE_URL: http://nginx
-      # Lighthouse CI (chrome-launcher) doesn't know about Playwright's own
-      # bundled Chromium unless told explicitly — same browser install the
-      # Dockerfile.e2e image already has, no separate download needed.
-      CHROME_PATH: /ms-playwright/chromium-1228/chrome-linux/chrome
+      # No CHROME_PATH here on purpose: a hardcoded revision path (e.g.
+      # /ms-playwright/chromium-1228/...) silently goes stale across
+      # Playwright versions/image rebuilds. scripts/run-lighthouse.mjs
+      # resolves it dynamically via `chromium.executablePath()` and sets it
+      # only for the `lhci` child process it spawns.
       DATABASE_URL: ${DATABASE_URL_APP}
       APP_URL: ${APP_URL}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}

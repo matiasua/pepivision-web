@@ -145,7 +145,7 @@ docker compose --profile e2e run --rm e2e npx playwright test   # e2e + a11y jun
 
 ### Reproducir el workflow de CI localmente
 
-`.github/workflows/ci.yml` no hace nada que no puedas correr vos mismo con Docker Compose — no instala Node en el runner, no usa AWS ni Terraform, no publica imágenes ni despliega nada. Para reproducirlo paso a paso: `docker compose config` → `docker compose up -d` → esperar que `web` esté `healthy` → `npx prisma db seed` → lint → typecheck → `test:unit` → `test:integration` → `build` → Playwright (`e2e`+`a11y`) → `test:lighthouse` → `npm audit --omit=dev` → `openspec validate <cambio> --strict` (vía `npx --yes @fission-ai/openspec@latest` dentro del contenedor `web`) → confirmar que `design-reference/` no cambió.
+`.github/workflows/ci.yml` no hace nada que no puedas correr vos mismo con Docker Compose — no instala Node en el runner, no usa AWS ni Terraform, no publica imágenes ni despliega nada. Para reproducirlo paso a paso: `docker compose config` → `docker compose up -d` → esperar que `web` esté `healthy` → `npx prisma db seed` → lint → typecheck → `test:unit` → `test:integration` → `build` → Playwright (`e2e`+`a11y`) → `test:lighthouse` → `npm audit --omit=dev` → `openspec validate --specs --strict` (baseline V1 archivada) → `openspec validate redesign-extensible-catalog-v2 --strict` (cambio activo) — ambos vía `npx --yes @fission-ai/openspec@latest` dentro del contenedor `web` — → confirmar que `design-reference/` no cambió.
 
 ## Qué queda fuera de alcance (Fase 10)
 
