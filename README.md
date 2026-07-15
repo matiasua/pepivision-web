@@ -2,7 +2,7 @@
 
 Este repositorio se desarrolla y ejecuta **exclusivamente dentro de contenedores Docker**. El host de cada desarrollador solo necesita tener instalados **Docker** y **Docker Compose** — no se instala Node.js, PostgreSQL, MinIO ni Nginx localmente, y ningún comando de la aplicación (`npm`, Prisma, lint, tests, build) se ejecuta directamente en el host.
 
-> **Estado actual: Fases 1-9 de `add-pepi-vision-360-v1` implementadas** (sitio público, catálogo, solicitudes, autenticación/administración, almacenamiento de imágenes, seguridad/auditoría/accesibilidad, y pruebas/CI). La Fase 10 (infraestructura productiva) queda deliberadamente fuera de alcance — ver `openspec/changes/add-pepi-vision-360-v1/design.md`.
+> **Estado actual: `add-pepi-vision-360-v1` completado, validado y archivado con 100/100 tareas**. Incluye sitio público, catálogo, solicitudes, autenticación y administración, almacenamiento de imágenes, seguridad, auditoría, accesibilidad y pruebas/CI. La infraestructura productiva permanece deliberadamente fuera de alcance; consulta `openspec/changes/archive/2026-07-14-add-pepi-vision-360-v1/design.md`.
 
 ## Prerrequisitos
 
@@ -149,4 +149,4 @@ docker compose --profile e2e run --rm e2e npx playwright test   # e2e + a11y jun
 
 ## Qué queda fuera de alcance (Fase 10)
 
-Toda infraestructura productiva (dominio, TLS, despliegue, base de datos gestionada, object storage/backups productivos, pipelines de despliegue) — explícitamente fuera de alcance de este proyecto por ahora; se aborda en una futura propuesta OpenSpec separada. Ver `openspec/changes/add-pepi-vision-360-v1/design.md`.
+Toda infraestructura productiva —dominio, TLS, despliegue, base de datos gestionada, object storage, backups productivos y pipelines de despliegue— permanece explícitamente fuera del alcance de esta versión. Se abordará mediante una propuesta OpenSpec separada. Consulta `openspec/changes/archive/2026-07-14-add-pepi-vision-360-v1/design.md`.
