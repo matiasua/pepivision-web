@@ -8,11 +8,13 @@ import {
   addProductColorAction,
   reassignAndRemoveProductColorAction,
   removeProductColorAction,
+  type OfferingView,
   type ProductColorView,
   type ProductImageView,
 } from '@/app/admin/products/actions';
 import { BrandSelect, type BrandOption } from './BrandSelect';
 import { ProductGalleryManager } from './ProductGalleryManager';
+import { ProductOfferingsManager, type OfferingCategoryOption } from './ProductOfferingsManager';
 import { StatusToast, useStatusToast } from './StatusToast';
 
 const PREDEFINED_COLORS: Record<string, string> = {
@@ -70,6 +72,8 @@ export function ProductForm({
   productId,
   images,
   brands,
+  offeringCategories,
+  offerings,
 }: {
   initialValues?: ProductFormValues;
   title: string;
@@ -77,6 +81,8 @@ export function ProductForm({
   productId?: string;
   images?: ProductImageView[];
   brands: BrandOption[];
+  offeringCategories?: OfferingCategoryOption[];
+  offerings?: OfferingView[];
 }) {
   const [values, setValues] = useState<Omit<ProductFormValues, 'colors'>>(initialValues ?? EMPTY_VALUES);
   // Single source of truth for both the color picker below and
@@ -251,7 +257,7 @@ export function ProductForm({
           </div>
         </div>
         <div>
-          <label htmlFor="product-price" className="text-[13px] font-semibold text-navy">Precio desde (CLP) *</label>
+          <label htmlFor="product-price" className="text-[13px] font-semibold text-navy">Precio de referencia inicial (CLP) *</label>
           <input
             id="product-price"
             value={values.priceFromClp}
@@ -260,6 +266,10 @@ export function ProductForm({
             inputMode="numeric"
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 outline-none"
           />
+          <p className="mt-1 text-xs text-grafito">
+            Solo se usa como valor semilla de la primera oferta de este modelo — el precio público real se administra por
+            categoría en la sección de disponibilidad en el catálogo, más abajo.
+          </p>
         </div>
         <div>
           <label htmlFor="product-sizes" className="text-[13px] font-semibold text-navy">Medidas</label>
@@ -512,6 +522,23 @@ export function ProductForm({
             </div>
           </>
         )}
+      </div>
+
+      <div className="mt-5">
+        <label className="text-[13px] font-semibold text-navy">Disponibilidad en el catálogo</label>
+        <p className="mt-1 text-xs text-grafito">
+          Habilita este modelo en una o más categorías y define su precio público por categoría — reutiliza siempre los
+          mismos colores y fotografías, sin duplicarlos.
+        </p>
+        <div className="mt-2.5">
+          {productId ? (
+            <ProductOfferingsManager productId={productId} categories={offeringCategories ?? []} offerings={offerings ?? []} />
+          ) : (
+            <div className="rounded-input bg-gray px-3.5 py-3 text-xs text-grafito">
+              Podrás habilitar este modelo en categorías del catálogo después de guardarlo por primera vez.
+            </div>
+          )}
+        </div>
       </div>
 
       <div aria-live="polite">

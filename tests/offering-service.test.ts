@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ValidationError } from '@/lib/errors';
+import type { CurrentSession } from '@/modules/auth/service';
 
 const findProductById = vi.fn();
 vi.mock('@/modules/catalog/admin-repository', () => ({
@@ -17,6 +18,7 @@ const findOfferingBySlugInCategoryAny = vi.fn();
 const createOfferingRow = vi.fn();
 const updateOfferingRow = vi.fn();
 const softDeleteOfferingRow = vi.fn();
+const setOfferingActiveRow = vi.fn();
 
 vi.mock('@/modules/catalog/offering-repository', () => ({
   findOfferingById: (...args: unknown[]) => findOfferingById(...args),
@@ -25,13 +27,24 @@ vi.mock('@/modules/catalog/offering-repository', () => ({
   createOfferingRow: (...args: unknown[]) => createOfferingRow(...args),
   updateOfferingRow: (...args: unknown[]) => updateOfferingRow(...args),
   softDeleteOfferingRow: (...args: unknown[]) => softDeleteOfferingRow(...args),
+  setOfferingActiveRow: (...args: unknown[]) => setOfferingActiveRow(...args),
   listOfferingsForProduct: vi.fn(),
   listPublicOfferingsForCategory: vi.fn(),
 }));
 
-const { createOffering, updateOffering, softDeleteOffering, verifyOfferingOwnership } = await import(
+const recordAudit = vi.fn();
+vi.mock('@/modules/auth/service', () => ({
+  recordAudit: (...args: unknown[]) => recordAudit(...args),
+}));
+
+const { createOffering, updateOffering, softDeleteOffering, setOfferingActive, verifyOfferingOwnership } = await import(
   '@/modules/catalog/offering-service'
 );
+
+const actor: CurrentSession = {
+  sessionId: 'sess_1',
+  adminUser: { id: 'admin_1', email: 'admin@pepivision360.cl', name: 'Admin', role: 'ADMIN', active: true },
+};
 
 function validInput(overrides: Partial<Record<string, unknown>> = {}) {
   return {
@@ -53,16 +66,19 @@ function validInput(overrides: Partial<Record<string, unknown>> = {}) {
 describe('modules/catalog/offering-service — createOffering', () => {
   afterEach(() => vi.clearAllMocks());
 
-  it('derives the offering slug from the product slug, scoped to the category', async () => {
+  it('derives the offering slug from the product slug, scoped to the category, and audits offering.created', async () => {
     findProductById.mockResolvedValue({ id: 'prod_1', slug: 'coral' });
     findCategoryById.mockResolvedValue({ id: 'cat_1' });
     findOfferingByProductAndCategory.mockResolvedValue(null);
     findOfferingBySlugInCategoryAny.mockResolvedValue(null);
-    createOfferingRow.mockResolvedValue({ id: 'off_1' });
+    createOfferingRow.mockResolvedValue({ id: 'off_1', productId: 'prod_1', categoryId: 'cat_1' });
 
-    await createOffering(validInput());
+    await createOffering(validInput(), actor);
 
     expect(createOfferingRow).toHaveBeenCalledWith(expect.objectContaining({ slug: 'coral', productId: 'prod_1', categoryId: 'cat_1' }));
+    expect(recordAudit).toHaveBeenCalledWith(
+      expect.objectContaining({ actorId: 'admin_1', action: 'offering.created', targetType: 'ProductOffering', targetId: 'off_1' })
+    );
   });
 
   it('appends a numeric suffix when the derived slug already exists in that category', async () => {
@@ -72,9 +88,9 @@ describe('modules/catalog/offering-service — createOffering', () => {
     findOfferingBySlugInCategoryAny.mockImplementation(async (_categoryId: string, slug: string) =>
       slug === 'coral' ? { id: 'other' } : null
     );
-    createOfferingRow.mockResolvedValue({ id: 'off_2' });
+    createOfferingRow.mockResolvedValue({ id: 'off_2', productId: 'prod_1', categoryId: 'cat_1' });
 
-    await createOffering(validInput());
+    await createOffering(validInput(), actor);
 
     expect(createOfferingRow).toHaveBeenCalledWith(expect.objectContaining({ slug: 'coral-2' }));
   });
@@ -82,15 +98,16 @@ describe('modules/catalog/offering-service — createOffering', () => {
   it('rejects when the product no longer exists', async () => {
     findProductById.mockResolvedValue(null);
 
-    await expect(createOffering(validInput())).rejects.toThrow(ValidationError);
+    await expect(createOffering(validInput(), actor)).rejects.toThrow(ValidationError);
     expect(createOfferingRow).not.toHaveBeenCalled();
+    expect(recordAudit).not.toHaveBeenCalled();
   });
 
   it('rejects when the category no longer exists', async () => {
     findProductById.mockResolvedValue({ id: 'prod_1', slug: 'coral' });
     findCategoryById.mockResolvedValue(null);
 
-    await expect(createOffering(validInput())).rejects.toThrow(ValidationError);
+    await expect(createOffering(validInput(), actor)).rejects.toThrow(ValidationError);
     expect(createOfferingRow).not.toHaveBeenCalled();
   });
 
@@ -99,7 +116,7 @@ describe('modules/catalog/offering-service — createOffering', () => {
     findCategoryById.mockResolvedValue({ id: 'cat_1' });
     findOfferingByProductAndCategory.mockResolvedValue({ id: 'existing_offering' });
 
-    await expect(createOffering(validInput())).rejects.toThrow(ValidationError);
+    await expect(createOffering(validInput(), actor)).rejects.toThrow(ValidationError);
     expect(createOfferingRow).not.toHaveBeenCalled();
   });
 });
@@ -109,26 +126,56 @@ describe('modules/catalog/offering-service — updateOffering / softDeleteOfferi
 
   it('rejects updating an offering that no longer exists', async () => {
     findOfferingById.mockResolvedValue(null);
-    await expect(updateOffering('off_missing', validInput())).rejects.toThrow(ValidationError);
+    await expect(updateOffering('off_missing', validInput(), actor)).rejects.toThrow(ValidationError);
     expect(updateOfferingRow).not.toHaveBeenCalled();
   });
 
-  it('never includes productId/categoryId/slug in the update payload', async () => {
-    findOfferingById.mockResolvedValue({ id: 'off_1' });
+  it('never includes productId/categoryId/slug in the update payload, and audits offering.updated', async () => {
+    findOfferingById.mockResolvedValue({ id: 'off_1', productId: 'prod_1', categoryId: 'cat_1' });
     updateOfferingRow.mockResolvedValue({ id: 'off_1' });
 
-    await updateOffering('off_1', validInput());
+    await updateOffering('off_1', validInput(), actor);
 
     const [, data] = updateOfferingRow.mock.calls[0];
     expect(data).not.toHaveProperty('productId');
     expect(data).not.toHaveProperty('categoryId');
     expect(data).not.toHaveProperty('slug');
+    expect(recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'offering.updated', targetId: 'off_1' }));
   });
 
   it('rejects soft-deleting an offering that no longer exists', async () => {
     findOfferingById.mockResolvedValue(null);
     await expect(softDeleteOffering('off_missing')).rejects.toThrow(ValidationError);
     expect(softDeleteOfferingRow).not.toHaveBeenCalled();
+  });
+});
+
+describe('modules/catalog/offering-service — setOfferingActive', () => {
+  afterEach(() => vi.clearAllMocks());
+
+  it('audits offering.enabled when activating', async () => {
+    findOfferingById.mockResolvedValue({ id: 'off_1', productId: 'prod_1', categoryId: 'cat_1' });
+    setOfferingActiveRow.mockResolvedValue({ id: 'off_1', active: true });
+
+    await setOfferingActive('off_1', true, actor);
+
+    expect(setOfferingActiveRow).toHaveBeenCalledWith('off_1', true);
+    expect(recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'offering.enabled', targetId: 'off_1' }));
+  });
+
+  it('audits offering.disabled when deactivating', async () => {
+    findOfferingById.mockResolvedValue({ id: 'off_1', productId: 'prod_1', categoryId: 'cat_1' });
+    setOfferingActiveRow.mockResolvedValue({ id: 'off_1', active: false });
+
+    await setOfferingActive('off_1', false, actor);
+
+    expect(recordAudit).toHaveBeenCalledWith(expect.objectContaining({ action: 'offering.disabled', targetId: 'off_1' }));
+  });
+
+  it('rejects when the offering no longer exists', async () => {
+    findOfferingById.mockResolvedValue(null);
+    await expect(setOfferingActive('off_missing', true, actor)).rejects.toThrow(ValidationError);
+    expect(setOfferingActiveRow).not.toHaveBeenCalled();
   });
 });
 

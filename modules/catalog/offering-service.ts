@@ -1,5 +1,7 @@
 import { ValidationError } from '@/lib/errors';
 import { slugify } from '@/lib/slug';
+import type { CurrentSession } from '@/modules/auth/service';
+import { recordAudit } from '@/modules/auth/service';
 import { findProductById } from './admin-repository';
 import { findCategoryById } from './category-repository';
 import {
@@ -9,6 +11,7 @@ import {
   findOfferingBySlugInCategoryAny,
   listOfferingsForProduct,
   listPublicOfferingsForCategory,
+  setOfferingActiveRow,
   softDeleteOfferingRow,
   updateOfferingRow,
 } from './offering-repository';
@@ -52,7 +55,7 @@ function toRowInput(input: OfferingFormInput) {
   };
 }
 
-export async function createOffering(input: OfferingFormInput) {
+export async function createOffering(input: OfferingFormInput, actor: CurrentSession) {
   const product = await findProductById(input.productId);
   if (!product) {
     throw new ValidationError('El producto seleccionado ya no existe.');
@@ -76,22 +79,74 @@ export async function createOffering(input: OfferingFormInput) {
   // productos DISTINTOS slugifican igual dentro de la misma categoría.
   const slug = await uniqueOfferingSlugFor(input.categoryId, product.slug);
 
-  return createOfferingRow({
+  const offering = await createOfferingRow({
     productId: input.productId,
     categoryId: input.categoryId,
     slug,
     ...toRowInput(input),
   });
+
+  await recordAudit({
+    actorId: actor.adminUser.id,
+    action: 'offering.created',
+    targetType: 'ProductOffering',
+    targetId: offering.id,
+    metadata: { productId: offering.productId, categoryId: offering.categoryId },
+  });
+
+  return offering;
 }
 
-export async function updateOffering(id: string, input: OfferingFormInput) {
+export async function updateOffering(id: string, input: OfferingFormInput, actor: CurrentSession) {
   const existing = await findOfferingById(id);
   if (!existing) {
     throw new ValidationError('La oferta que intentas editar ya no existe.');
   }
-  return updateOfferingRow(id, toRowInput(input));
+  const offering = await updateOfferingRow(id, toRowInput(input));
+
+  await recordAudit({
+    actorId: actor.adminUser.id,
+    action: 'offering.updated',
+    targetType: 'ProductOffering',
+    targetId: id,
+    metadata: { productId: existing.productId, categoryId: existing.categoryId },
+  });
+
+  return offering;
 }
 
+/**
+ * Acción rápida de "activar/desactivar" (task 4.2), independiente del
+ * guardado completo del formulario — emite `offering.enabled`/
+ * `offering.disabled` (nombres de auditoría exigidos por la spec
+ * catalog-administration), a diferencia de `updateOffering`, que siempre
+ * registra `offering.updated` aunque el formulario también incluya el
+ * campo `active`.
+ */
+export async function setOfferingActive(id: string, active: boolean, actor: CurrentSession) {
+  const existing = await findOfferingById(id);
+  if (!existing) {
+    throw new ValidationError('La oferta ya no existe.');
+  }
+  const offering = await setOfferingActiveRow(id, active);
+
+  await recordAudit({
+    actorId: actor.adminUser.id,
+    action: active ? 'offering.enabled' : 'offering.disabled',
+    targetType: 'ProductOffering',
+    targetId: id,
+    metadata: { productId: existing.productId, categoryId: existing.categoryId },
+  });
+
+  return offering;
+}
+
+// Sin `actor`/auditoría deliberadamente: la spec catalog-administration
+// (lista cerrada — "Category and offering mutations are audit-logged")
+// solo exige created/updated/enabled/disabled para ofertas, no una acción
+// de eliminación; esta función tampoco está conectada a ninguna pantalla
+// admin en la Fase 4 (ver design.md → "Administración": el flujo de la
+// Fase 4 es activar/desactivar, no eliminar una oferta).
 export async function softDeleteOffering(id: string) {
   const existing = await findOfferingById(id);
   if (!existing) {

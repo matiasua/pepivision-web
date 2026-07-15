@@ -6,6 +6,7 @@ import type { AdminRole } from '@prisma/client';
 
 const NAV_ITEMS: { label: string; href: string; roles?: AdminRole[] }[] = [
   { label: 'Modelos', href: '/admin/products' },
+  { label: 'Categorías', href: '/admin/categories', roles: ['SUPERADMIN'] },
   { label: 'Solicitudes', href: '/admin/requests' },
   { label: 'Atención a domicilio', href: '/admin/home-visits' },
   { label: 'Configuración', href: '/admin/settings', roles: ['SUPERADMIN'] },

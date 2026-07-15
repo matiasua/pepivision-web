@@ -70,36 +70,43 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   }
 
   it('3.4 — the same Product in two categories reuses its colors/images, never duplicates them', async () => {
+    const actor = await makeActor();
     const product = await makeProduct();
     const armazonesId = await categoryIdBySlug('armazones');
     const lentesOpticosId = await categoryIdBySlug('lentes-opticos');
 
-    const offeringA = await createOffering({
-      productId: product.id,
-      categoryId: armazonesId,
-      title: undefined,
-      commercialDescription: undefined,
-      priceFromClp: 19990,
-      active: true,
-      visible: true,
-      featured: false,
-      sortOrder: 0,
-      seoTitle: undefined,
-      seoDescription: undefined,
-    });
-    const offeringB = await createOffering({
-      productId: product.id,
-      categoryId: lentesOpticosId,
-      title: undefined,
-      commercialDescription: undefined,
-      priceFromClp: 39990,
-      active: true,
-      visible: true,
-      featured: false,
-      sortOrder: 0,
-      seoTitle: undefined,
-      seoDescription: undefined,
-    });
+    const offeringA = await createOffering(
+      {
+        productId: product.id,
+        categoryId: armazonesId,
+        title: undefined,
+        commercialDescription: undefined,
+        priceFromClp: 19990,
+        active: true,
+        visible: true,
+        featured: false,
+        sortOrder: 0,
+        seoTitle: undefined,
+        seoDescription: undefined,
+      },
+      actor
+    );
+    const offeringB = await createOffering(
+      {
+        productId: product.id,
+        categoryId: lentesOpticosId,
+        title: undefined,
+        commercialDescription: undefined,
+        priceFromClp: 39990,
+        active: true,
+        visible: true,
+        featured: false,
+        sortOrder: 0,
+        seoTitle: undefined,
+        seoDescription: undefined,
+      },
+      actor
+    );
     offeringIds.push(offeringA.id, offeringB.id);
 
     expect(offeringA.productId).toBe(product.id);
@@ -114,38 +121,45 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   });
 
   it('3.6 — creating a second offering for the same (productId, categoryId) is rejected', async () => {
+    const actor = await makeActor();
     const product = await makeProduct();
     const armazonesId = await categoryIdBySlug('armazones');
 
-    const first = await createOffering({
-      productId: product.id,
-      categoryId: armazonesId,
-      title: undefined,
-      commercialDescription: undefined,
-      priceFromClp: 19990,
-      active: true,
-      visible: true,
-      featured: false,
-      sortOrder: 0,
-      seoTitle: undefined,
-      seoDescription: undefined,
-    });
-    offeringIds.push(first.id);
-
-    await expect(
-      createOffering({
+    const first = await createOffering(
+      {
         productId: product.id,
         categoryId: armazonesId,
         title: undefined,
         commercialDescription: undefined,
-        priceFromClp: 9990,
+        priceFromClp: 19990,
         active: true,
         visible: true,
         featured: false,
         sortOrder: 0,
         seoTitle: undefined,
         seoDescription: undefined,
-      })
+      },
+      actor
+    );
+    offeringIds.push(first.id);
+
+    await expect(
+      createOffering(
+        {
+          productId: product.id,
+          categoryId: armazonesId,
+          title: undefined,
+          commercialDescription: undefined,
+          priceFromClp: 9990,
+          active: true,
+          visible: true,
+          featured: false,
+          sortOrder: 0,
+          seoTitle: undefined,
+          seoDescription: undefined,
+        },
+        actor
+      )
     ).rejects.toThrow();
 
     const count = await prisma.productOffering.count({ where: { productId: product.id, categoryId: armazonesId } });
@@ -153,23 +167,27 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   });
 
   it('3.7 — an offering that does not belong to the claimed category is rejected', async () => {
+    const actor = await makeActor();
     const product = await makeProduct();
     const armazonesId = await categoryIdBySlug('armazones');
     const lentesOpticosId = await categoryIdBySlug('lentes-opticos');
 
-    const offering = await createOffering({
-      productId: product.id,
-      categoryId: armazonesId,
-      title: undefined,
-      commercialDescription: undefined,
-      priceFromClp: 19990,
-      active: true,
-      visible: true,
-      featured: false,
-      sortOrder: 0,
-      seoTitle: undefined,
-      seoDescription: undefined,
-    });
+    const offering = await createOffering(
+      {
+        productId: product.id,
+        categoryId: armazonesId,
+        title: undefined,
+        commercialDescription: undefined,
+        priceFromClp: 19990,
+        active: true,
+        visible: true,
+        featured: false,
+        sortOrder: 0,
+        seoTitle: undefined,
+        seoDescription: undefined,
+      },
+      actor
+    );
     offeringIds.push(offering.id);
 
     await expect(verifyOfferingOwnership(offering.id, lentesOpticosId, product.id)).rejects.toThrow();
@@ -177,6 +195,7 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   });
 
   it('3.8 — inactive category / invisible offering are excluded from public listings', async () => {
+    const actor = await makeActor();
     const productVisible = await makeProduct();
     const productHiddenOffering = await makeProduct();
     const armazonesId = await categoryIdBySlug('armazones');
@@ -192,45 +211,54 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
     });
     categoryIds.push(inactiveCategory.id);
 
-    const visibleOffering = await createOffering({
-      productId: productVisible.id,
-      categoryId: armazonesId,
-      title: undefined,
-      commercialDescription: undefined,
-      priceFromClp: 19990,
-      active: true,
-      visible: true,
-      featured: false,
-      sortOrder: 0,
-      seoTitle: undefined,
-      seoDescription: undefined,
-    });
-    const invisibleOffering = await createOffering({
-      productId: productHiddenOffering.id,
-      categoryId: armazonesId,
-      title: undefined,
-      commercialDescription: undefined,
-      priceFromClp: 19990,
-      active: true,
-      visible: false, // oferta invisible
-      featured: false,
-      sortOrder: 0,
-      seoTitle: undefined,
-      seoDescription: undefined,
-    });
-    const offeringInInactiveCategory = await createOffering({
-      productId: productVisible.id,
-      categoryId: inactiveCategory.id,
-      title: undefined,
-      commercialDescription: undefined,
-      priceFromClp: 19990,
-      active: true,
-      visible: true,
-      featured: false,
-      sortOrder: 0,
-      seoTitle: undefined,
-      seoDescription: undefined,
-    });
+    const visibleOffering = await createOffering(
+      {
+        productId: productVisible.id,
+        categoryId: armazonesId,
+        title: undefined,
+        commercialDescription: undefined,
+        priceFromClp: 19990,
+        active: true,
+        visible: true,
+        featured: false,
+        sortOrder: 0,
+        seoTitle: undefined,
+        seoDescription: undefined,
+      },
+      actor
+    );
+    const invisibleOffering = await createOffering(
+      {
+        productId: productHiddenOffering.id,
+        categoryId: armazonesId,
+        title: undefined,
+        commercialDescription: undefined,
+        priceFromClp: 19990,
+        active: true,
+        visible: false, // oferta invisible
+        featured: false,
+        sortOrder: 0,
+        seoTitle: undefined,
+        seoDescription: undefined,
+      },
+      actor
+    );
+    const offeringInInactiveCategory = await createOffering(
+      {
+        productId: productVisible.id,
+        categoryId: inactiveCategory.id,
+        title: undefined,
+        commercialDescription: undefined,
+        priceFromClp: 19990,
+        active: true,
+        visible: true,
+        featured: false,
+        sortOrder: 0,
+        seoTitle: undefined,
+        seoDescription: undefined,
+      },
+      actor
+    );
     offeringIds.push(visibleOffering.id, invisibleOffering.id, offeringInInactiveCategory.id);
 
     const armazonesListing = await listVisibleOfferingsForCategory(armazonesId);
@@ -243,41 +271,49 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   });
 
   it('3.3 — creating and updating an offering with a different price never touches Product.priceFromClp (no reverse sync)', async () => {
+    const actor = await makeActor();
     const product = await makeProduct(29990); // precio V1 del Product base
     const armazonesId = await categoryIdBySlug('armazones');
 
-    const offering = await createOffering({
-      productId: product.id,
-      categoryId: armazonesId,
-      title: undefined,
-      commercialDescription: undefined,
-      priceFromClp: 15000, // deliberadamente distinto al priceFromClp del Product
-      active: true,
-      visible: true,
-      featured: false,
-      sortOrder: 0,
-      seoTitle: undefined,
-      seoDescription: undefined,
-    });
+    const offering = await createOffering(
+      {
+        productId: product.id,
+        categoryId: armazonesId,
+        title: undefined,
+        commercialDescription: undefined,
+        priceFromClp: 15000, // deliberadamente distinto al priceFromClp del Product
+        active: true,
+        visible: true,
+        featured: false,
+        sortOrder: 0,
+        seoTitle: undefined,
+        seoDescription: undefined,
+      },
+      actor
+    );
     offeringIds.push(offering.id);
 
     expect(offering.priceFromClp).toBe(15000);
     const productAfterCreate = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
     expect(productAfterCreate.priceFromClp).toBe(29990); // sin cambios
 
-    const updated = await updateOffering(offering.id, {
-      productId: product.id,
-      categoryId: armazonesId,
-      title: undefined,
-      commercialDescription: undefined,
-      priceFromClp: 45000, // otra edición, otra vez distinta
-      active: true,
-      visible: true,
-      featured: false,
-      sortOrder: 0,
-      seoTitle: undefined,
-      seoDescription: undefined,
-    });
+    const updated = await updateOffering(
+      offering.id,
+      {
+        productId: product.id,
+        categoryId: armazonesId,
+        title: undefined,
+        commercialDescription: undefined,
+        priceFromClp: 45000, // otra edición, otra vez distinta
+        active: true,
+        visible: true,
+        featured: false,
+        sortOrder: 0,
+        seoTitle: undefined,
+        seoDescription: undefined,
+      },
+      actor
+    );
 
     expect(updated.priceFromClp).toBe(45000);
     const productAfterUpdate = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
@@ -285,22 +321,26 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   });
 
   it('3.9 — editing Product.priceFromClp after an offering exists does not change the offering price', async () => {
+    const actor = await makeActor();
     const product = await makeProduct(29990);
     const armazonesId = await categoryIdBySlug('armazones');
 
-    const offering = await createOffering({
-      productId: product.id,
-      categoryId: armazonesId,
-      title: undefined,
-      commercialDescription: undefined,
-      priceFromClp: 19990,
-      active: true,
-      visible: true,
-      featured: false,
-      sortOrder: 0,
-      seoTitle: undefined,
-      seoDescription: undefined,
-    });
+    const offering = await createOffering(
+      {
+        productId: product.id,
+        categoryId: armazonesId,
+        title: undefined,
+        commercialDescription: undefined,
+        priceFromClp: 19990,
+        active: true,
+        visible: true,
+        featured: false,
+        sortOrder: 0,
+        seoTitle: undefined,
+        seoDescription: undefined,
+      },
+      actor
+    );
     offeringIds.push(offering.id);
 
     await prisma.product.update({ where: { id: product.id }, data: { priceFromClp: 99990 } });

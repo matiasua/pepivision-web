@@ -26,3 +26,12 @@ export type CategoryFormInput = z.infer<typeof categoryFormSchema>;
 export const deleteCategorySchema = z.object({
   categoryId: z.string().trim().min(1),
 });
+
+export const setCategoryActiveSchema = z.object({
+  categoryId: z.string().trim().min(1),
+  active: z.boolean(),
+});
+
+export const reorderCategoriesSchema = z.object({
+  orderedCategoryIds: z.array(z.string().trim().min(1)).min(1),
+});

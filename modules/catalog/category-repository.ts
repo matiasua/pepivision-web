@@ -13,6 +13,16 @@ export function listActiveVisibleCategories() {
   });
 }
 
+/**
+ * Para el selector de categorías del formulario admin de producto
+ * ("Disponibilidad en el catálogo") — a diferencia de
+ * listActiveVisibleCategories(), ignora `visible` (una categoría oculta al
+ * público pero activa igual debe poder configurarse desde el admin).
+ */
+export function listActiveCategoriesForAdmin() {
+  return prisma.category.findMany({ where: { active: true }, orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }] });
+}
+
 export function findCategoryById(id: string) {
   return prisma.category.findUnique({ where: { id } });
 }
@@ -60,4 +70,17 @@ export function deleteCategoryRow(id: string) {
 /** Usado para bloquear el borrado de una categoría con ofertas asociadas — ver design.md → "Administración". */
 export function countCategoryOfferings(categoryId: string) {
   return prisma.productOffering.count({ where: { categoryId } });
+}
+
+export function setCategoryActiveRow(id: string, active: boolean) {
+  return prisma.category.update({ where: { id }, data: { active } });
+}
+
+export function runInTransaction<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) {
+  return prisma.$transaction(fn);
+}
+
+/** Mismo patrón que reorderProductImagesRows en modules/catalog/admin-repository.ts. */
+export function reorderCategoryRows(tx: Prisma.TransactionClient, orderedIds: string[]) {
+  return Promise.all(orderedIds.map((id, index) => tx.category.update({ where: { id }, data: { sortOrder: index } })));
 }

@@ -23,6 +23,8 @@ import {
   updateProduct,
   uploadProductImage,
 } from '@/modules/catalog/admin-service';
+import { offeringFormSchema, setOfferingActiveSchema } from '@/modules/catalog/offering-schemas';
+import { createOffering, setOfferingActive, updateOffering } from '@/modules/catalog/offering-service';
 import type { ProductFormValues } from '@/components/admin/ProductForm';
 import { toErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
@@ -277,6 +279,105 @@ export async function reorderProductImagesAction(productId: string, orderedImage
       productId,
       error: error instanceof Error ? error.message : String(error),
     });
+    return { status: 'error', message: toErrorResponse(error).message };
+  }
+}
+
+// --- "Disponibilidad en el catálogo" (ProductOffering) — redesign-extensible-catalog-v2, Fase 4 ---
+// ADMIN y SUPERADMIN por igual (requireSession(), no requireRole) — ver
+// design.md → "Autorización": administrar ofertas es mercadeo rutinario,
+// mismo nivel de confianza que color/imagen de producto. La estructura de
+// categorías (crear/editar/reordenar/capabilities/atributos) sí requiere
+// SUPERADMIN — ver app/admin/categories/actions.ts.
+
+export interface OfferingView {
+  id: string;
+  categoryId: string;
+  categoryName: string;
+  title: string | null;
+  commercialDescription: string | null;
+  priceFromClp: number | null;
+  active: boolean;
+  visible: boolean;
+  featured: boolean;
+  sortOrder: number;
+  seoTitle: string | null;
+  seoDescription: string | null;
+}
+
+type OfferingActionResult = { status: 'error'; message: string } | { status: 'success'; offering: OfferingView };
+
+function toOfferingView(offering: {
+  id: string;
+  categoryId: string;
+  category?: { name: string };
+  title: string | null;
+  commercialDescription: string | null;
+  priceFromClp: number | null;
+  active: boolean;
+  visible: boolean;
+  featured: boolean;
+  sortOrder: number;
+  seoTitle: string | null;
+  seoDescription: string | null;
+}): OfferingView {
+  return {
+    id: offering.id,
+    categoryId: offering.categoryId,
+    categoryName: offering.category?.name ?? '',
+    title: offering.title,
+    commercialDescription: offering.commercialDescription,
+    priceFromClp: offering.priceFromClp,
+    active: offering.active,
+    visible: offering.visible,
+    featured: offering.featured,
+    sortOrder: offering.sortOrder,
+    seoTitle: offering.seoTitle,
+    seoDescription: offering.seoDescription,
+  };
+}
+
+export async function createOfferingAction(input: unknown): Promise<OfferingActionResult> {
+  const session = await requireSession();
+  const parsed = offeringFormSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Revisa los datos de la oferta.' };
+  }
+  try {
+    const offering = await createOffering(parsed.data, session);
+    return { status: 'success', offering: toOfferingView(offering) };
+  } catch (error) {
+    logger.error('offering.create_failed', { error: error instanceof Error ? error.message : String(error) });
+    return { status: 'error', message: toErrorResponse(error).message };
+  }
+}
+
+export async function updateOfferingAction(id: string, input: unknown): Promise<OfferingActionResult> {
+  const session = await requireSession();
+  const parsed = offeringFormSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Revisa los datos de la oferta.' };
+  }
+  try {
+    const offering = await updateOffering(id, parsed.data, session);
+    return { status: 'success', offering: toOfferingView(offering) };
+  } catch (error) {
+    logger.error('offering.update_failed', { offeringId: id, error: error instanceof Error ? error.message : String(error) });
+    return { status: 'error', message: toErrorResponse(error).message };
+  }
+}
+
+export async function setOfferingActiveAction(offeringId: string, active: boolean): Promise<SimpleActionResult> {
+  const session = await requireSession();
+  const parsed = setOfferingActiveSchema.safeParse({ offeringId, active });
+  if (!parsed.success) {
+    return { status: 'error', message: 'Datos inválidos.' };
+  }
+  try {
+    await setOfferingActive(parsed.data.offeringId, parsed.data.active, session);
+    return { status: 'success' };
+  } catch (error) {
+    logger.error('offering.set_active_failed', { offeringId, error: error instanceof Error ? error.message : String(error) });
     return { status: 'error', message: toErrorResponse(error).message };
   }
 }

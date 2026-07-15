@@ -21,6 +21,9 @@ directamente) — la cobertura HTTP/browser real vive en `e2e/`.
 | `home-visit-and-arco.test.ts` | PostgreSQL, Mailpit |
 | `auth-admin.test.ts` | PostgreSQL |
 | `settings-and-comunas.test.ts` | PostgreSQL |
+| `category-seed.test.ts` | PostgreSQL |
+| `product-offerings.test.ts` | PostgreSQL |
+| `category-admin.test.ts` | PostgreSQL |
 
 ## Aislamiento y limpieza
 

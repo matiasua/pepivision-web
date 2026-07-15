@@ -2,8 +2,11 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireSession } from '@/modules/auth/service';
 import { getProduct, listActiveBrands } from '@/modules/catalog/admin-service';
+import { listCategoriesForOfferingSelector } from '@/modules/catalog/category-service';
+import { listOfferingsForProductAdmin } from '@/modules/catalog/offering-service';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { ProductForm, type ProductFormValues } from '@/components/admin/ProductForm';
+import type { OfferingView } from '../../actions';
 import { updateProductAction } from '../../actions';
 
 export const metadata: Metadata = { title: 'Editar modelo · Panel de administración', robots: { index: false } };
@@ -12,7 +15,12 @@ export const dynamic = 'force-dynamic';
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await requireSession();
   const { id } = await params;
-  const [product, brands] = await Promise.all([getProduct(id), listActiveBrands()]);
+  const [product, brands, categories, offeringRows] = await Promise.all([
+    getProduct(id),
+    listActiveBrands(),
+    listCategoriesForOfferingSelector(),
+    listOfferingsForProductAdmin(id),
+  ]);
   if (!product) notFound();
 
   const initialValues: ProductFormValues = {
@@ -40,6 +48,21 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
     isCover: image.isCover,
   }));
 
+  const offerings: OfferingView[] = offeringRows.map((o) => ({
+    id: o.id,
+    categoryId: o.categoryId,
+    categoryName: o.category.name,
+    title: o.title,
+    commercialDescription: o.commercialDescription,
+    priceFromClp: o.priceFromClp,
+    active: o.active,
+    visible: o.visible,
+    featured: o.featured,
+    sortOrder: o.sortOrder,
+    seoTitle: o.seoTitle,
+    seoDescription: o.seoDescription,
+  }));
+
   return (
     <AdminShell session={session}>
       <ProductForm
@@ -49,6 +72,8 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
         productId={product.id}
         images={images}
         brands={brands}
+        offeringCategories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        offerings={offerings}
       />
     </AdminShell>
   );

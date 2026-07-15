@@ -31,12 +31,12 @@
 
 ## 4. Administración
 
-- [ ] 4.1 Construir `/admin/categories` (listar/crear/editar/reordenar/activar-desactivar/slug/SEO/capabilities/atributos) con Server Actions restringidas a `SUPERADMIN`.
-- [ ] 4.2 Agregar la sección "Disponibilidad en el catálogo" a `ProductForm.tsx` + Server Actions correspondientes (permitido para `ADMIN` y `SUPERADMIN`). Actualizar el copy del campo base `priceFromClp` del producto para dejar explícito que es un valor de referencia/semilla, no el precio público (ver design.md → "Fase de compatibilidad de precios").
-- [ ] 4.3 Implementar el patrón de eliminación bloqueada cuando existen ofertas asociadas (mismo patrón que `removeProductColor`), prefiriendo desactivación.
-- [ ] 4.4 Registrar auditoría (`category.created/updated/enabled/disabled/attributes_updated`, `offering.created/updated/enabled/disabled`).
-- [ ] 4.5 Prueba: un `ADMIN` no puede alterar la estructura de categorías pero sí puede administrar ofertas.
-- [ ] 4.6 Prueba: eliminar una categoría con ofertas asociadas queda bloqueado; desactivarla funciona.
+- [x] 4.1 Construir `/admin/categories` (listar/crear/editar/reordenar/activar-desactivar/slug/SEO/capabilities/atributos) con Server Actions restringidas a `SUPERADMIN`.
+- [x] 4.2 Agregar la sección "Disponibilidad en el catálogo" a `ProductForm.tsx` + Server Actions correspondientes (permitido para `ADMIN` y `SUPERADMIN`). Actualizar el copy del campo base `priceFromClp` del producto para dejar explícito que es un valor de referencia/semilla, no el precio público (ver design.md → "Fase de compatibilidad de precios").
+- [x] 4.3 Implementar el patrón de eliminación bloqueada cuando existen ofertas asociadas (mismo patrón que `removeProductColor`), prefiriendo desactivación.
+- [x] 4.4 Registrar auditoría (`category.created/updated/enabled/disabled/attributes_updated`, `offering.created/updated/enabled/disabled`).
+- [x] 4.5 Prueba: un `ADMIN` no puede alterar la estructura de categorías pero sí puede administrar ofertas.
+- [x] 4.6 Prueba: eliminar una categoría con ofertas asociadas queda bloqueado; desactivarla funciona.
 
 ## 5. Catálogo público
 

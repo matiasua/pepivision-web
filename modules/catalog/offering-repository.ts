@@ -68,3 +68,7 @@ export function updateOfferingRow(id: string, input: OfferingRowInput) {
 export function softDeleteOfferingRow(id: string) {
   return prisma.productOffering.update({ where: { id }, data: { deletedAt: new Date() } });
 }
+
+export function setOfferingActiveRow(id: string, active: boolean) {
+  return prisma.productOffering.update({ where: { id }, data: { active } });
+}
