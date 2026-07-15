@@ -12,10 +12,10 @@
 
 ## 2. Categorías y seed inicial
 
-- [ ] 2.1 Implementar repositorio/servicio de `Category` (CRUD, validación de capabilities, slugify + unicidad al estilo `Brand`).
-- [ ] 2.2 Extender `prisma/seed.ts` con un seed idempotente (`upsert` por slug) de las tres categorías iniciales: Armazones, Lentes ópticos, Lentes de sol ópticos.
-- [ ] 2.3 Prueba: correr el seed dos veces no duplica categorías.
-- [ ] 2.4 Prueba: capabilities malformadas se rechazan al escribir y se tratan como "sin capacidades opcionales" al leer.
+- [x] 2.1 Implementar repositorio/servicio de `Category` (CRUD, validación de capabilities, slugify + unicidad al estilo `Brand`).
+- [x] 2.2 Extender `prisma/seed.ts` con un seed idempotente (`upsert` por slug) de las tres categorías iniciales: Armazones, Lentes ópticos, Lentes de sol ópticos.
+- [x] 2.3 Prueba: correr el seed dos veces no duplica categorías.
+- [x] 2.4 Prueba: capabilities malformadas se rechazan al escribir y se tratan como "sin capacidades opcionales" al leer.
 
 ## 3. ProductOfferings
 

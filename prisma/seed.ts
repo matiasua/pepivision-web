@@ -7,6 +7,7 @@
 import { Gender, ProductBadge, ProductMaterial, ProductShape, PrismaClient } from '@prisma/client';
 import { slugify } from '../lib/slug';
 import { getBrandLogos } from '../lib/brands';
+import { categoryCapabilitiesSchema, type CategoryCapabilities } from '../modules/catalog/category-capabilities';
 
 const prisma = new PrismaClient();
 
@@ -41,6 +42,88 @@ const SEED_PRODUCTS = [
   { code: 'PV-109', name: 'Max', price: 33900, gender: Gender.HOMBRE, shape: ProductShape.RECTANGULAR, material: ProductMaterial.MIXTO, colors: ['Negro', 'Azul', 'Plata'], badge: null, available: false, sizes: '56-17-145 mm', description: 'Rectangular mixto de perfil deportivo, ligero y funcional para un ritmo activo.', brandSlug: 'jean-de-paris' },
   { code: 'PV-110', name: 'Coral', price: 45900, gender: Gender.MUJER, shape: ProductShape.CAT_EYE, material: ProductMaterial.METAL, colors: ['Dorado', 'Fucsia', 'Plata'], badge: ProductBadge.NUEVO, available: true, sizes: '53-18-140 mm', description: 'Cat eye de metal con detalles finos y un toque sofisticado. Para brillar con elegancia.', brandSlug: 'jorgio' },
 ];
+
+// redesign-extensible-catalog-v2 (Fase 2): las tres categorías iniciales,
+// con sus capabilities cerradas en design.md → "Capacidades tipadas —
+// Valores iniciales de las tres categorías (CERRADO...)". Solo estas tres
+// se siembran por script — toda categoría posterior se crea desde
+// /admin/categories (Fase 4), nunca agregándola aquí.
+const SEED_CATEGORIES: { slug: string; name: string; sortOrder: number; capabilities: CategoryCapabilities }[] = [
+  {
+    slug: 'armazones',
+    name: 'Armazones',
+    sortOrder: 0,
+    capabilities: {
+      requiresColor: true,
+      allowsLensType: false,
+      allowsTreatments: false,
+      allowsPrescription: false,
+      allowsPrescriptionAttachment: false,
+      allowsLensTint: false,
+      allowsFrameSelection: true,
+    },
+  },
+  {
+    slug: 'lentes-opticos',
+    name: 'Lentes ópticos',
+    sortOrder: 1,
+    capabilities: {
+      requiresColor: true,
+      allowsLensType: true,
+      allowsTreatments: true,
+      allowsPrescription: true,
+      allowsPrescriptionAttachment: true,
+      allowsLensTint: false,
+      allowsFrameSelection: true,
+    },
+  },
+  {
+    slug: 'lentes-de-sol-opticos',
+    name: 'Lentes de sol ópticos',
+    sortOrder: 2,
+    capabilities: {
+      requiresColor: true,
+      allowsLensType: true,
+      allowsTreatments: true,
+      allowsPrescription: true,
+      allowsPrescriptionAttachment: true,
+      allowsLensTint: true,
+      allowsFrameSelection: true,
+    },
+  },
+];
+
+/**
+ * Idempotente vía upsert-por-slug, igual que seedBrands() — re-ejecutar no
+ * duplica categorías ni cambia el `id` de una ya existente. Exportada
+ * (a diferencia del resto de este script) para que
+ * tests-integration/category-seed.test.ts pueda ejercer la idempotencia
+ * real contra Postgres sin correr todo el seed de catálogo/comunas.
+ *
+ * A diferencia de seedBrands() (que sí resincroniza name/logoPath/sortOrder
+ * en cada corrida — seguro ahí porque Brand no tiene ningún panel admin
+ * que los edite), Category SÍ tendrá `/admin/categories` (Fase 4,
+ * name/sortOrder/capabilities/active/visible/etc. editables). Por eso
+ * `update: {}`: una categoría que ya existe nunca se toca — el seed solo
+ * crea las que faltan, para no pisar silenciosamente una edición
+ * administrativa posterior con una nueva corrida de `prisma db seed`.
+ */
+export async function seedCategories() {
+  for (const item of SEED_CATEGORIES) {
+    // Valida incluso este valor hardcoded contra el mismo schema Zod que
+    // protege una escritura real desde /admin/categories — nunca se asume
+    // que un literal en código está automáticamente bien formado.
+    const capabilities = categoryCapabilitiesSchema.parse(item.capabilities);
+    await prisma.category.upsert({
+      where: { slug: item.slug },
+      update: {},
+      create: { slug: item.slug, name: item.name, sortOrder: item.sortOrder, capabilities },
+    });
+  }
+
+  const count = await prisma.category.count();
+  console.log(`Seed de categorías completo. ${count} categorías en la base de datos.`);
+}
 
 // Dev bootstrap for `home-visit-coverage`: there is no admin panel yet to
 // manage this list (depends on admin-auth, Fase 6), but the home-visit
@@ -127,6 +210,7 @@ async function syncProductColors(productId: string, desiredNames: string[]) {
 }
 
 async function main() {
+  await seedCategories();
   const brandIdBySlug = await seedBrands();
 
   for (const item of SEED_PRODUCTS) {
@@ -197,11 +281,18 @@ async function main() {
   console.log(`Seed de comunas completo. ${comunaCount} comunas en la base de datos.`);
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// Guarda contra ejecutar el seed completo como efecto colateral de un
+// `import` (p. ej. desde tests-integration/category-seed.test.ts, que solo
+// necesita `seedCategories`) — `main()` corre únicamente cuando este
+// archivo es el punto de entrada real (`tsx prisma/seed.ts` /
+// `prisma db seed`).
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main()
+    .catch((error) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}
