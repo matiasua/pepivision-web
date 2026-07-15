@@ -57,13 +57,16 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # Full history (not the default shallow single-commit checkout) —
           # needed so the "design-reference/ untouched" check below can
           # actually diff against the PR's base/previous push, not just an
           # empty working tree.
           fetch-depth: 0
+          # This workflow never pushes anything — no reason for the
+          # checked-out repo to carry a credential that could.
+          persist-credentials: false
 
       # Belt-and-suspenders: this workflow must never grow cloud-provisioning
       # or release-shipping steps — fail loudly if anyone ever adds one,
@@ -123,7 +126,7 @@ jobs:
           docker compose exec -T postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
           docker compose exec -T minio mc ready local
 
-      - name: Seed test data (idempotent — products/brands/comunas the E2E suite exercises)
+      - name: Seed test data (idempotent — categories/products/brands/comunas the E2E suite exercises)
         run: docker compose exec -T web npx prisma db seed
 
       - name: Lint
@@ -162,10 +165,10 @@ jobs:
         # the ones that actually matter for this gate.
         run: docker compose exec -T web npm audit --omit=dev
 
-      - name: OpenSpec validate — add-pepi-vision-360-v1 (active change)
-        run: docker compose exec -T web npx --yes @fission-ai/openspec@latest validate add-pepi-vision-360-v1 --strict
+      - name: OpenSpec validate — V1 baseline specs (archived, synced to openspec/specs/)
+        run: docker compose exec -T web npx --yes @fission-ai/openspec@latest validate --specs --strict
 
-      - name: OpenSpec validate — redesign-extensible-catalog-v2 (documented, not applied)
+      - name: OpenSpec validate — redesign-extensible-catalog-v2 (active change)
         run: docker compose exec -T web npx --yes @fission-ai/openspec@latest validate redesign-extensible-catalog-v2 --strict
 
       - name: Confirm design-reference/ was not modified by this change
@@ -216,7 +219,7 @@ jobs:
 
       - name: Upload diagnostic logs (on failure only)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ci-failure-logs
           path: ci-failure-logs/
@@ -224,7 +227,7 @@ jobs:
 
       - name: Upload Playwright report (on failure only)
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report
           path: |

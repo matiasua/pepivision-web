@@ -133,26 +133,36 @@ describe('modules/auth/service — login/logout/session (integration)', () => {
     expect(session).toBeNull();
   });
 
-  it('deactivating a SUPERADMIN succeeds when it is not the last active one (real DB count)', async () => {
-    // This suite shares the dev database with real admin accounts (never
-    // safe to deactivate) — so it can only exercise the "allowed" path
-    // live. The "blocked" edge case (deactivating the LAST active
-    // SUPERADMIN) is covered in isolation, with a mocked repository, by
-    // tests/auth-last-superadmin.test.ts — deliberately NOT run against
-    // shared dev data, since reproducing "zero active superadmins remain"
-    // for real would require deactivating this environment's genuine
-    // admin accounts.
-    const { user: target, session: actorSession } = await createTestAdmin(AdminRole.SUPERADMIN);
-    adminIds.push(target.id);
+  it('deactivating a SUPERADMIN succeeds if it is not the last active one', async () => {
+    // Self-contained: creates its OWN two synthetic active SUPERADMIN
+    // fixtures rather than relying on this environment's real admin
+    // accounts also being active SUPERADMINs — that assumption broke in
+    // CI, where no bootstrap admin users exist at all (prisma/seed.ts
+    // never seeds AdminUser rows; that's a separate, manual
+    // `admin:create-superadmin` step). With only the fixture below and no
+    // other active SUPERADMIN in the database, deactivating it would
+    // correctly trip the "last active SUPERADMIN" guard — so this test
+    // creates a second one first, guaranteeing the "allowed" path
+    // regardless of what else exists (or doesn't) in the target
+    // environment. The "blocked" edge case (deactivating the LAST active
+    // SUPERADMIN) is covered separately, in isolation with a mocked
+    // repository, by tests/auth-last-superadmin.test.ts.
+    const { user: superadminA, session: sessionA } = await createTestAdmin(AdminRole.SUPERADMIN);
+    adminIds.push(superadminA.id);
+    const { user: superadminB } = await createTestAdmin(AdminRole.SUPERADMIN);
+    adminIds.push(superadminB.id);
 
-    // At least one other active SUPERADMIN always exists in this shared
-    // dev database (provisioned in Fase 6) — deactivating our own,
-    // separate test fixture is therefore guaranteed not to trip the guard.
-    const deactivated = await setUserActive(target.id, false, actorSession);
+    const deactivated = await setUserActive(superadminB.id, false, sessionA);
     expect(deactivated.active).toBe(false);
 
+    // The other fixture is untouched — confirms the guard's own count
+    // logic isn't what let this succeed (it would also let it succeed if
+    // the guard were broken and counted the target itself).
+    const superadminAAfter = await prisma.adminUser.findUniqueOrThrow({ where: { id: superadminA.id } });
+    expect(superadminAAfter.active).toBe(true);
+
     const auditEntry = await prisma.auditLogEntry.findFirst({
-      where: { targetId: target.id, action: 'admin.user_deactivated' },
+      where: { targetId: superadminB.id, action: 'admin.user_deactivated' },
     });
     expect(auditEntry).not.toBeNull();
   });
