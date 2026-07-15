@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { prisma } from '../../lib/prisma';
+import { E2E_CATALOG_PRODUCT_SLUG } from '../fixtures/test-data';
 
 // Flujos 4-10: catálogo, búsqueda/filtro, filtro por marca, ficha de
 // producto, galería (cambiar foto), lightbox, selección de color.
@@ -47,31 +48,65 @@ test.describe('Sitio público — catálogo y ficha de producto', () => {
   });
 
   test('cambia de fotografía en la galería, y abre/cierra el lightbox', async ({ page }) => {
-    // Not every seeded product has photos (e.g. the mockup's placeholder
-    // "Foto armazón" cards) — the gallery/lightbox trigger only renders
-    // when there's a real image, so this test targets a product known to
-    // have at least one, rather than whichever card happens to be first.
-    const withImage = await prisma.product.findFirstOrThrow({
-      where: { visible: true, images: { some: {} } },
-      select: { slug: true },
+    // Targets the dedicated E2E fixture product (e2e/global-setup.ts) —
+    // guaranteed to have exactly two real, physically-uploaded photos,
+    // rather than "whichever seeded product happens to have one" (not
+    // guaranteed to exist at all on a freshly-migrated CI database, which
+    // has no photos until an admin uploads one).
+    //
+    // The fixture's photos are real MinIO objects at OBJECT_STORAGE_PUBLIC_URL
+    // (http://localhost:9000) — correct for a real end-user's browser, but
+    // not reachable as "localhost" from inside this `e2e` container (a
+    // separate network namespace from MinIO, which is only reachable here
+    // as `minio:9000`). Route interception transparently serves the real
+    // MinIO response while leaving the visible URL untouched, so the
+    // photos actually render instead of failing to load.
+    await page.context().route('http://localhost:9000/**', async (route) => {
+      const url = new URL(route.request().url());
+      url.hostname = 'minio';
+      const response = await route.fetch({ url: url.toString() });
+      await route.fulfill({ response });
     });
-    await page.goto(`/catalogo/${withImage.slug}`);
 
+    await page.goto(`/catalogo/${E2E_CATALOG_PRODUCT_SLUG}`);
+
+    // 1-2: la ficha del producto fixture abre y su portada está visible.
+    const coverButton = page.getByRole('button', { name: /Ver en grande/ });
+    await expect(coverButton).toBeVisible();
+
+    // 3: existe una segunda miniatura (el fixture siembra exactamente 2 fotos).
     const thumbnails = page.getByRole('button', { name: /Mostrar fotografía/ });
-    const thumbCount = await thumbnails.count();
-    if (thumbCount > 1) {
-      await thumbnails.nth(1).click();
-      await expect(thumbnails.nth(1)).toHaveAttribute('aria-current', 'true');
-    }
+    await expect(thumbnails).toHaveCount(2);
 
-    const openLightbox = page.getByRole('button', { name: /Ver en grande/ });
-    await openLightbox.first().click();
+    // 4: cambia de fotografía — la miniatura clickeada pasa a ser la actual.
+    await thumbnails.nth(1).click();
+    await expect(thumbnails.nth(1)).toHaveAttribute('aria-current', 'true');
+    await expect(thumbnails.nth(0)).toHaveAttribute('aria-current', 'false');
 
-    const dialog = page.getByRole('dialog');
+    // 5-6: abre el lightbox; semántica de diálogo modal y contenido visible.
+    await coverButton.click();
+    const dialog = page.getByRole('dialog', { name: /Fotografías de/ });
     await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute('aria-modal', 'true');
+    await expect(dialog.getByRole('img').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Cerrar visor de fotografías' }).click();
+    // 7: cierra mediante el botón.
+    const closeButton = page.getByRole('button', { name: 'Cerrar visor de fotografías' });
+    await closeButton.click();
     await expect(dialog).not.toBeVisible();
+
+    // 9 (primera vuelta): el foco vuelve al control que abrió el visor.
+    await expect(coverButton).toBeFocused();
+
+    // 8: vuelve a abrir y cierra con Escape (el componente sí lo soporta —
+    // ver components/catalog/GalleryLightbox.tsx).
+    await coverButton.click();
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(dialog).not.toBeVisible();
+
+    // 9 (segunda vuelta): el foco vuelve a devolverse tras cerrar con Escape.
+    await expect(coverButton).toBeFocused();
   });
 
   test('selecciona un color y la galería filtra sus fotografías', async ({ page }) => {
