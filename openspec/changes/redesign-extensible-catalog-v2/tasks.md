@@ -1,14 +1,14 @@
 ## 0. Precondición de secuencia (bloqueante, no iniciar el resto sin esto)
 
-- [ ] 0.1 Confirmar que `add-pepi-vision-360-v1` está completado y archivado (`openspec/specs/` contiene sus capacidades). No iniciar la Fase 1 antes de esto — ver design.md → "Secuencia con `add-pepi-vision-360-v1`".
+- [x] 0.1 Confirmar que `add-pepi-vision-360-v1` está completado y archivado (`openspec/specs/` contiene sus capacidades). No iniciar la Fase 1 antes de esto — ver design.md → "Secuencia con `add-pepi-vision-360-v1`".
 
 ## 1. Modelo y migración
 
-- [ ] 1.1 Agregar `Category`, `ProductOffering`, `CategoryAttributeDefinition`, `ProductOfferingAttributeValue` y el enum `CategoryAttributeType` a `prisma/schema.prisma` — estrictamente aditivo, sin alterar `Product`, `ProductColor`, `ProductImage`, `Brand` o `Request`. `Product.priceFromClp` se mantiene sin cambios (fase de compatibilidad).
-- [ ] 1.2 Generar y aplicar la migración Prisma dentro de Docker Compose (`docker compose run --rm migrate`).
-- [ ] 1.3 Verificar vía `psql` que `Product`/`ProductColor`/`ProductImage`/`Brand`/`Request`/`RequestAttachment` quedan exactamente igual tras la migración (ningún row alterado/eliminado).
-- [ ] 1.4 Implementar `categoryCapabilitiesSchema` (Zod) con los siete campos finales (`requiresColor`, `allowsLensType`, `allowsTreatments`, `allowsPrescription`, `allowsPrescriptionAttachment`, `allowsLensTint`, `allowsFrameSelection`) y sus defaults — parseo estricto en escritura, fail-closed en lectura.
-- [ ] 1.5 Implementar `offeringConfigurationSchema` (Zod, versionado con `discriminatedUnion`) para `ProductOffering.configuration` — ver design.md → "`ProductOffering.configuration`" para ejemplos válidos/inválidos.
+- [x] 1.1 Agregar `Category`, `ProductOffering`, `CategoryAttributeDefinition`, `ProductOfferingAttributeValue` y el enum `CategoryAttributeType` a `prisma/schema.prisma` — estrictamente aditivo, sin alterar `Product`, `ProductColor`, `ProductImage`, `Brand` o `Request`. `Product.priceFromClp` se mantiene sin cambios (fase de compatibilidad).
+- [x] 1.2 Generar y aplicar la migración Prisma dentro de Docker Compose (`docker compose run --rm migrate`).
+- [x] 1.3 Verificar vía `psql` que `Product`/`ProductColor`/`ProductImage`/`Brand`/`Request`/`RequestAttachment` quedan exactamente igual tras la migración (ningún row alterado/eliminado).
+- [x] 1.4 Implementar `categoryCapabilitiesSchema` (Zod) con los siete campos finales (`requiresColor`, `allowsLensType`, `allowsTreatments`, `allowsPrescription`, `allowsPrescriptionAttachment`, `allowsLensTint`, `allowsFrameSelection`) y sus defaults — parseo estricto en escritura, fail-closed en lectura.
+- [x] 1.5 Implementar `offeringConfigurationSchema` (Zod, versionado con `discriminatedUnion`) para `ProductOffering.configuration` — ver design.md → "`ProductOffering.configuration`" para ejemplos válidos/inválidos.
 
 ## 2. Categorías y seed inicial
 

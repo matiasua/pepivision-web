@@ -108,42 +108,57 @@ model Brand {
 }
 
 model Product {
-  id            String          @id @default(cuid())
-  code          String          @unique
-  slug          String          @unique
-  name          String
+  id           String          @id @default(cuid())
+  code         String          @unique
+  slug         String          @unique
+  name         String
   /// Nullable a propósito: los productos existentes antes de esta
   /// migración no tienen marca asignada todavía y no deben quedar
   /// inválidos ni perderse. El formulario admin exige elegirla para
   /// altas/ediciones nuevas (validado server-side), pero la constraint de
   /// BD permite que un producto legado quede sin marca hasta que un
   /// administrador la complete.
-  brandId       String?
-  brand         Brand?          @relation(fields: [brandId], references: [id])
-  gender        Gender
-  shape         ProductShape
-  material      ProductMaterial
-  sizes         String?
-  priceFromClp  Int
-  description   String?
-  badge         ProductBadge?
-  available     Boolean         @default(true)
+  brandId      String?
+  brand        Brand?          @relation(fields: [brandId], references: [id])
+  gender       Gender
+  shape        ProductShape
+  material     ProductMaterial
+  sizes        String?
+  /// NOT NULL, sin cambios. Desde redesign-extensible-catalog-v2 (fase de
+  /// compatibilidad, ver design.md → "Fase de compatibilidad de precios")
+  /// pasa a ser solo el valor semilla de la primera oferta (Armazones); el
+  /// precio público real que ve el cliente se administra por categoría en
+  /// `ProductOffering.priceFromClp`.
+  priceFromClp Int
+  description  String?
+  badge        ProductBadge?
+  available    Boolean         @default(true)
   /// Añadido en la Fase 6 junto con `/admin/products`: independiente de
   /// `available` (Disponible/Bajo pedido, un estado de stock que un
   /// producto visible igual puede mostrar). `visible=false` retira el
   /// producto del catálogo público y de su ficha (404) sin eliminarlo,
   /// para "despublicar" un modelo sin perder su historial/admin.
-  visible       Boolean         @default(true)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  createdById   String?
-  createdBy     AdminUser?      @relation("ProductCreatedBy", fields: [createdById], references: [id])
-  updatedById   String?
-  updatedBy     AdminUser?      @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
+  visible      Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  createdById  String?
+  createdBy    AdminUser?      @relation("ProductCreatedBy", fields: [createdById], references: [id])
+  updatedById  String?
+  updatedBy    AdminUser?      @relation("ProductUpdatedBy", fields: [updatedById], references: [id])
 
-  colors ProductColor[]
-  images ProductImage[]
+  colors    ProductColor[]
+  images    ProductImage[]
+  /// Back-relation únicamente para Prisma Client (`product.offerings`) —
+  /// no agrega ninguna columna a la tabla `products`. Ver
+  /// redesign-extensible-catalog-v2 → design.md: "Product gana ningún
+  /// campo nuevo requerido" se refiere a columnas de BD, no a relaciones
+  /// virtuales del schema.
+  offerings ProductOffering[]
 
+  // Declarado explícitamente para que coincida con el índice ya existente
+  // en BD desde 20260715000000_add_brand_and_request_attachment (mismo
+  // caso de drift que en RequestAttachment — ver ahí).
+  @@index([brandId])
   @@map("products")
 }
 
@@ -190,8 +205,13 @@ model ProductImage {
   isCover        Boolean      @default(false)
   altText        String?
   createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  // Mismo caso de drift que en RequestAttachment/Product: la BD ya tenía
+  // este default (y estos dos índices) desde 20260714000000_product_image_gallery
+  // sin la anotación correspondiente en este archivo.
+  updatedAt      DateTime     @default(now()) @updatedAt
 
+  @@index([productColorId, productId])
+  @@index([productId, sortOrder])
   @@map("product_images")
 }
 
@@ -205,7 +225,7 @@ model Request {
   phone              String
   email              String?
   comuna             String?
-  message             String?
+  message            String?
   hasPrescription    Boolean?
   details            Json?
   consentAcceptedAt  DateTime
@@ -229,9 +249,9 @@ enum RequestAttachmentType {
 /// privado; ver modules/storage/private-service.ts y design.md → "Adjuntos
 /// de solicitudes: almacenamiento privado".
 model RequestAttachment {
-  id               String                 @id @default(cuid())
+  id               String                @id @default(cuid())
   requestId        String
-  request          Request                @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  request          Request               @relation(fields: [requestId], references: [id], onDelete: Cascade)
   type             RequestAttachmentType
   storageKey       String
   /// Sanitizado (sin ruta, sin caracteres de control) antes de guardar —
@@ -240,9 +260,14 @@ model RequestAttachment {
   mimeType         String
   sizeBytes        Int
   checksum         String?
-  createdAt        DateTime               @default(now())
+  createdAt        DateTime              @default(now())
   deletedAt        DateTime?
 
+  // Declarado explícitamente para que coincida con el índice ya existente
+  // en BD desde 20260715000000_add_brand_and_request_attachment (creado
+  // ahí sin una anotación @@index correspondiente en este archivo, lo que
+  // `prisma migrate dev` detectaba como drift a eliminar).
+  @@index([requestId])
   @@map("request_attachments")
 }
 
@@ -259,18 +284,18 @@ model EnabledComuna {
 
 /// Fila única (singleton) — la aplicación siempre lee/escribe el mismo id.
 model BusinessSettings {
-  id                       String    @id @default(cuid())
-  whatsappNumber           String
-  phoneDisplay             String
-  email                    String
-  instagramHandle          String
-  hoursText                String
-  locationText             String
-  requestRetentionMonths   Int       @default(12)
-  dataRightsRetentionMonths Int      @default(12)
-  updatedAt                DateTime  @updatedAt
-  updatedById              String?
-  updatedBy                AdminUser? @relation(fields: [updatedById], references: [id])
+  id                        String     @id @default(cuid())
+  whatsappNumber            String
+  phoneDisplay              String
+  email                     String
+  instagramHandle           String
+  hoursText                 String
+  locationText              String
+  requestRetentionMonths    Int        @default(12)
+  dataRightsRetentionMonths Int        @default(12)
+  updatedAt                 DateTime   @updatedAt
+  updatedById               String?
+  updatedBy                 AdminUser? @relation(fields: [updatedById], references: [id])
 
   @@map("business_settings")
 }
@@ -319,7 +344,7 @@ model AdminUser {
   productsCreated        Product[]           @relation("ProductCreatedBy")
   productsUpdated        Product[]           @relation("ProductUpdatedBy")
   businessSettingsEdited BusinessSettings[]
-  dataRightsResolved     DataRightsRequest[]  @relation("DataRightsResolvedBy")
+  dataRightsResolved     DataRightsRequest[] @relation("DataRightsResolvedBy")
 
   @@map("admin_users")
 }
@@ -366,4 +391,160 @@ model EmailLog {
   createdAt           DateTime           @default(now())
 
   @@map("email_logs")
+}
+
+// --- redesign-extensible-catalog-v2 (Fase 1) --------------------------------
+// Estrictamente aditivo: separa "qué es físicamente un armazón" (Product,
+// sin cambios arriba) de "cómo se ofrece comercialmente" (Category +
+// ProductOffering). Ver openspec/changes/redesign-extensible-catalog-v2/
+// design.md → "Modelo de datos" para las decisiones detrás de cada campo.
+
+/// Administrable, sin enum Prisma — una categoría es una fila, no un
+/// conjunto cerrado de código. Ver design.md → "No Prisma enum for
+/// Category".
+model Category {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  shortDescription String?
+  description      String?
+  active           Boolean  @default(true)
+  visible          Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  icon             String?
+  imagePath        String?
+  seoTitle         String?
+  seoDescription   String?
+  /// Validado por categoryCapabilitiesSchema (Zod) en cada escritura — ver
+  /// modules/catalog/category-capabilities.ts. Nunca se lee como JSON no
+  /// validado río abajo; una fila con JSON malformado se trata como
+  /// "sin capacidades opcionales" (fail closed), no como error público.
+  capabilities     Json
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  offerings            ProductOffering[]
+  attributeDefinitions CategoryAttributeDefinition[]
+
+  @@map("categories")
+}
+
+/// "Este Product, ofrecido dentro de esta Category" — permite que el mismo
+/// Product (con sus mismos colores/fotos/marca) aparezca bajo N categorías
+/// sin duplicar nada. Ver design.md → "Fase de compatibilidad de precios"
+/// para por qué priceFromClp es nullable y coexiste temporalmente con
+/// Product.priceFromClp.
+model ProductOffering {
+  id                    String    @id @default(cuid())
+  productId             String
+  product               Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  categoryId            String
+  category              Category  @relation(fields: [categoryId], references: [id])
+  /// Único por categoría (`[categoryId, slug]`), NO globalmente — el mismo
+  /// Product reutiliza a propósito el mismo slug entre sus propias ofertas
+  /// (/catalogo/armazones/coral y /catalogo/lentes-opticos/coral). Ver
+  /// design.md → "Slugs por categoría, no global".
+  slug                  String
+  title                 String?
+  commercialDescription String?
+  /// Nullable: null significa "sin precio público, cotizar" — la UI
+  /// renderiza "Cotizar" en vez de un "$0" falso.
+  priceFromClp          Int?
+  active                Boolean   @default(true)
+  visible               Boolean   @default(true)
+  featured              Boolean   @default(false)
+  sortOrder             Int       @default(0)
+  /// Validado por offeringConfigurationSchema (Zod, versionado) — ver
+  /// modules/catalog/offering-configuration.ts. Reservado para opciones
+  /// comerciales estructuradas no filtrables; nunca un sustituto de una
+  /// columna estable ni de un CategoryAttributeDefinition.
+  configuration         Json?
+  seoTitle              String?
+  seoDescription        String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  /// Soft delete, mismo patrón que Request.deletedAt — desactivar una
+  /// oferta con snapshots históricos en Request.details nunca requiere un
+  /// hard delete.
+  deletedAt             DateTime?
+
+  attributeValues ProductOfferingAttributeValue[]
+
+  @@unique([productId, categoryId])
+  @@unique([categoryId, slug])
+  @@index([categoryId, visible])
+  @@index([productId])
+  @@map("product_offerings")
+}
+
+/// Conjunto cerrado y conocido en código de "formas de valor" (no crece al
+/// agregar una categoría nueva) — por eso SÍ es un enum Prisma, a
+/// diferencia de Category. RANGE es una variante de presentación de NUMBER
+/// (renderiza un control min/max), no una sexta forma de almacenamiento —
+/// ver design.md → "Tipos de atributo".
+enum CategoryAttributeType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+  RANGE
+}
+
+/// Capa admin-extensible de atributos por categoría (filtros dinámicos) —
+/// alternativa acotada y tipada a un EAV libre. Ver design.md →
+/// "Capacidades vs. atributos".
+model CategoryAttributeDefinition {
+  id              String                @id @default(cuid())
+  categoryId      String
+  category        Category              @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  /// Clave estable de máquina (p. ej. "certificacion") — lo único contra
+  /// lo que la allowlist de filtros dinámicos hace match. Ver spec
+  /// dynamic-catalog-filters.
+  key             String
+  label           String
+  type            CategoryAttributeType
+  required        Boolean               @default(false)
+  filterable      Boolean               @default(false)
+  visibleInCard   Boolean               @default(false)
+  visibleInDetail Boolean               @default(true)
+  sortOrder       Int                   @default(0)
+  /// Para SELECT/MULTI_SELECT: string[] (u {value,label}[]), validado por
+  /// Zod al escribir — nunca confiado como JSON arbitrario al leer.
+  options         Json?
+  active          Boolean               @default(true)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  values ProductOfferingAttributeValue[]
+
+  @@unique([categoryId, key])
+  @@index([categoryId, filterable])
+  @@map("category_attribute_definitions")
+}
+
+/// Valores normalizados por oferta. Columnas tipadas (no un solo `Json
+/// value`) para que los atributos `filterable` se puedan indexar/consultar
+/// con `WHERE` planos — ver design.md → "Rendimiento".
+model ProductOfferingAttributeValue {
+  id                    String                      @id @default(cuid())
+  offeringId            String
+  offering              ProductOffering             @relation(fields: [offeringId], references: [id], onDelete: Cascade)
+  attributeDefinitionId String
+  attributeDefinition   CategoryAttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+  /// Exactamente uno de estos tres se completa, según
+  /// attributeDefinition.type — validado en la capa de servicio (Zod), no
+  /// en la BD. MULTI_SELECT se guarda como un array JSON validado por Zod
+  /// (string) en valueText; RANGE reutiliza valueNumber igual que NUMBER.
+  valueText             String?
+  valueNumber           Float?
+  valueBoolean          Boolean?
+
+  @@unique([offeringId, attributeDefinitionId])
+  // Nombres de índice explícitos: el autogenerado por Prisma trunca ambos
+  // al mismo nombre de 63 caracteres (límite de identificador de
+  // Postgres), lo que colisiona — ver "Rendimiento" en design.md.
+  @@index([attributeDefinitionId, valueText], map: "poav_attribute_definition_id_value_text_idx")
+  @@index([attributeDefinitionId, valueNumber], map: "poav_attribute_definition_id_value_number_idx")
+  @@map("product_offering_attribute_values")
 }
