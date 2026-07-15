@@ -19,15 +19,15 @@
 
 ## 3. ProductOfferings
 
-- [ ] 3.1 Implementar repositorio/servicio de `ProductOffering` (crear/actualizar/soft-delete), con `@@unique([productId, categoryId])` y `@@unique([categoryId, slug])`.
-- [ ] 3.2 Implementar el helper de verificación de pertenencia (una oferta referenciada realmente pertenece a la categoría/producto reclamados).
-- [ ] 3.3 Migrar todas las lecturas públicas de precio (catálogo, ficha, cotizador, correos, WhatsApp, schema SEO `Offer`) para leer exclusivamente `ProductOffering.priceFromClp`; dejar `Product.priceFromClp` solo como valor semilla de la primera oferta — ver design.md → "Fase de compatibilidad de precios".
-- [ ] 3.4 Prueba: un mismo `Product` en dos categorías no duplica `ProductColor` ni `ProductImage`.
-- [ ] 3.5 Prueba: precios distintos por categoría para el mismo `Product`.
-- [ ] 3.6 Prueba: crear una segunda oferta para el mismo `(productId, categoryId)` es rechazado.
-- [ ] 3.7 Prueba: una oferta que no pertenece a la categoría reclamada es rechazada.
-- [ ] 3.8 Prueba: categoría activa/inactiva y oferta visible/invisible se incluyen/excluyen correctamente de las consultas públicas.
-- [ ] 3.9 Prueba: editar `Product.priceFromClp` después de creada una oferta no altera el precio ya publicado de esa oferta.
+- [x] 3.1 Implementar repositorio/servicio de `ProductOffering` (crear/actualizar/soft-delete), con `@@unique([productId, categoryId])` y `@@unique([categoryId, slug])`.
+- [x] 3.2 Implementar el helper de verificación de pertenencia (una oferta referenciada realmente pertenece a la categoría/producto reclamados).
+- [x] 3.3 Garantizar que `ProductOffering.priceFromClp` es la única fuente de precio **dentro del dominio `ProductOffering`**: `createOffering`/`updateOffering` leen y escriben exclusivamente `ProductOffering.priceFromClp`; el repositorio/servicio de `ProductOffering` nunca escribe ni sincroniza `Product.priceFromClp` en ninguna dirección; `Product.priceFromClp` se mantiene intacto como campo de compatibilidad V1. **No incluye** migrar los consumidores públicos (catálogo/ficha, cotizador, correos, WhatsApp, SEO — ver 5.1, 5.2, 7.4, 8.1, 8.2, 8.3, 9.2) ni ejecutar el backfill de ofertas (ver 10.1) — ver design.md → "Fase de compatibilidad de precios" → tabla de trazabilidad de tareas, que corrige el secuenciamiento originalmente ambiguo de esta tarea.
+- [x] 3.4 Prueba: un mismo `Product` en dos categorías no duplica `ProductColor` ni `ProductImage`.
+- [x] 3.5 Prueba: precios distintos por categoría para el mismo `Product`.
+- [x] 3.6 Prueba: crear una segunda oferta para el mismo `(productId, categoryId)` es rechazado.
+- [x] 3.7 Prueba: una oferta que no pertenece a la categoría reclamada es rechazada.
+- [x] 3.8 Prueba: categoría activa/inactiva y oferta visible/invisible se incluyen/excluyen correctamente de las consultas públicas.
+- [x] 3.9 Prueba: editar `Product.priceFromClp` después de creada una oferta no altera el precio ya publicado de esa oferta.
 
 ## 4. Administración
 
@@ -40,7 +40,7 @@
 
 ## 5. Catálogo público
 
-- [ ] 5.1 Reconstruir `modules/catalog/*` con `ProductOffering` como entidad principal de lectura pública.
+- [ ] 5.1 Reconstruir `modules/catalog/*` con `ProductOffering` como entidad principal de lectura pública — incluyendo que el precio mostrado (listado y ficha) se lea exclusivamente de `ProductOffering.priceFromClp`; `Product.priceFromClp` deja de leerse para mostrar precio público a partir de aquí (ver design.md → "Fase de compatibilidad de precios").
 - [ ] 5.2 Construir `/catalogo` (selector de categorías), `/catalogo/[categorySlug]` (listado + filtros), `/catalogo/[categorySlug]/[offeringSlug]` (detalle).
 - [ ] 5.3 Implementar la capa de compatibilidad: `/catalogo/[slug]` resuelve la oferta por defecto del producto y redirige (308) a su URL por categoría.
 - [ ] 5.4 Actualizar la tarjeta de oferta con CTA específico por categoría ("Ver armazón" / "Configurar lentes" / "Configurar lentes de sol ópticos").
@@ -62,7 +62,7 @@
 - [ ] 7.1 Definir `STEP_DEFINITIONS` y la lógica de pasos activos filtrados por `capabilities`.
 - [ ] 7.2 Reconstruir `QuoteWizard.tsx` como un único componente configurable (no tres wizards paralelos).
 - [ ] 7.3 Reutilizar el paso de adjunto de receta sin cambios, activo únicamente cuando `allowsPrescription && allowsPrescriptionAttachment` son ambos verdaderos.
-- [ ] 7.4 Actualizar `modules/requests/service.ts#submitQuote` (o su sucesor) para re-resolver categoría/oferta/producto/marca/color server-side y autorizar campos según las `capabilities` reales de la categoría resuelta.
+- [ ] 7.4 Actualizar `modules/requests/service.ts#submitQuote` (o su sucesor) para re-resolver categoría/oferta/producto/marca/color server-side y autorizar campos según las `capabilities` reales de la categoría resuelta — el precio para el snapshot (ver 8.1) se resuelve en este mismo punto desde `ProductOffering.priceFromClp`, nunca desde `Product.priceFromClp`.
 - [ ] 7.5 Prueba: los tres flujos (armazón / óptico / solar óptico) muestran exactamente los pasos esperados.
 - [ ] 7.6 Prueba: un par categoría/oferta manipulado es rechazado; un color que no pertenece al producto resuelto es rechazado.
 - [ ] 7.7 Prueba: un campo condicionado a una capability no otorgada por la categoría nunca se persiste ni se envía por correo.
@@ -70,9 +70,9 @@
 
 ## 8. Emails, WhatsApp y solicitudes
 
-- [ ] 8.1 Extender `Request.details` (JSON, sin migración) con el snapshot de categoría/oferta descrito en `request-category-snapshot`.
-- [ ] 8.2 Actualizar `quote-customer-confirmation.ts` / `quote-business-notification.ts` (HTML + texto plano) con los campos de categoría/oferta.
-- [ ] 8.3 Actualizar el mensaje de WhatsApp con el contexto de categoría.
+- [ ] 8.1 Extender `Request.details` (JSON, sin migración) con el snapshot de categoría/oferta descrito en `request-category-snapshot`, incluyendo `priceFromSnapshot` resuelto desde `ProductOffering.priceFromClp` en el momento del envío (nunca desde `Product.priceFromClp`) — inmutable después, aunque la oferta cambie de precio más tarde.
+- [ ] 8.2 Actualizar `quote-customer-confirmation.ts` / `quote-business-notification.ts` (HTML + texto plano) con los campos de categoría/oferta, incluyendo el precio ya snapshotteado en `Request.details` por 8.1 (nunca releído directamente de `Product.priceFromClp` ni de `ProductOffering.priceFromClp` al momento de enviar el correo).
+- [ ] 8.3 Actualizar el mensaje de WhatsApp con el contexto de categoría, incluyendo el mismo precio snapshotteado por 8.1.
 - [ ] 8.4 Agregar filtro por categoría al listado administrativo de solicitudes.
 - [ ] 8.5 Prueba: el snapshot histórico de `Request.details` no cambia si luego se edita la categoría/oferta/precio.
 - [ ] 8.6 Prueba: los correos (HTML y texto) incluyen la categoría; la mención de receta adjunta no expone archivo, storageKey ni URL privada.
@@ -81,14 +81,14 @@
 ## 9. SEO y compatibilidad de rutas
 
 - [ ] 9.1 Metadata por categoría y por oferta (título/descripción con fallback), evitando contenido duplicado entre categorías del mismo producto.
-- [ ] 9.2 Canonical, `BreadcrumbList`, `ItemList`, `Product`/`Offer` JSON-LD (precio solo cuando `priceFromClp` no es nulo).
+- [ ] 9.2 Canonical, `BreadcrumbList`, `ItemList`, `Product`/`Offer` JSON-LD — precio leído exclusivamente de `ProductOffering.priceFromClp` (nunca de `Product.priceFromClp`), solo cuando no es nulo.
 - [ ] 9.3 Sitemap (categorías + ofertas activas/visibles, sin entradas duplicadas para rutas legadas que solo redirigen).
 - [ ] 9.4 Prueba: el mismo producto en dos categorías produce dos títulos/canonical distintos.
 - [ ] 9.5 Prueba: una oferta sin precio público omite el precio en el schema `Offer`.
 
 ## 10. Pruebas, migración y validación final
 
-- [ ] 10.1 Ejecutar el script de migración (categorías + ofertas Armazones) contra una copia de los datos actuales; verificar idempotencia corriendo dos veces.
+- [ ] 10.1 Ejecutar el script de migración (categorías + ofertas Armazones) contra una copia de los datos actuales; verificar idempotencia corriendo dos veces. Este es el backfill real (crea una `ProductOffering` de categoría Armazones por cada producto que corresponda, copiando `Product.priceFromClp` como valor inicial una sola vez, ver design.md → "Migración de datos") — no se adelanta a ninguna fase anterior.
 - [ ] 10.2 Regresión manual completa: cada URL de producto previamente publicada sigue resolviendo (ahora vía redirect).
 - [ ] 10.3 Suite completa: lint, typecheck, tests, build — todo en verde dentro de Docker Compose.
 - [ ] 10.4 Validación manual en Mailpit de las plantillas de correo actualizadas (categoría visible en HTML y texto).

@@ -327,6 +327,22 @@ Ningún consumidor en v1 (público) necesita leer `configuration` todavía — q
 4. **Todas las escrituras se actualizan**: crear/editar una oferta escribe únicamente su propio `ProductOffering.priceFromClp`; no existe una sincronización automática continua entre `Product.priceFromClp` y las ofertas ya creadas — after the initial seed, they intentionally diverge, porque el precio de "lente óptico" legítimamente difiere del precio de "solo armazón" para el mismo producto.
 5. **Eliminación del campo antiguo — en una migración POSTERIOR, no en esta**: una vez que (a) todo producto visible tiene al menos una `ProductOffering`, y (b) una búsqueda en el código confirma cero referencias restantes a `Product.priceFromClp` fuera del seed histórico, un cambio de limpieza posterior puede volver la columna nullable y luego eliminarla. Este cambio (`redesign-extensible-catalog-v2`) **no la elimina** — evita mantener dos fuentes de verdad *indefinidamente* al dejar un criterio de salida concreto y verificable, en vez de dejarlo abierto sin plan.
 
+**Trazabilidad de tareas (corrige el secuenciamiento originalmente ambiguo de la tarea 3.3 de `tasks.md`)** — cada punto de esta fase de compatibilidad se implementa en una tarea concreta, no todas a la vez en la Fase 3:
+
+| Punto de esta sección | Tarea(s) de `tasks.md` |
+|---|---|
+| 1. Backfill (una `ProductOffering` Armazones por producto visible, copiando `priceFromClp`) | **10.1** |
+| 2. `Product.priceFromClp` permanece intacto como campo semilla/compatibilidad | Ya vigente desde la Fase 1 (1.1); el copy del formulario admin se actualiza en **4.2** |
+| 3. Lecturas públicas — catálogo/ficha | **5.1**, **5.2** |
+| 3. Lecturas públicas — cotizador (snapshot de precio) | **7.4** (resolución server-side), **8.1** (snapshot en `Request.details`) |
+| 3. Lecturas públicas — correos | **8.2** |
+| 3. Lecturas públicas — WhatsApp | **8.3** |
+| 3. Lecturas públicas — schema SEO `Offer` | **9.2** |
+| 4. Escrituras — `ProductOffering.priceFromClp` es la única fuente de precio dentro del dominio `ProductOffering`; el repositorio/servicio de `ProductOffering` nunca escribe ni sincroniza `Product.priceFromClp` | **3.3** (capa de dominio, ya implementada — `modules/catalog/offering-service.ts`) |
+| 5. Verificación final de que ningún código público referencia `Product.priceFromClp` | **10.7** |
+
+La Fase 3 (incluida 3.3) implementa **únicamente** la garantía de dominio del punto 4 — que `ProductOffering.priceFromClp` es autosuficiente y nunca sincroniza con `Product.priceFromClp` en ninguna dirección. Migrar los consumidores públicos (punto 3) y ejecutar el backfill (punto 1) son responsabilidad de las fases citadas arriba, no de la Fase 3. Aplicar el punto 3 antes de que el punto 1 haya corrido dejaría el catálogo en desarrollo mostrando "Cotizar" para los productos ya existentes — no es un `fallback` en código (no hay lectura condicional ni bandera que alterne entre `Product`/`ProductOffering`), es simplemente que ese corte de lectura pública no debe desplegarse (ni siquiera en el entorno de desarrollo local) antes de que su fase correspondiente lo acompañe del backfill que la precede en la secuencia de fases.
+
 ### Administración
 
 - **`/admin/categories`** (new): list/create/edit/reorder/activate-deactivate/edit-slug-description-SEO-capabilities-attributes. **SUPERADMIN-only** for all of these, per explicit instruction — this is the "no-code extensibility" lever and is gated more tightly than routine catalog work.
