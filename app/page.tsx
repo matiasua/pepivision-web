@@ -8,6 +8,7 @@ import { BrandCarousel } from '@/components/BrandCarousel';
 import { WhatsAppIcon, ChevronRightIcon, CheckIcon } from '@/components/icons';
 import { defaultWhatsAppHref } from '@/lib/whatsapp';
 import { getBrandLogos } from '@/lib/brands';
+import { isHomeVisitEnabled } from '@/lib/feature-flags';
 
 // No title override here: the homepage should show the root layout's
 // branded default title ("Pepi Visión 360 · Ver bien nunca fue tan
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
     'Armazones modernos, cristales personalizados y atención cercana, sin salir de casa. Cotiza tus lentes por WhatsApp.',
 };
 
-const benefits = [
+const BASE_BENEFITS = [
   {
     title: 'Atención personalizada',
     description: 'Te acompañamos a elegir lo que mejor se adapta a ti.',
@@ -30,20 +31,26 @@ const benefits = [
     title: 'Modelos modernos',
     description: 'Armazones con estilo, para todos los gustos y edades.',
   },
-  {
-    title: 'Servicio a domicilio',
-    description: 'Llevamos la atención hasta donde estés, con coordinación previa.',
-  },
-  {
-    title: 'Cotización rápida',
-    description: 'Recibe tu presupuesto por WhatsApp en pocos pasos.',
-  },
 ];
+
+const HOME_VISIT_BENEFIT = {
+  title: 'Servicio a domicilio',
+  description: 'Llevamos la atención hasta donde estés, con coordinación previa.',
+};
+
+const QUOTE_BENEFIT = {
+  title: 'Cotización rápida',
+  description: 'Recibe tu presupuesto por WhatsApp en pocos pasos.',
+};
 
 const quoteSteps = ['Armazón', 'Cristal', 'Tratamientos', 'Receta', 'Datos'];
 
 export default function Home() {
   const brandLogos = getBrandLogos();
+  const homeVisitEnabled = isHomeVisitEnabled();
+  const benefits = homeVisitEnabled
+    ? [...BASE_BENEFITS, HOME_VISIT_BENEFIT, QUOTE_BENEFIT]
+    : [...BASE_BENEFITS, QUOTE_BENEFIT];
 
   return (
     <>
@@ -89,19 +96,21 @@ export default function Home() {
                 Foto: persona con lentes modernos
               </div>
             </div>
-            <div className="absolute -left-3.5 bottom-4.5 flex items-center gap-3 rounded-2xl bg-white p-3.5 shadow-brand">
-              <IconBadge>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-blue)" strokeWidth={2}>
-                  <circle cx="7" cy="14" r="4" />
-                  <circle cx="17" cy="14" r="4" />
-                  <path d="M11 14a1 1 0 0 1 2 0M3 11l2-2h4M21 11l-2-2h-4" />
-                </svg>
-              </IconBadge>
-              <div>
-                <div className="font-display text-[15px] font-bold text-navy">A domicilio</div>
-                <div className="text-[12.5px] text-grafito">Coordinamos contigo</div>
+            {homeVisitEnabled ? (
+              <div className="absolute -left-3.5 bottom-4.5 flex items-center gap-3 rounded-2xl bg-white p-3.5 shadow-brand">
+                <IconBadge>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-blue)" strokeWidth={2}>
+                    <circle cx="7" cy="14" r="4" />
+                    <circle cx="17" cy="14" r="4" />
+                    <path d="M11 14a1 1 0 0 1 2 0M3 11l2-2h4M21 11l-2-2h-4" />
+                  </svg>
+                </IconBadge>
+                <div>
+                  <div className="font-display text-[15px] font-bold text-navy">A domicilio</div>
+                  <div className="text-[12.5px] text-grafito">Coordinamos contigo</div>
+                </div>
               </div>
-            </div>
+            ) : null}
           </div>
         </Container>
       </section>

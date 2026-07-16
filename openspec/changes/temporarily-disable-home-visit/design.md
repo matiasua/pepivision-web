@@ -17,8 +17,9 @@ This confirms Graphify's BFS traversal starting points for "home visit / domicil
 
 **Goals:**
 - A single source of truth (`HOME_VISIT_ENABLED`) that every public touchpoint reads, so there is exactly one place to flip.
+- **Fail-closed**: the service is disabled unless the flag is the exact string `true` — absent, empty, `false`, or any invalid value all mean disabled. This ships with the flag **defaulting to `false`**, matching the current business requirement to keep the service disabled — `true` is an explicit, deliberate opt-in, never an accidental default.
 - Zero data loss, zero schema change, zero deletion of admin functionality.
-- Reversible: flipping the flag back on restores full public availability with no rebuild of removed code.
+- Reversible in both directions: flipping the flag restores the other state with no code revert needed (no rebuild of *removed* code — see the rebuild note below for the separate, unrelated static-generation caveat).
 
 **Non-Goals:**
 - Not removing the `EnabledComuna` model, the home-visit-coverage module, or any admin screen.
@@ -27,9 +28,9 @@ This confirms Graphify's BFS traversal starting points for "home visit / domicil
 
 ## Decisions
 
-### Single flag, read once, threaded through render-time checks
+### Single flag, fail-closed parsing, read once, threaded through render-time checks
 
-`HOME_VISIT_ENABLED` (boolean, `lib/env.ts`, defaulting to `true` so existing behavior is unchanged until an operator explicitly sets it to `false`) is read at render/request time by:
+`HOME_VISIT_ENABLED` (`lib/env.ts`) is parsed as `z.string().optional().default('false').transform((v) => v === 'true')` — deliberately **not** `z.enum(['true','false'])` (which would throw a startup error on an invalid value instead of failing closed) and **not** `Boolean(process.env.HOME_VISIT_ENABLED)` (which would treat the string `"false"` as truthy). Only the exact string `"true"` resolves to enabled; every other case — the variable absent, an empty string, `"false"`, or any other value — resolves to `false`, matching the current business requirement that the service ships disabled. `isHomeVisitEnabled()` (`lib/feature-flags.ts`) is the single call site every touchpoint reads through; it is read at render/request time by:
 - `app/domicilio/page.tsx` — returns `notFound()` when disabled, before rendering the form.
 - `lib/nav-items.ts` — the "Atención a domicilio" entry is conditionally included in the exported array (not filtered downstream in `Header.tsx`/`Footer.tsx`, so both stay simple consumers of "whatever's in the array").
 - `app/page.tsx` — the "Servicio a domicilio" benefit card and the "A domicilio" floating badge are conditionally rendered.
@@ -46,14 +47,15 @@ No sitemap exists in this codebase today. When `catalog-seo` (or any future chan
 
 - **[Risk]** A flag check missed in one of the touchpoints leaves a dangling link (e.g. nav hidden but the route still directly reachable, or vice versa). → **[Mitigation]** Every touchpoint enumerated in "Context" gets its own task and its own test (see tasks.md) — the checklist is exhaustive, not partial.
 - **[Risk]** Disabling the route could break an existing bookmarked link ungracefully. → **[Mitigation]** `notFound()` is the same 404 behavior already used elsewhere in this codebase for unpublished content — consistent, not a new failure mode.
+- **[Risk, discovered during implementation]** `/`, `/faq`, and `/domicilio` are statically generated at `next build` time (confirmed via the build output: `○ Static`, not `ƒ Dynamic`) — `isHomeVisitEnabled()` reads a module-scope env value with no dynamic API dependency, so Next.js has no signal to opt these three routes out of static generation. Flipping `HOME_VISIT_ENABLED` and only **restarting** the `web` container does **not** update these three already-generated pages; the image must be **rebuilt** (`docker compose build web`) for their content to reflect the new value. → **[Mitigation, accepted]** The server-side enforcement (`submitHomeVisitAction`) reads the flag per-request and is NOT affected by this — a request is rejected immediately regardless of whether the static pages have been rebuilt yet, so there is no security/data-integrity gap, only a visibility lag on 3 low-traffic pages until the next build. Forcing these routes to `dynamic = 'force-dynamic'` was considered and rejected: doing so for `/faq` alone is straightforward, but doing it for `/` would lose static optimization for the busiest page on the site to solve a problem (avoiding a rebuild) that this project's own deployment model doesn't actually require — every other env-driven behavior in this codebase is already only ever changed by a rebuild+redeploy, per README.md's Docker Compose workflow. Documented in README.md's "Feature flags" section rather than silently discovered by an operator.
 
 ## Migration Plan
 
-1. Add `HOME_VISIT_ENABLED` to `lib/env.ts`, defaulting to `true`.
+1. Add `HOME_VISIT_ENABLED` to `lib/env.ts`, fail-closed, defaulting to `false`.
 2. Gate the route, nav, and home-page touchpoints.
-3. Add tests for both states (enabled/disabled) per touchpoint.
-4. Ship with the flag defaulting to `true` (no behavior change) until an operator explicitly sets it to `false` in the deployment environment — the actual decision to disable is an operational action, not part of this code change.
-5. **Rollback**: setting the flag back to `true` (or removing the env var, given the `true` default) fully restores public availability with no code revert needed.
+3. Add tests for both states (enabled/disabled) per touchpoint, plus the fail-closed parsing itself (absent/empty/invalid/`"false"` all → disabled).
+4. Ship with the flag defaulting to `false` — the service is disabled from the moment this change lands, matching the current business requirement. Enabling it (`HOME_VISIT_ENABLED=true`) is a separate, explicit, deliberate operational action, not something that happens by omission.
+5. **Rollback / re-enable**: setting the flag to `true` restores public availability; unsetting it (or setting it back to `false`) returns to the default disabled state. Either direction is a plain env change with no code revert needed — subject to the rebuild caveat below for the three statically-generated pages.
 
 ## Open Questions
 

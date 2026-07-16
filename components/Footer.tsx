@@ -1,11 +1,16 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { navItems } from '@/lib/nav-items';
+import { getVisibleNavItems } from '@/lib/nav-items';
 import { siteConfig, instagramUrl } from '@/lib/site-config';
 import { defaultWhatsAppHref } from '@/lib/whatsapp';
 import { WhatsAppIcon, InstagramIcon } from '@/components/icons';
 
-export function Footer() {
+interface FooterProps {
+  homeVisitEnabled: boolean;
+}
+
+export function Footer({ homeVisitEnabled }: FooterProps) {
+  const navItems = getVisibleNavItems(homeVisitEnabled);
   return (
     <footer className="bg-footer text-[#c7d2ee]">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-9 px-5 py-13 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">

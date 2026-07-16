@@ -10,6 +10,19 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url(),
   SESSION_SECRET: z.string().min(1, 'SESSION_SECRET no puede estar vacío'),
 
+  // Feature flag: gates every public-facing touchpoint of the home-visit
+  // ("Atención a domicilio") feature — route, nav link, home-page promo
+  // content — without touching admin tooling or historical data (see
+  // openspec/changes/temporarily-disable-home-visit/design.md).
+  // Fail-closed by design: the service is DISABLED unless this is the
+  // exact string "true". Absent, empty, "false", or any other/invalid
+  // value all resolve to disabled — never throws, never silently coerces
+  // via `Boolean(...)` (which would treat the string "false" as truthy).
+  // z.string().optional() (not z.enum) is deliberate: an enum would reject
+  // an invalid value with a startup error instead of failing closed to
+  // `false`, which is the whole point of this flag's safety posture.
+  HOME_VISIT_ENABLED: z.string().optional().default('false').transform((v) => v === 'true'),
+
   // Base URL for ABSOLUTE asset URLs inside transactional emails (the
   // logo, mainly) — optional, falls back to APP_URL when unset (see
   // modules/notifications/email/config.ts). Never used to build relative

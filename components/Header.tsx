@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { navItems } from '@/lib/nav-items';
+import { getVisibleNavItems } from '@/lib/nav-items';
 import { defaultWhatsAppHref } from '@/lib/whatsapp';
 import { WhatsAppIcon, MenuIcon, CloseIcon } from '@/components/icons';
 
@@ -13,9 +13,16 @@ function isActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function Header() {
+interface HeaderProps {
+  /** Computed server-side once (see app/layout.tsx) — Header is a Client
+   * Component and cannot read lib/env.ts itself. */
+  homeVisitEnabled: boolean;
+}
+
+export function Header({ homeVisitEnabled }: HeaderProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const navItems = getVisibleNavItems(homeVisitEnabled);
 
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-white/90 backdrop-blur-md">

@@ -5,6 +5,18 @@ import { submitHomeVisit } from '@/modules/requests/service';
 import { submitDataRightsRequest } from '@/modules/data-rights/service';
 import { deleteMailpitMessages, findMailpitMessagesTo, prisma, uniqueTag } from './helpers';
 
+// Note: app/domicilio/actions.ts#submitHomeVisitAction (the HOME_VISIT_ENABLED
+// gate) is intentionally NOT exercised here — it calls getClientIp(), which
+// depends on Next.js's request-scoped headers() and throws
+// "headers was called outside a request scope" when invoked directly from
+// a plain Vitest process (confirmed empirically). Its gating logic is
+// covered by tests/home-visit-actions.test.ts (mocked request/rate-limit
+// layer) and, end-to-end against a real HTTP request, by
+// e2e/public/home-visit-availability.spec.ts and e2e/public/forms.spec.ts.
+// This file keeps testing submitHomeVisit — the domain function one layer
+// below the Server Action, which is deliberately NOT flag-gated (see
+// design.md) and has no request-scoped dependency.
+
 describe('modules/requests/service — submitHomeVisit (integration)', () => {
   const requestIds: string[] = [];
   const comunaIds: string[] = [];

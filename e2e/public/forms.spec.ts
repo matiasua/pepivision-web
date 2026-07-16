@@ -1,8 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { prisma } from '../../lib/prisma';
+import { isHomeVisitEnabled } from '../../lib/feature-flags';
 import { readE2eFixtures, uniqueTag } from '../fixtures/test-data';
 import { tinyPdfBuffer, tinyPngBuffer } from '../fixtures/files';
 import { clickWizardChoice } from '../fixtures/wizard';
+
+// Read once, explicitly, from the same environment this Playwright run
+// itself executes in (not guessed, not an accidental default) — the
+// home-visit route/form only exist to test when the flag is actually on
+// for this run. See openspec/changes/temporarily-disable-home-visit.
+const homeVisitEnabled = isHomeVisitEnabled();
 
 // Flujos 11-17: cotizador desde producto, cotización sin/con receta,
 // adjunto permitido, atención a domicilio, derechos ARCO, mensajes
@@ -128,23 +135,29 @@ test('permite adjuntar una imagen (JPG/PNG) como receta en lugar de un PDF', asy
   expect(created.attachments[0]?.mimeType).toBe('image/png');
 });
 
-test('envía una consulta de atención a domicilio para una comuna habilitada', async ({ page }) => {
-  const fixtures = await readE2eFixtures();
-  const tag = uniqueTag('domicilio');
-  const phone = `+56 9 ${Math.floor(10000000 + Math.random() * 89999999)}`;
+// Conditionally *registered* (not skipped) based on the flag actually
+// configured for this run — see e2e/public/home-visit-availability.spec.ts
+// for the dedicated, always-registered coverage of both the enabled and
+// disabled states via a single deterministic branch per test.
+if (homeVisitEnabled) {
+  test('envía una consulta de atención a domicilio para una comuna habilitada', async ({ page }) => {
+    const fixtures = await readE2eFixtures();
+    const tag = uniqueTag('domicilio');
+    const phone = `+56 9 ${Math.floor(10000000 + Math.random() * 89999999)}`;
 
-  await page.goto('/domicilio');
-  await page.locator('#homevisit-name').fill(`Cliente E2E ${tag}`);
-  await page.locator('#homevisit-comuna').fill(fixtures.comuna.name);
-  await page.locator('#homevisit-phone').fill(phone);
-  await page.getByRole('checkbox').check();
-  await page.getByRole('button', { name: 'Consultar atención a domicilio' }).click();
+    await page.goto('/domicilio');
+    await page.locator('#homevisit-name').fill(`Cliente E2E ${tag}`);
+    await page.locator('#homevisit-comuna').fill(fixtures.comuna.name);
+    await page.locator('#homevisit-phone').fill(phone);
+    await page.getByRole('checkbox').check();
+    await page.getByRole('button', { name: 'Consultar atención a domicilio' }).click();
 
-  await expect(page.getByRole('heading', { name: '¡Consulta recibida!' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '¡Consulta recibida!' })).toBeVisible();
 
-  const created = await prisma.request.findFirstOrThrow({ where: { phone, type: 'HOME_VISIT' } });
-  requestIds.push(created.id);
-});
+    const created = await prisma.request.findFirstOrThrow({ where: { phone, type: 'HOME_VISIT' } });
+    requestIds.push(created.id);
+  });
+}
 
 test('envía una solicitud de derechos ARCO', async ({ page }) => {
   const tag = uniqueTag('arco');

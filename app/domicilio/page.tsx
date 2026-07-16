@@ -1,15 +1,24 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { Container } from '@/components/Container';
 import { PageHeroBand } from '@/components/PageHeroBand';
 import { Card, IconBadge } from '@/components/Card';
 import { WhatsAppIcon } from '@/components/icons';
 import { HomeVisitForm } from '@/components/quote/HomeVisitForm';
+import { isHomeVisitEnabled } from '@/lib/feature-flags';
 
-export const metadata: Metadata = {
-  title: 'Atención a domicilio',
-  description:
-    'Llevamos la experiencia Pepi Visión 360 hasta tu hogar, con coordinación previa y asesoría personalizada.',
-};
+// generateMetadata (not a static export) so a disabled service never leaks
+// its title/description via <head> — calling notFound() here is the same
+// recognized pattern used for a page whose data doesn't resolve; see
+// openspec/changes/temporarily-disable-home-visit/design.md.
+export function generateMetadata(): Metadata {
+  if (!isHomeVisitEnabled()) notFound();
+  return {
+    title: 'Atención a domicilio',
+    description:
+      'Llevamos la experiencia Pepi Visión 360 hasta tu hogar, con coordinación previa y asesoría personalizada.',
+  };
+}
 
 const steps = [
   { title: '1 · Coordinación previa', description: 'Agendamos día y hora según tu disponibilidad.' },
@@ -19,6 +28,8 @@ const steps = [
 ];
 
 export default function DomicilioPage() {
+  if (!isHomeVisitEnabled()) notFound();
+
   return (
     <>
       <PageHeroBand

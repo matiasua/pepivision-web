@@ -53,6 +53,30 @@ Todo lo que no es el punto de entrada público (`nginx`) se publica únicamente 
 
 `migrate` y `minio-init` son jobs puntuales: corren, hacen su trabajo, y terminan (verás `Exited (0)` en `docker compose ps` — es el comportamiento esperado, no un error).
 
+## Feature flags
+
+| Variable | Default | Efecto |
+|---|---|---|
+| `HOME_VISIT_ENABLED` | `false` | Controla la disponibilidad pública del servicio de atención a domicilio. |
+
+**Fail-closed por diseño**: el servicio de atención a domicilio está **deshabilitado por defecto**. Solo el valor explícito `HOME_VISIT_ENABLED=true` lo habilita — la variable ausente, vacía, `false`, o cualquier otro valor inválido se tratan todas como deshabilitado (ver `lib/env.ts`). Esto **no** es un mecanismo de compatibilidad retroactiva ni un flag "apagar en caso de emergencia" con default habilitado — es el estado por defecto real del servicio hoy, reflejando el requerimiento actual del negocio.
+
+**Con el servicio deshabilitado** (default, o `HOME_VISIT_ENABLED=false`/ausente/vacío/inválido):
+- `/domicilio` responde 404 (nunca renderiza el formulario, ni parcialmente).
+- El enlace desaparece del menú de escritorio, del menú móvil y del footer a la vez (todos leen la misma lista, ver `lib/nav-items.ts`).
+- La tarjeta "Servicio a domicilio" y el badge flotante "A domicilio" del inicio no se renderizan.
+- La pregunta frecuente sobre atención a domicilio no aparece en `/faq`.
+- La metadata pública (descripción del sitio) deja de mencionar el servicio.
+- El envío directo a la Server Action (`app/domicilio/actions.ts`) se rechaza server-side en cada solicitud, sin crear una `Request`, sin enviar correo, y sin depender de que la UI esté oculta.
+
+**Se conserva siempre, sin importar el valor del flag**: el panel `/admin/home-visits`, la administración de comunas (`EnabledComuna`), el filtro por tipo en `/admin/requests`, y todo dato histórico (`Request` de tipo `HOME_VISIT`, `EmailLog`, auditoría) — el flag regula disponibilidad pública, no acceso administrativo. No se elimina código, tablas ni registros.
+
+**Importante — `/`, `/faq` y `/domicilio` se generan como contenido estático en el build de producción** (`npm run build`, ver el listado de rutas: aparecen como `○ Static`, no `ƒ Dynamic`). Esto significa que el valor de `HOME_VISIT_ENABLED` queda "congelado" en esas tres páginas al momento de construir la imagen — **cambiar la variable y solo reiniciar el contenedor `web` no actualiza esas páginas ya generadas en una imagen de producción ya construida**; se necesita reconstruir la imagen (`docker compose build web && docker compose up -d web`, o `docker compose up --build`) para que el nuevo valor se refleje en ellas. La Server Action (`app/domicilio/actions.ts`) sí valida el flag en cada solicitud, sin necesitar rebuild, por lo que el bloqueo server-side de solicitudes es efectivo de inmediato incluso si esas tres páginas estáticas aún no se han reconstruido — solo la *visibilidad* (no la seguridad) queda sujeta al rebuild.
+
+**Para habilitar el servicio** (acción explícita y deliberada, no el estado por defecto): poner `HOME_VISIT_ENABLED=true` y reconstruir/reiniciar `web` como se describe arriba. **Para volver a deshabilitarlo**: poner `HOME_VISIT_ENABLED=false` (o quitar la línea, ya que ese es el default) — no requiere restaurar código eliminado, porque no se elimina nada.
+
+Ver `openspec/changes/temporarily-disable-home-visit/` para el diseño completo.
+
 ## Ejecutar comandos de la aplicación
 
 Nunca directamente en el host. Usa siempre uno de estos dos patrones:

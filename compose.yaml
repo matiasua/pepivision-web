@@ -34,6 +34,13 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       APP_URL: ${APP_URL}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      # Feature flag — see openspec/changes/temporarily-disable-home-visit
+      # and README.md's "Feature flags" section. Fail-closed: disabled
+      # unless this is the exact string "true" (lib/env.ts's Zod schema
+      # already defaults to `false` on its own when this var is absent
+      # entirely — the :-false here only covers the case where Compose
+      # substitutes an empty string for an unset shell/.env variable).
+      HOME_VISIT_ENABLED: ${HOME_VISIT_ENABLED:-false}
       EMAIL_ASSET_BASE_URL: ${EMAIL_ASSET_BASE_URL}
       OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT}
       OBJECT_STORAGE_PUBLIC_URL: ${OBJECT_STORAGE_PUBLIC_URL}
@@ -248,6 +255,11 @@ services:
       APP_URL: ${APP_URL}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
       SESSION_SECRET: ${SESSION_SECRET}
+      # Must match `web`'s value — e2e specs read this directly (see
+      # e2e/public/home-visit-availability.spec.ts) to assert the behavior
+      # that corresponds to whatever the live `web`/`nginx` stack is
+      # actually running. Fail-closed default, same as `web` above.
+      HOME_VISIT_ENABLED: ${HOME_VISIT_ENABLED:-false}
       EMAIL_ASSET_BASE_URL: ${EMAIL_ASSET_BASE_URL}
       OBJECT_STORAGE_ENDPOINT: ${OBJECT_STORAGE_ENDPOINT}
       OBJECT_STORAGE_PUBLIC_URL: ${OBJECT_STORAGE_PUBLIC_URL}

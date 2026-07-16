@@ -1,11 +1,27 @@
 ## ADDED Requirements
 
-### Requirement: A single flag controls public availability of the home-visit feature
-The system SHALL expose one environment-driven flag (`HOME_VISIT_ENABLED`) that controls whether the home-visit feature is publicly reachable, defaulting to enabled so existing behavior is unchanged until an operator explicitly disables it.
+### Requirement: A single flag controls public availability of the home-visit feature, fail-closed
+The system SHALL expose one environment-driven flag (`HOME_VISIT_ENABLED`) that controls whether the home-visit feature is publicly reachable. The flag SHALL be fail-closed: the feature SHALL be enabled if and only if the value is the exact string `"true"` — the variable being absent, an empty string, `"false"`, or any other/invalid value SHALL all result in the feature being disabled. The system SHALL NOT derive this value via a loose truthiness coercion (e.g. `Boolean(value)`) that would treat the string `"false"` as enabled.
 
-#### Scenario: The flag defaults to enabled
+#### Scenario: The flag defaults to disabled when absent
 - **WHEN** `HOME_VISIT_ENABLED` is not set in the environment
-- **THEN** the home-visit feature SHALL behave exactly as it does today (publicly reachable)
+- **THEN** the home-visit feature SHALL be disabled
+
+#### Scenario: An empty value is treated as disabled
+- **WHEN** `HOME_VISIT_ENABLED` is set to an empty string
+- **THEN** the home-visit feature SHALL be disabled
+
+#### Scenario: An invalid value is treated as disabled, not rejected at startup
+- **WHEN** `HOME_VISIT_ENABLED` is set to a value other than `"true"` or `"false"`
+- **THEN** the home-visit feature SHALL be disabled, and the application SHALL NOT fail to start because of it
+
+#### Scenario: Only the exact string "true" enables the feature
+- **WHEN** `HOME_VISIT_ENABLED` is set to the exact string `"true"`
+- **THEN** the home-visit feature SHALL be enabled
+
+#### Scenario: The exact string "false" is treated as disabled
+- **WHEN** `HOME_VISIT_ENABLED` is set to the exact string `"false"`
+- **THEN** the home-visit feature SHALL be disabled
 
 ### Requirement: Disabling the flag makes /domicilio return not-found
 When `HOME_VISIT_ENABLED` is `false`, the `/domicilio` route SHALL return a not-found response instead of rendering the home-visit form.

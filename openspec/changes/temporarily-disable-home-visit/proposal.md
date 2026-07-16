@@ -4,7 +4,7 @@ The business wants the home-visit ("Atención a domicilio") service temporarily 
 
 ## What Changes
 
-- Add a single feature flag (`HOME_VISIT_ENABLED`, env-driven, defaulting to the current always-on behavior until explicitly set) that gates every public-facing touchpoint of the home-visit feature:
+- Add a single feature flag (`HOME_VISIT_ENABLED`, env-driven, **fail-closed and defaulting to disabled** — only the exact string `true` enables it; absent, empty, `false`, or any invalid value all mean disabled) that gates every public-facing touchpoint of the home-visit feature:
   - `/domicilio` returns a not-found response instead of the form when disabled.
   - The nav link ("Atención a domicilio," currently the single source in `lib/nav-items.ts` shared by header, mobile nav, and footer) is omitted when disabled.
   - The home page's "Servicio a domicilio" benefit card and "A domicilio" floating badge are hidden when disabled.

@@ -2,13 +2,14 @@ import type { Metadata } from 'next';
 import { Container } from '@/components/Container';
 import { SectionHeading } from '@/components/SectionHeading';
 import { FaqAccordion } from '@/components/FaqAccordion';
+import { isHomeVisitEnabled } from '@/lib/feature-flags';
 
 export const metadata: Metadata = {
   title: 'Preguntas frecuentes',
   description: 'Lo que necesitas saber antes de pedir tus lentes en Pepi Visión 360.',
 };
 
-const faqs = [
+const ALL_FAQS: { q: string; a: string; homeVisitOnly?: boolean }[] = [
   {
     q: '¿Cómo puedo solicitar una cotización?',
     a: 'Puedes usar nuestro cotizador en línea o escribirnos directamente por WhatsApp. Te preparamos un presupuesto referencial según el armazón, los cristales y los tratamientos que elijas.',
@@ -26,8 +27,11 @@ const faqs = [
     a: 'Los monofocales corrigen una sola distancia; los bifocales tienen dos zonas (lejos y cerca); los multifocales ofrecen una transición progresiva para lejos, intermedia y cerca. La elección final depende de tu receta y la recomendación profesional.',
   },
   {
+    // Marked so it can be filtered out while the home-visit service is
+    // disabled — see openspec/changes/temporarily-disable-home-visit.
     q: '¿Realizan atención a domicilio?',
     a: 'Ofrecemos atención a domicilio con coordinación previa y según cobertura. Consúltanos indicando tu comuna y confirmamos la disponibilidad para tu zona.',
+    homeVisitOnly: true,
   },
   {
     q: '¿Cómo sé si un armazón está disponible?',
@@ -48,6 +52,9 @@ const faqs = [
 ];
 
 export default function FaqPage() {
+  const homeVisitEnabled = isHomeVisitEnabled();
+  const faqs = homeVisitEnabled ? ALL_FAQS : ALL_FAQS.filter((item) => !item.homeVisitOnly);
+
   return (
     <section className="py-12">
       <Container size="narrow">
