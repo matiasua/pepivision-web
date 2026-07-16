@@ -4,12 +4,12 @@
 The system SHALL represent "this `Product`, offered within this `Category`" as a `ProductOffering` row, reusing the existing `Product`'s colors, images, and brand without copying them.
 
 #### Scenario: The same Product appears in multiple categories
-- **WHEN** a `Product` named "Coral" has a `ProductOffering` in the Armazones category and a second `ProductOffering` in the Lentes ópticos category
+- **WHEN** a `Product` named "Coral" has a `ProductOffering` in the Lentes ópticos category and a second `ProductOffering` in the Lentes de sol category
 - **THEN** both offerings SHALL reference the exact same `Product.id`, `ProductColor` rows, and `ProductImage` rows — no color or image row SHALL be duplicated
 
 #### Scenario: A Product not offered in a category is absent from it
-- **WHEN** a `Product` has no `ProductOffering` row for the Lentes de sol ópticos category
-- **THEN** that product SHALL NOT appear anywhere in the Lentes de sol ópticos category's public listing
+- **WHEN** a `Product` has no `ProductOffering` row for the Lentes de sol category
+- **THEN** that product SHALL NOT appear anywhere in the Lentes de sol category's public listing
 
 ### Requirement: At most one offering per product per category
 `ProductOffering` SHALL enforce uniqueness on `(productId, categoryId)` at the database level.
@@ -22,15 +22,15 @@ The system SHALL represent "this `Product`, offered within this `Category`" as a
 Each `ProductOffering` SHALL carry its own nullable `priceFromClp`, independent of the underlying `Product`'s base price and independent of the same product's price in any other category.
 
 #### Scenario: The same Product has different prices in different categories
-- **WHEN** "Coral" has `priceFromClp = 19990` as an Armazones offering and `priceFromClp = 39990` as a Lentes ópticos offering
-- **THEN** the Armazones catalog page SHALL display "$19.990" and the Lentes ópticos catalog page SHALL display "$39.990" for the same underlying product
+- **WHEN** "Coral" has `priceFromClp = 19990` as a Lentes ópticos offering and `priceFromClp = 39990` as a Lentes de sol offering
+- **THEN** the Lentes ópticos catalog page SHALL display "$19.990" and the Lentes de sol catalog page SHALL display "$39.990" for the same underlying product
 
 #### Scenario: An offering without a public price shows "Cotizar"
 - **WHEN** a `ProductOffering.priceFromClp` is null
 - **THEN** the public catalog and offering detail page SHALL render a "Cotizar" call-to-action instead of a price, and SHALL NOT display "$0" or an empty price
 
 ### Requirement: ProductOffering.priceFromClp is the sole public source of truth for price
-Every public-facing read of price (catalog listing, offering detail, quote wizard, transactional emails, WhatsApp copy, SEO `Offer` schema) SHALL read `ProductOffering.priceFromClp` exclusively. `Product.priceFromClp` SHALL remain in place only as a legacy compatibility field — used solely as the one-time seed value for a product's initial Armazones offering — and SHALL NOT be read for any public display once offerings exist.
+Every public-facing read of price (catalog listing, offering detail, quote wizard, transactional emails, WhatsApp copy, SEO `Offer` schema) SHALL read `ProductOffering.priceFromClp` exclusively. `Product.priceFromClp` SHALL remain in place only as a legacy compatibility field — used solely as the one-time seed value for a product's initial Lentes ópticos offering — and SHALL NOT be read for any public display once offerings exist.
 
 #### Scenario: Editing the legacy Product price does not change published offering prices
 - **WHEN** an admin edits a `Product`'s base `priceFromClp` after its offerings already exist
@@ -44,8 +44,8 @@ Every public-facing read of price (catalog listing, offering detail, quote wizar
 `ProductOffering` SHALL expose independent `active` and `visible` flags, distinct from the underlying `Product.visible`.
 
 #### Scenario: An offering can be hidden while the product stays visible elsewhere
-- **WHEN** a `Product` is visible with an active Armazones offering and an inactive Lentes ópticos offering
-- **THEN** the product SHALL appear under Armazones and SHALL NOT appear under Lentes ópticos
+- **WHEN** a `Product` is visible with an active Lentes ópticos offering and an inactive Lentes de sol offering
+- **THEN** the product SHALL appear under Lentes ópticos and SHALL NOT appear under Lentes de sol
 
 #### Scenario: An invisible offering is excluded from public listings and direct access
 - **WHEN** a `ProductOffering.visible` is false
@@ -55,8 +55,8 @@ Every public-facing read of price (catalog listing, offering detail, quote wizar
 `ProductOffering.slug` SHALL be unique within its `categoryId`, not globally, so the same underlying `Product` can reuse its slug across multiple categories.
 
 #### Scenario: The same slug is valid in two different categories
-- **WHEN** "Coral" has slug `coral` as both an Armazones offering and a Lentes ópticos offering
-- **THEN** both `/catalogo/armazones/coral` and `/catalogo/lentes-opticos/coral` SHALL resolve correctly to their respective offerings
+- **WHEN** "Coral" has slug `coral` as both a Lentes ópticos offering and a Lentes de sol offering
+- **THEN** both `/catalogo/lentes-opticos/coral` and `/catalogo/lentes-de-sol/coral` SHALL resolve correctly to their respective offerings
 
 ### Requirement: Offering ownership is validated server-side before every mutation
 The system SHALL verify that a `ProductOffering` referenced by id genuinely belongs to the `Category` and `Product` claimed by the caller before persisting any related mutation (e.g. attribute values, quote submissions).

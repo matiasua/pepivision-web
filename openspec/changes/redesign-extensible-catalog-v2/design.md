@@ -26,7 +26,7 @@ The business now needs the *same* frame sellable as three different commercial o
 - No checkout/online payment (unchanged — the business still closes via WhatsApp/cotización).
 - No implementation, no Prisma migration execution, no `/opsx:apply` in this pass — this is proposal + design + specs + tasks only.
 - No change to authentication/session model, image storage strategy (MinIO bucket split), prescription-attachment security model, retention/audit mechanisms, or the `Brand` model — all reused verbatim.
-- Not attempting to auto-populate óptico/solar offerings for existing products (explicit business decision per §12 of the request — only Armazones offerings are auto-created by the migration).
+- Not attempting to auto-populate a Lentes de sol offering for existing products (explicit business decision — only Lentes ópticos offerings are auto-created by the migration; see "Taxonomía definitiva de categorías" and "Migración de datos: dos categorías").
 - Not designing a fully generic EAV system — see "Capacidades vs. atributos" below for why a bounded, typed alternative was chosen instead.
 
 ## Decisions
@@ -67,8 +67,8 @@ model ProductOffering {
   category              Category  @relation(fields: [categoryId], references: [id])
   /// Scoped to the category, NOT globally unique — see "Slugs por
   /// categoría" below. The same Product legitimately reuses the same slug
-  /// string across its own offerings (/catalogo/armazones/coral and
-  /// /catalogo/lentes-opticos/coral both existing is the expected case).
+  /// string across its own offerings (/catalogo/lentes-opticos/coral and
+  /// /catalogo/lentes-de-sol/coral both existing is the expected case).
   slug                  String
   title                 String?
   commercialDescription String?
@@ -174,16 +174,34 @@ model ProductOfferingAttributeValue {
 - **`RANGE` is a NUMBER filter presentation, not a separate storage shape**: an attribute typed `RANGE` stores its per-offering value in `valueNumber` exactly like `NUMBER`; `type: RANGE` only tells the filter UI to render a min/max slider instead of an exact-match control. Documented here because the user's own list placed it as a peer of `text/number/boolean/select/multi_select`, which reads as a fifth storage shape if not clarified.
 - **`ProductOffering.deletedAt` (soft delete)**, mirroring `Request`'s existing pattern, so disabling an offering that has historical `Request.details` snapshots never needs a hard delete.
 
-### Capacidades tipadas (Zod, no condicionales dispersos) — **CLOSED**
+### Taxonomía definitiva de categorías — **CLOSED (reemplaza la tabla de tres categorías original)**
 
-Schema y nombres de campo finales (en inglés, por consistencia con el resto del código TypeScript del proyecto):
+**Decisión definitiva del propietario del producto (no derivable de Graphify ni de heurísticas del grafo — ver "Fase 5" más abajo para el porqué de este cambio):** el catálogo tendrá **únicamente dos categorías comerciales**:
+
+1. **Lentes ópticos** — copy aprobado: *"Elige tu armazón y personalízalo con los cristales que necesitas según tu receta y estilo de vida."* Incluye armazones destinados a incorporar cristales ópticos; permite seleccionar armazón, color, tipo de cristal, tratamientos, opciones adicionales y receta.
+2. **Lentes de sol** — copy aprobado: *"Descubre lentes de sol con protección UV, opciones polarizadas y modelos graduables según tu receta."* Incluye modelos solares sin graduación y graduables; puede ofrecer UV400, polarizado, cristales graduables, solares monofocales, solares progresivos, degradado, espejado.
+
+**Se elimina del diseño futuro:**
+- **Armazones** como categoría. Un armazón sigue existiendo — es el `Product` físico, sin cambios — pero deja de tener una categoría comercial propia. Se vuelve el producto físico seleccionable dentro de **Lentes ópticos** (ver "Relación conceptual" abajo).
+- **Lentes de sol ópticos** como nombre/categoría separada de "Lentes de sol" — se fusiona en la categoría única **Lentes de sol**, que ahora cubre tanto los modelos sin graduación como los graduables.
+
+**Relación conceptual (sin ambigüedad entre categoría, producto físico, tipo de cristal, tratamiento y opción adicional):**
+
+- **`Category`** — exactamente dos filas: Lentes ópticos, Lentes de sol. Sigue sin ser un enum Prisma (mismo razonamiento que antes: son filas administrables, no un conjunto cerrado de código).
+- **`Product`** — representa el armazón/modelo físico. Conserva marca, colores e imágenes exactamente como hoy — **sin cambios**. Puede publicarse mediante `ProductOffering` en una o ambas categorías, cuando sea compatible (p. ej. un modelo apto tanto para uso óptico como para venderse como lente de sol).
+- **`ProductOffering`** — representa la publicación comercial de un `Product` dentro de una `Category`: precio, copy comercial y configuración de la oferta. **No duplica** imágenes, colores ni marca — exactamente el mismo contrato ya implementado en la Fase 3, sin cambios de forma.
+- **Tipo de cristal, tratamiento, opción adicional** — no son categorías ni productos: son *contenido de configuración de la oferta/cotización*, ver "Compatibilidades del cotizador" más abajo. Nunca se modelan como una `Category` ni como un `Product` distinto.
+
+### Capacidades tipadas (Zod, no condicionales dispersos) — **CLOSED, esquema base sin cambios; ver "Compatibilidades del cotizador" para la extensión estructurada**
+
+Schema y nombres de campo finales (en inglés, por consistencia con el resto del código TypeScript del proyecto) — **sin cambios respecto al ya implementado en `modules/catalog/category-capabilities.ts`**:
 
 ```ts
-// modules/catalog/category-capabilities.ts (design sketch, not implemented here)
+// modules/catalog/category-capabilities.ts (ya implementado, Fase 1)
 export const categoryCapabilitiesSchema = z.object({
   /// El armazón/producto requiere seleccionar un ProductColor.
   requiresColor: z.boolean().default(true),
-  /// Habilita el paso "tipo de cristal" (Monofocal/Bifocal/Multifocal/...).
+  /// Habilita el paso "tipo de cristal" (Monofocal/Bifocal/Progresivo/...).
   allowsLensType: z.boolean().default(false),
   /// Habilita el paso de tratamientos (antirreflejo, filtro azul, etc.).
   allowsTreatments: z.boolean().default(false),
@@ -192,10 +210,10 @@ export const categoryCapabilitiesSchema = z.object({
   /// Habilita el sub-paso de adjuntar el archivo de receta (drag-and-drop,
   /// bucket privado, RequestAttachment) — ver nota de dependencia abajo.
   allowsPrescriptionAttachment: z.boolean().default(false),
-  /// Habilita el paso de tinte/color del cristal (lentes de sol ópticos).
+  /// Habilita el paso de tinte/color del cristal (lentes de sol).
   allowsLensTint: z.boolean().default(false),
   /// Indica si el paso "producto/oferta" se presenta como selección de un
-  /// armazón concreto (true, el caso de las tres categorías iniciales) o
+  /// armazón concreto (true, el caso de las dos categorías definitivas) o
   /// como un selector de producto genérico para una categoría futura que
   /// no se basa en elegir un armazón (p. ej. "Accesorios").
   allowsFrameSelection: z.boolean().default(true),
@@ -203,23 +221,99 @@ export const categoryCapabilitiesSchema = z.object({
 export type CategoryCapabilities = z.infer<typeof categoryCapabilitiesSchema>;
 ```
 
-**Defaults**: el perfil por defecto (`requiresColor: true, allowsFrameSelection: true`, todo lo demás `false`) es deliberadamente el perfil de Armazones — la categoría más simple. Una categoría nueva creada sin configurar explícitamente sus capacidades se comporta como un listado de producto simple, en vez de exponer accidentalmente pasos de cristal/tratamientos/receta/tinte que nadie pidió — mismo principio de "fail closed" ya aplicado a la lectura de JSON malformado.
+**Defaults**: el perfil por defecto (`requiresColor: true, allowsFrameSelection: true`, todo lo demás `false`) sigue siendo el perfil más simple posible (equivalente al antiguo perfil "Armazones") — una categoría nueva creada sin configurar explícitamente sus capacidades se comporta como un listado de producto simple, en vez de exponer accidentalmente pasos de cristal/tratamientos/receta/tinte que nadie pidió. Este default ya no corresponde a ninguna categoría seed existente (ninguna de las dos categorías definitivas usa el perfil "todo false"), pero se mantiene como el valor de fábrica seguro para una categoría futura (p. ej. "Accesorios").
 
-**Dependencia `allowsPrescriptionAttachment` ⊂ `allowsPrescription`**: el sub-paso de adjuntar archivo solo tiene sentido si el paso "¿tienes receta?" existe. El schema no fuerza esto con una validación cruzada (mantiene cada capability como un booleano independiente y simple); en su lugar, la lógica de pasos activos del cotizador (`STEP_DEFINITIONS`, ver "Precios y cotizador configurable") calcula el paso de adjunto como activo únicamente cuando **ambas** `allowsPrescription && allowsPrescriptionAttachment` son verdaderas. Una categoría con `allowsPrescriptionAttachment: true` pero `allowsPrescription: false` simplemente nunca muestra el paso de adjunto — no es un error, es la combinación tratada como "sin efecto".
+**Dependencia `allowsPrescriptionAttachment` ⊂ `allowsPrescription`**: sin cambios — el sub-paso de adjuntar archivo solo tiene sentido si el paso "¿tienes receta?" existe. Ver detalle ya documentado (sin cambios de comportamiento).
 
-**Valores iniciales de las tres categorías (CERRADO — sin cambios permitidos sin una decisión explícita posterior):**
+**Valores de las dos categorías definitivas (CERRADO — reemplaza la tabla de tres categorías; sin cambios permitidos sin una decisión explícita posterior):**
 
-| Capability | Armazones | Lentes ópticos | Lentes de sol ópticos |
-|---|---|---|---|
-| `requiresColor` | `true` | `true` | `true` |
-| `allowsLensType` | `false` | `true` | `true` |
-| `allowsTreatments` | `false` | `true` | `true` |
-| `allowsPrescription` | `false` | `true` | `true` |
-| `allowsPrescriptionAttachment` | `false` | `true` | `true` |
-| `allowsLensTint` | `false` | `false` | `true` |
-| `allowsFrameSelection` | `true` | `true` | `true` |
+| Capability | Lentes ópticos | Lentes de sol |
+|---|---|---|
+| `requiresColor` | `true` | `true` |
+| `allowsLensType` | `true` | `true` |
+| `allowsTreatments` | `true` | `true` |
+| `allowsPrescription` | `true` | `true` (graduables) |
+| `allowsPrescriptionAttachment` | `true` | `true` |
+| `allowsLensTint` | `false` | `true` |
+| `allowsFrameSelection` | `true` | `true` |
+
+Nota: Lentes de sol mantiene `allowsPrescription`/`allowsPrescriptionAttachment` en `true` porque la categoría cubre tanto modelos sin graduación como graduables (ver "Compatibilidades del cotizador" — la pregunta de receta sigue existiendo, pero solo es relevante si el visitante elige una modalidad graduada).
 
 Every read of `Category.capabilities` (JSON column) is parsed through this schema before use — the same "validate at the boundary, never trust a JSON column as pre-shaped" discipline already used for `Request.details` in this codebase. A category whose stored JSON fails validation is treated as capabilities-empty (fail closed: no optional steps shown) rather than throwing into a public page.
+
+### Contenido de cristales, tratamientos y opciones adicionales — **CLOSED (capability `lens-configuration`)**
+
+Esta sección resuelve un contenido que Graphify no puede decidir (no es una relación derivable del código o del grafo — proviene directamente de los requerimientos del propietario del producto) y que hasta ahora no tenía representación estructurada: qué tipos de cristal, tratamientos y opciones adicionales existen, qué significan, y cuáles aplica cada categoría.
+
+**Decisión de modelado**: igual que "Capacidades vs. atributos" ya establece para el resto del catálogo, aquí también se evita un sistema EAV genérico. El catálogo de tipos/tratamientos/opciones es **contenido de negocio fijo y pequeño** (no algo que un admin necesite crear libremente), así que se modela como **constantes de código, versionadas y validadas por Zod** — igual que `GLASS_TYPES`/`TREATMENT_IDS` ya existen hoy en `modules/requests/schemas.ts` — más un **allowlist por categoría** (qué subconjunto de ese catálogo fijo aplica a cada categoría), que sí vive en `Category.capabilities` porque varía por categoría y debe validarse server-side.
+
+**Terminología definitiva — renombrar `Multifocal` → `Progresivo`:**
+
+| Nombre anterior | Nombre definitivo |
+|---|---|
+| Monofocal | Monofocal (sin cambio) |
+| Bifocal | Bifocal (sin cambio) |
+| **Multifocal** | **Progresivo** |
+
+Ocurrencias exhaustivas de "Multifocal" identificadas en esta pasada (referencia para la implementación futura, ninguna se modifica en este cambio documental):
+`modules/requests/schemas.ts:13` (`GLASS_TYPES`, el valor canónico persistido), `components/quote/QuoteWizard.tsx:34` (label del wizard — su *descripción* ya dice "Progresivo", solo la clave/valor sigue siendo `Multifocal`), `app/cristales/page.tsx:24-25,38,109`, `app/faq/page.tsx:25-26`, `app/catalogo/[categorySlug]/[offeringSlug]/page.tsx:113`, `modules/catalog/category-capabilities.ts:13` (comentario), `docs/page-inventory.md:14`, `e2e/public/forms.spec.ts:104` (string literal clickeado), `openspec/specs/public-site/spec.md:48` (baseline, no se edita en este cambio), `openspec/changes/archive/2026-07-14-add-pepi-vision-360-v1/specs/public-site/spec.md:44` (archivado, no se edita).
+
+**Riesgo de compatibilidad histórica**: `Request.details.glassType` ya persistido con el valor literal `"Multifocal"` en filas existentes es un snapshot inmutable de lo que era cierto al momento del envío (mismo principio ya aplicado en `request-category-snapshot`) — el renombre solo aplica a **nuevas** solicitudes desde que el enum cambie; una fila histórica con `"Multifocal"` no se reescribe ni se migra.
+
+**Catálogo definitivo de tipos de cristal (código, `modules/requests/lens-types.ts`, diseño no implementado aún):**
+
+```ts
+export const LENS_TYPES = ['monofocal', 'bifocal', 'progresivo'] as const;
+export const LENS_TYPE_LABELS: Record<(typeof LENS_TYPES)[number], string> = {
+  monofocal: 'Monofocal',
+  bifocal: 'Bifocal',
+  progresivo: 'Progresivo',
+};
+export const LENS_TYPE_DESCRIPTIONS: Record<(typeof LENS_TYPES)[number], string> = {
+  monofocal: 'Corrigen una sola distancia visual según las necesidades indicadas en tu receta.',
+  bifocal: 'Permiten ver de lejos y de cerca mediante dos zonas diferenciadas en un mismo cristal.',
+  progresivo: 'Ofrecen una transición gradual para ver de lejos, a distancia intermedia y de cerca, sin líneas visibles.',
+};
+```
+`monofocal` además admite una submodalidad opcional (`lejos | intermedia | cerca`) — no cambia su `id`, es un dato adicional del mismo tipo, no una cuarta opción de `LENS_TYPES`.
+
+**Tabla comparativa definitiva** (debe ser accesible: no depender únicamente de ✓/—/color — usar texto "Sí"/"No" o iconografía con `aria-label`, ver `improve-visual-identity-and-content`):
+
+| Característica | Monofocal | Bifocal | Progresivo |
+|---|---|---|---|
+| Una sola distancia de visión | Sí | No | No |
+| Lejos y cerca en un mismo cristal | No | Sí | Sí |
+| Visión intermedia continua | No | No | Sí |
+| Línea divisoria visible | No | Sí | No |
+| Transición gradual entre distancias | No | No | Sí |
+
+**Catálogo definitivo de tratamientos** (`TREATMENTS`, código): Antirreflejo · Filtro de luz azul-violeta · Fotocromático · Protección UV · Mayor resistencia a rayaduras · Hidrofóbico y oleofóbico. **No usar la afirmación "completamente antirrayas"** — el tratamiento aumenta resistencia, no la hace absoluta; el copy debe decir "mayor resistencia a rayaduras."
+
+**Catálogo definitivo de opciones adicionales** (`ADDITIONAL_OPTIONS`, código, deliberadamente separado de "tratamientos" porque son decisiones estructurales del cristal, no un recubrimiento): Cristales de alto índice · Polarizado · Degradado · Espejado · Cristales solares graduados. "Cristales solares graduados" es en sí mismo una submodalidad con tres variantes: solar monofocal, solar progresivo, polarizado graduado (esta última solo cuando exista compatibilidad, ver tabla siguiente).
+
+**Compatibilidades del cotizador por categoría — fuente estructurada, validada server-side (extiende `Category.capabilities` con un bloque `quoteOptions`, diseño no implementado aún):**
+
+```ts
+// modules/catalog/quote-options.ts (design sketch, not implemented here)
+const quoteOptionsSchema = z.object({
+  version: z.literal(1),
+  lensTypes: z.array(z.enum(LENS_TYPES)),
+  treatments: z.array(z.enum(TREATMENT_IDS)),
+  additionalOptions: z.array(z.enum(ADDITIONAL_OPTION_IDS)),
+}).strict();
+```
+
+| | Lentes ópticos | Lentes de sol |
+|---|---|---|
+| **Tipos de cristal** | Monofocal, Bifocal, Progresivo | Sin graduación, Solar monofocal, Solar progresivo |
+| **Tratamientos y opciones** | Antirreflejo, Filtro azul-violeta, Fotocromático, Protección UV, Mayor resistencia a rayaduras, Hidrofóbico y oleofóbico, Alto índice | UV400, Polarizado, Degradado, Espejado, Solar graduado, Mayor resistencia a rayaduras, Hidrofóbico y oleofóbico |
+
+**Reglas de validación (SHALL, ver spec `lens-configuration`):**
+- El cotizador **nunca** debe mostrar una opción no listada en el `quoteOptions` de la categoría resuelta.
+- La validación se repite **server-side** en la resolución de la solicitud (mismo punto que ya re-resuelve categoría/oferta/producto/color, ver "Precios y cotizador configurable") — el cliente no puede enviar manualmente una combinación no permitida (p. ej. `lentesTipo: 'progresivo'` para una categoría cuyo `quoteOptions.lensTypes` no lo incluye) y tenerla persistida o enviada por correo.
+- Esto es una capa más fina que las `capabilities` booleanas existentes: `allowsLensType: true` sigue gating *si el paso existe*; `quoteOptions.lensTypes` gating *cuáles opciones aparecen dentro de ese paso*. Ambas capas se validan server-side, nunca solo una.
+
+**Open Question (no resuelta por este cambio — requiere decisión del propietario del producto):** ¿puede un cliente cotizar únicamente el armazón sin cristales ópticos dentro de la categoría Lentes ópticos (equivalente al antiguo flujo "Armazones"), o el tipo de cristal es un paso obligatorio una vez que se elige esa categoría? Esto determina si `allowsLensType`/`allowsTreatments`/`allowsPrescription` deben poder saltarse dentro de Lentes ópticos o si son siempre obligatorios. Ver "Open Questions" al final de este documento.
 
 ### Rediseño del catálogo público
 
@@ -228,15 +322,25 @@ Routes:
 - `/catalogo/[categorySlug]` — offering list + filters (common + dynamic), replacing today's flat product list.
 - `/catalogo/[categorySlug]/[offeringSlug]` — offering detail, replacing today's `[slug]` product detail.
 
-**Compatibilidad de URLs**: `/catalogo/[slug]` is kept as a route that:
+**Compatibilidad de URLs — actualizado para dos categorías (CLOSED, reemplaza el default "Armazones")**: `/catalogo/[slug]` is kept as a route that:
 1. Looks up `Product` by `slug` (existing lookup, unchanged).
-2. Resolves that product's "default" offering: the Armazones offering if visible, else the first `visible: true` offering ordered by `sortOrder`.
+2. Resolves that product's "default" offering. **`armazones` no longer exists as a category**, so `findDefaultPublicOfferingForProductSlug`'s current hardcoded preference (`offerings.find(o => o.category.slug === 'armazones') ?? offerings[0]`) must change. New default policy: prefer the `lentes-opticos` offering if visible (since a bare frame migrates there — see "Migración de datos: dos categorías"), else the first `visible: true` offering ordered by `sortOrder` (covers a frame offered only under `lentes-de-sol`).
 3. Issues a permanent redirect (`308`, via `redirect()`/`permanentRedirect()`) to `/catalogo/[categorySlug]/[offeringSlug]`.
 4. If the product has no visible offering at all, preserves today's `notFound()` (404) behavior.
 
-Old filter query strings (`/catalogo?brand=vespa&gender=MUJER`) redirect to the same params against the Armazones category (`/catalogo/armazones?brand=vespa&gender=MUJER`), since that's the only category every existing link could possibly have meant.
+Old filter query strings (`/catalogo?brand=vespa&gender=MUJER`) redirect to the same params against the `lentes-opticos` category (`/catalogo/lentes-opticos?brand=vespa&gender=MUJER`) by the same reasoning — it's the category every pre-migration frame link now defaults to.
 
-**Tarjetas y ficha**: `ProductCard`-equivalent now renders from a `CatalogOfferingView` (offering-first DTO: category, brand, product name, price-from-or-"Cotizar", colors, availability, badge, category-appropriate CTA label — "Ver armazón" / "Configurar lentes" / "Configurar lentes de sol ópticos", sourced from `Category.name`/a small CTA-label map, not hardcoded per product). The offering detail page adds a "También disponible como: [otras categorías del mismo Product]" cross-link block, resolved via the `(productId)` index on `ProductOffering`.
+**Tarjetas y ficha**: `ProductCard`-equivalent now renders from a `CatalogOfferingView` (offering-first DTO: category, brand, product name, price-from-or-"Cotizar", colors, availability, badge, category-appropriate CTA label, sourced from `Category.name`/a small CTA-label map, not hardcoded per product). **CTA-label map, updated for two categories** (`modules/catalog/labels.ts#CATEGORY_CTA_LABELS`, currently hardcoded to the three old slugs including `armazones`):
+
+```ts
+const CATEGORY_CTA_LABELS: Record<string, string> = {
+  'lentes-opticos': 'Configurar lentes',
+  'lentes-de-sol': 'Configurar lentes de sol',
+};
+const DEFAULT_OFFERING_CTA_LABEL = 'Ver oferta';
+```
+
+The offering detail page adds a "También disponible como: [otras categorías del mismo Product]" cross-link block, resolved via the `(productId)` index on `ProductOffering` — unchanged mechanism, now practically a Lentes ópticos ↔ Lentes de sol cross-link instead of a three-way one.
 
 ### Estrategia de filtros
 
@@ -321,7 +425,7 @@ Ningún consumidor en v1 (público) necesita leer `configuration` todavía — q
 
 `ProductOffering.priceFromClp` es la única fuente de verdad comercial para todo lo que el público ve (catálogo, ficha de oferta, cotizador, correos, WhatsApp, schema SEO `Offer`). `Product.priceFromClp` **no se elimina en este cambio** — entra en una fase de compatibilidad explícita y temporal:
 
-1. **Durante la migración**: cada producto `visible: true` genera su `ProductOffering` de categoría Armazones usando `Product.priceFromClp` como valor inicial de `priceFromClp` (ver "Migración de datos").
+1. **Durante la migración**: cada producto `visible: true` sin ofertas previas genera su `ProductOffering` de categoría Lentes ópticos usando `Product.priceFromClp` como valor inicial de `priceFromClp`; un producto que ya tenía una oferta bajo la extinta categoría `armazones` la conserva remapeada, no duplicada (ver "Migración de datos: dos categorías").
 2. **Durante la fase de compatibilidad**: `Product.priceFromClp` permanece como columna `NOT NULL` sin cambios — el formulario admin de producto lo sigue exigiendo al crear/editar el modelo base (evita una migración disruptiva de datos existentes y de la validación ya probada de `product-management`). Su rol pasa a ser exclusivamente el de **valor semilla para la primera oferta de un producto nuevo** — el copy del formulario admin se actualiza para dejar esto explícito ("precio de referencia inicial — el precio público real se administra por categoría en 'Disponibilidad en el catálogo'").
 3. **Todas las lecturas públicas se actualizan**: catálogo, ficha de oferta, resumen del cotizador, plantillas de correo (HTML y texto), copy de WhatsApp, y el schema `Offer` de SEO leen exclusivamente `ProductOffering.priceFromClp` desde el momento en que existen ofertas — ninguno vuelve a leer `Product.priceFromClp` para mostrarlo públicamente.
 4. **Todas las escrituras se actualizan**: crear/editar una oferta escribe únicamente su propio `ProductOffering.priceFromClp`; no existe una sincronización automática continua entre `Product.priceFromClp` y las ofertas ya creadas — after the initial seed, they intentionally diverge, porque el precio de "lente óptico" legítimamente difiere del precio de "solo armazón" para el mismo producto.
@@ -331,7 +435,7 @@ Ningún consumidor en v1 (público) necesita leer `configuration` todavía — q
 
 | Punto de esta sección | Tarea(s) de `tasks.md` |
 |---|---|
-| 1. Backfill (una `ProductOffering` Armazones por producto visible, copiando `priceFromClp`) | **10.1** |
+| 1. Backfill (una `ProductOffering` Lentes ópticos por producto visible sin ofertas previas, copiando `priceFromClp`; remapeo de ofertas ya existentes bajo la extinta `armazones`) | **15.1** (ver Fase 5 para el remapeo y Fase 15 para el backfill/validación final) |
 | 2. `Product.priceFromClp` permanece intacto como campo semilla/compatibilidad | Ya vigente desde la Fase 1 (1.1); el copy del formulario admin se actualiza en **4.2** |
 | 3. Lecturas públicas — catálogo/ficha | **5.1**, **5.2** |
 | 3. Lecturas públicas — cotizador (snapshot de precio) | **7.4** (resolución server-side), **8.1** (snapshot en `Request.details`) |
@@ -350,6 +454,19 @@ La Fase 3 (incluida 3.3) implementa **únicamente** la garantía de dominio del 
 - **Product form** gains a "Disponibilidad en el catálogo" section: per active category, a toggle + price-from + commercial title/description + featured + sort + attribute values + SEO. **ADMIN-permitted** (not SUPERADMIN-only) — see "Autorización" below.
 - Product creation flow becomes: (1) base model — name/code/brand/colors/photos, exactly as today — then (2) select categories to offer it in and configure each `ProductOffering` — making the physical-model vs. commercial-offer distinction visible in the UI, not just in the schema.
 
+### Imágenes de categoría — **CLOSED (extiende `catalog-administration`)**
+
+`Category.imagePath` already exists as a plain `String?` column and is already rendered on `/catalogo`'s category cards — but it has **no upload pipeline today**: `CategoryForm.tsx` exposes it as a bare text `<input>` an admin must type/paste a path into, unlike `Product` images which go through a full MinIO-backed pipeline (`processProductImage` → `buildStorageKey`/`uploadObject`/`buildPublicUrl`). This section closes that gap by reusing the exact same pattern, not inventing a new one:
+
+- **Upload/replace/delete/preview** from `/admin/categories/[id]/edit`, mirroring the existing product-photo admin UX (upload → processed preview → replace or remove).
+- **MIME validation**: reuse `modules/storage/schemas.ts#imageFileMetaSchema` (JPG/JPEG/PNG accepted today) — content verified via `sharp`, never trusting the declared `Content-Type`, same discipline already applied to product photos.
+- **WebP output (new)**: `lib/image-processing.ts#processProductImage` today always re-encodes to JPEG regardless of input format — no WebP generation path exists anywhere in the codebase yet. This design adds an optional WebP-output variant of that processing function (`processCategoryImage`, or a shared `format` parameter) — a genuinely new processing capability, not a reuse of an existing one.
+- **Storage**: public bucket (`OBJECT_STORAGE_BUCKET`), same as product photos — category images are not sensitive, no reason to use the private bucket. Storage key pattern: `categories/${categoryId}/cover-${random}.${extension}` (mirrors `products/${productId}/${slot}-${suffix}.${extension}`).
+- **Size limit**: reuse `MAX_IMAGE_BYTES` (8 MiB pre-processing), same as product photos, unless a smaller limit is explicitly requested later (category images are typically simpler hero/cover art, not detailed product photography — no evidence yet that a different limit is needed).
+- **Public fallback**: when `imagePath` is null, `/catalogo`'s category card already renders an empty gray placeholder box (existing behavior, unchanged) — no broken `<img>` tag.
+- **Authorization**: SUPERADMIN-only, same as all other category-structure mutations (see "Autorización" below) — an image is part of category structure, not routine merchandising.
+- **Audit**: folds into the existing `category.updated` action (no new action needed — an image change is a category-field change like any other).
+
 ### Autorización — **CLOSED**
 
 Split final, sin ambigüedad, verificado siempre server-side (nunca solo ocultando UI en el cliente):
@@ -358,13 +475,21 @@ Split final, sin ambigüedad, verificado siempre server-side (nunca solo ocultan
 - **ADMIN y SUPERADMIN** (mercadeo rutinario): crear y editar `ProductOffering` para productos existentes (activar/desactivar por categoría, precio, copy comercial, destacado, orden, valores de atributos ya definidos, SEO por oferta) — protegido con `requireSession()` (cualquier admin activo), el mismo nivel de confianza que ya tienen las mutaciones de color/imagen de producto hoy.
 - Esta división resuelve la pregunta abierta previa ("¿ProductOffering requiere SUPERADMIN?"): **no**, cualquier ADMIN activo puede administrar ofertas; solo la estructura de categorías/capacidades/atributos requiere SUPERADMIN.
 
-### Migración de datos
+### Migración de datos: dos categorías — **CLOSED, reemplaza la migración originalmente aditiva-solamente**
 
-1. Seed the three categories idempotently (`prisma.category.upsert({where:{slug}, ...})`), mirroring the existing `Brand` seed pattern (`getBrandLogos()` → upsert-by-slug) — small, hardcoded TS array for these three *initial* categories only; every category after these three is created through `/admin/categories`, never through the seed script.
-2. For every currently-`visible: true` `Product` without an existing `(productId, categoryId=armazones)` row, create one `ProductOffering`: `priceFromClp = product.priceFromClp` (the one-time seed read of the legacy field — see "Fase de compatibilidad de precios"), `slug = product.slug` (preserves the exact current public slug), `active: true`, `visible: product.visible`. Idempotent via `upsert` on `(productId, categoryId)`.
-3. **Do not** auto-create lentes-ópticos/lentes-de-sol-ópticos offerings for any product — that remains an explicit admin decision per product, per the business's own instruction.
-4. Nothing about `Product`, `ProductColor`, `ProductImage`, `Brand`, `Request`, `RequestAttachment`, admin users, sessions, or audit entries is altered, duplicated, or deleted by this migration.
-5. Photos already in MinIO are untouched — `ProductOffering` never references storage directly, only `Product` does (unchanged).
+**Esta migración ya no es puramente aditiva.** El diseño original (sembrar tres categorías nuevas + crear ofertas Armazones para productos visibles) asumía una base de datos sin categorías aún. Hoy, `redesign-extensible-catalog-v2` Fases 1–5 ya están implementadas y desplegadas contra el modelo de **tres** categorías (`armazones`, `lentes-opticos`, `lentes-de-sol-opticos` ya existen como filas `Category`, y ya pueden existir `ProductOffering`s de categoría `armazones`). La migración a dos categorías debe **remapear filas existentes**, no solo agregar filas nuevas:
+
+1. **Renombrar `lentes-de-sol-opticos` → `lentes-de-sol`** in-place: `UPDATE categories SET slug = 'lentes-de-sol', name = 'Lentes de sol' WHERE slug = 'lentes-de-sol-opticos'` (o equivalente vía Prisma) — el `id` de la fila no cambia, así que todo `ProductOffering.categoryId` que ya apunte a ella sigue siendo válido sin tocar una sola oferta.
+2. **Remapear la categoría `armazones`**: para cada `ProductOffering` con `categoryId = <id de armazones>`, decidir su destino:
+   - Si ese mismo `Product` **no** tiene ya una oferta en `lentes-opticos`: reasignar la oferta existente (`UPDATE product_offerings SET categoryId = <id de lentes-opticos>`) — conserva `slug`, `priceFromClp`, `active`, `visible`, historial, y no rompe ninguna URL ya publicada bajo `/catalogo/armazones/[slug]` gracias a la capa de compatibilidad (paso 5).
+   - Si ese mismo `Product` **ya** tiene una oferta en `lentes-opticos` (creada manualmente por un admin durante las Fases 1–5): la oferta `armazones` sobrante no se puede fusionar automáticamente sin perder datos potencialmente distintos (precio/copy) entre ambas — **requiere revisión manual admin por admin**, listada explícitamente en el reporte de migración (no hay un default seguro que no sea decisión humana aquí).
+3. **Eliminar la categoría `armazones`** (fila `Category`) únicamente después de que el paso 2 confirme que ya no tiene ninguna `ProductOffering` asociada (mismo mecanismo ya implementado de "no se puede borrar una categoría con ofertas" — se usa aquí como verificación, no se bypasea).
+4. **Capacidades**: al remapear una oferta de `armazones` hacia `lentes-opticos`, esa oferta hereda las capacidades de Lentes ópticos (cristal/tratamientos/receta habilitados) — un admin debe confirmar que el producto remapeado efectivamente admite esas opciones antes de que el cotizador lo ofrezca con ellas; esto se lista como un paso de revisión manual, no una asunción automática.
+5. **Compatibilidad de URLs durante y después del remapeo**: cualquier URL ya publicada bajo `/catalogo/armazones/[offeringSlug]` deja de resolver directamente (la categoría `armazones` ya no existe) — debe tratarse como una URL "legada" más, resuelta por el mismo mecanismo de `/catalogo/[slug]` → oferta por defecto → redirect 308 (ver "Compatibilidad de URLs" arriba), nunca como un enlace roto.
+6. Nothing about `Product`, `ProductColor`, `ProductImage`, `Brand`, `Request`, `RequestAttachment`, admin users, sessions, or audit entries is altered, duplicated, or deleted by this migration — same invariant as the original design.
+7. Photos already in MinIO are untouched — `ProductOffering` never references storage directly, only `Product` does (unchanged).
+
+**Riesgo nuevo, explícito**: a diferencia de la migración original (solo `INSERT`s, rollback trivial por revert de código), este remapeo incluye `UPDATE`s sobre `product_offerings.categoryId` y `categories.slug` — el rollback ya no es "el código revertido deja las tablas nuevas sin uso": requiere un script de reversión explícito que registre el mapeo aplicado (qué oferta se movió de qué categoría a cuál) antes de aplicar el cambio. Ver "Risks / Trade-offs" para este ítem como riesgo formal.
 
 ### SEO
 
@@ -393,6 +518,22 @@ Authorization: `requireRole('SUPERADMIN')` for all category-structure mutations 
 - Once archived, `Product`/`ProductColor`/`ProductImage`/`Brand`/`Request`/`RequestAttachment` as they exist in `openspec/specs/` at that point become the concrete base this change builds on; nothing here is designed against a hypothetical or moving target.
 - This change is written to **extend**, not fight, `add-pepi-vision-360-v1`'s `product-catalog`/`product-management`/`quote-requests` capabilities: `Product`/`ProductColor`/`ProductImage`/`Brand` are reused verbatim, and every new capability introduced here is additive.
 
+### Fase 5 — evaluación contra la nueva taxonomía — **CLOSED**
+
+Fase 5 (catálogo público) fue implementada y **ya está commiteada** en `main` (`42f3f35 feat: add category-based public catalog`, y su corrección de CTA/labels en el mismo commit) contra el modelo de tres categorías. Esta sección clasifica cada tarea 5.1–5.7 contra la nueva taxonomía de dos categorías — ninguna implica revertir el commit; donde algo debe cambiar, se convierte en una tarea explícita de la Fase 5-bis (ver tasks.md).
+
+| Tarea | Clasificación | Razón |
+|---|---|---|
+| 5.1 (reconstruir `modules/catalog/*` sobre `ProductOffering`, precio exclusivo de `ProductOffering.priceFromClp`) | **Sigue válida** | La arquitectura offering-first es agnóstica a cuántas categorías existan — `buildPublicOfferingWhere`, `listPublicOfferingsForCategoryFiltered`, etc. operan sobre cualquier `categoryId`, sin hardcodear `armazones`. Ningún cambio de código necesario aquí. |
+| 5.2 (rutas `/catalogo`, `/catalogo/[categorySlug]`, `/catalogo/[categorySlug]/[offeringSlug]`) | **Sigue válida (rutas); copy debe actualizarse** | La estructura de rutas es agnóstica al conteo de categorías. El copy hardcodeado que menciona las tres categorías (p. ej. la descripción de metadata de `/catalogo`: "armazones, lentes ópticos y lentes de sol ópticos") debe actualizarse — tarea nueva en Fase 5-bis, no una reapertura de la ruta en sí. |
+| 5.3 (capa de compatibilidad: `/catalogo/[slug]` → oferta por defecto → redirect 308) | **Debe reabrirse** | `findDefaultPublicOfferingForProductSlug` hardcodea `offerings.find(o => o.category.slug === 'armazones') ?? offerings[0]` — esa categoría deja de existir. Ver "Compatibilidad de URLs" arriba para el nuevo default (`lentes-opticos`). |
+| 5.4 (CTA por categoría: "Ver armazón" / "Configurar lentes" / "Configurar lentes de sol ópticos") | **Debe reemplazarse** | `CATEGORY_CTA_LABELS` está hardcodeado a los tres slugs antiguos. Ver el mapa de dos entradas en "Rediseño del catálogo público" arriba. |
+| 5.5 ("También disponible como" cross-category links) | **Sigue completamente válida** | El mecanismo (`listOtherPublicOfferingsForProduct`, indexado por `productId`) es agnóstico al número de categorías — con dos categorías simplemente muestra menos enlaces cruzados posibles (como máximo uno), sin cambio de código. |
+| 5.6 (prueba: redirect legado + 404 para producto sin oferta) | **Escenario válido; implementación de la prueba requiere actualización** | El comportamiento a probar (redirect funciona, 404 se preserva) sigue siendo el requerimiento correcto. Los *fixtures* E2E actuales (`e2e/global-setup.ts`, `e2e/public/catalog.spec.ts`) siembran/afirman contra la categoría `armazones` y el CTA "Ver armazón" — deben actualizarse a la nueva taxonomía cuando la Fase 5-bis se implemente. No se modifican tests en este turno documental. |
+| 5.7 (prueba: navegación responsive + estado vacío por categoría) | **Sigue completamente válida** | Agnóstica al número/nombre de categorías; seguirá pasando una vez que los fixtures reflejen las dos categorías definitivas. |
+
+**Regla aplicada**: ningún checkbox de 5.3/5.4 permanece marcado como completo sin condición — tasks.md los reabre explícitamente (ver Fase 5-bis) en vez de dejarlos con un `[x]` que ya no refleja la realidad, por instrucción directa de no marcar como válido automáticamente un trabajo que debe evaluarse contra los nuevos requerimientos.
+
 ## Risks / Trade-offs
 
 - **[Risk]** Two large in-flight OpenSpec changes could drift or conflict if implemented out of order. → **[Mitigation, CLOSED]** Firm sequencing decision (see "Secuencia con `add-pepi-vision-360-v1`"): this change is implemented only after `add-pepi-vision-360-v1` is completed and archived, never interleaved or auto-modified/auto-archived by this proposal.
@@ -403,21 +544,47 @@ Authorization: `requireRole('SUPERADMIN')` for all category-structure mutations 
 - **[Risk]** Admins could create confusingly similar category names/slugs over time. → **[Mitigation]** Reuses the exact slugify + unique-index + "prefer deactivation" pattern already proven for `Brand`.
 - **[Risk]** Wrapping the prescription-attachment step inside a capability gate could regress its security model if reimplemented carelessly. → **[Mitigation]** The design calls for reusing `modules/storage/private-service.ts`/`RequestAttachment`/signed-URL admin access completely unchanged — zero new file-handling code, only a new gate on whether the step is shown/persisted.
 - **[Risk]** An extra `Product → ProductOffering → Category` join on every public catalog query. → **[Mitigation]** Indexed, category-first-filtered, and structurally identical to the already-shipped `Product → Brand` join with no observed performance issue.
-- **[Risk]** Scope size — public catalog, quote wizard, admin product form, and emails all change. → **[Mitigation]** tasks.md is phased into 10 independently reviewable phases (per the user's own requested order), so no single PR needs to land the whole redesign at once.
+- **[Risk]** Scope size — public catalog, quote wizard, admin product form, and emails all change. → **[Mitigation]** tasks.md is phased into independently reviewable blocks, so no single PR needs to land the whole redesign at once.
+- **[Risk, NEW]** The two-category migration is no longer purely additive — it remaps existing `armazones` offerings into `lentes-opticos` and renames the `lentes-de-sol-opticos` slug, on top of Phases 1–5 already being implemented and committed. → **[Mitigation]** See "Migración de datos: dos categorías" — the remap is idempotent per offering, requires explicit admin review only for the rare case of a product already offered in both `armazones` and `lentes-opticos`, and ships with an explicit reversal mapping rather than relying on "just revert the code" (which no longer suffices once rows are updated in place).
+- **[Risk, NEW]** Renaming the `glassType` enum value `Multifocal` → `Progresivo` changes a value already persisted in historical `Request.details` JSON. → **[Mitigation]** Historical rows are immutable snapshots (same principle as `request-category-snapshot`) and are never rewritten; only new submissions use the new value. Every current occurrence of "Multifocal" was enumerated this turn (see "Contenido de cristales, tratamientos y opciones adicionales") so the future implementation has a complete checklist instead of discovering occurrences ad hoc.
+- **[Risk, NEW]** Phase 5's already-committed code encodes three-category assumptions in two specific places (`offering-repository.ts`'s legacy-redirect default, `labels.ts`'s CTA map) that will silently produce wrong behavior (arbitrary redirect target, missing/fallback CTA label) if the taxonomy migration lands without updating them. → **[Mitigation]** Both call sites and their exact current code are documented above ("Compatibilidad de URLs", "Rediseño del catálogo público") and are explicit tasks in Fase 5-bis, not left implicit.
 
 ## Migration Plan
 
-0. **Precondition (CLOSED — see "Secuencia con `add-pepi-vision-360-v1`"): `add-pepi-vision-360-v1` is completed and archived before step 1 begins.**
-1. Apply the new-tables-only Prisma migration (`Category`, `ProductOffering`, `CategoryAttributeDefinition`, `ProductOfferingAttributeValue`, `CategoryAttributeType` enum) — purely additive, no existing table altered. `Product.priceFromClp` is untouched (still `NOT NULL`, unchanged validation) per the price-compatibility decision.
-2. Run the idempotent category seed (capabilities table from "Capacidades tipadas"), then the idempotent Armazones-offering seed for every currently-visible product, copying `Product.priceFromClp` into each new `ProductOffering.priceFromClp` once.
-3. Ship the offering-aware catalog/cotizador/admin code with `/catalogo/[slug]` as a redirect layer. All public price reads switch to `ProductOffering.priceFromClp` at this point (see "Fase de compatibilidad de precios").
+**Nota (post-replanificación de taxonomía)**: los pasos 0–1 ya ocurrieron (Fases 1–5 están implementadas y commiteadas). El paso 2 original (seed puramente aditivo de tres categorías) queda **superseded** por "Migración de datos: dos categorías" arriba, que además remapea filas ya existentes — leer ese apartado como la versión vigente del paso 2, no este resumen histórico.
+
+0. **Precondition (CLOSED — see "Secuencia con `add-pepi-vision-360-v1`"): `add-pepi-vision-360-v1` is completed and archived before step 1 begins.** ✅ ya ocurrió.
+1. Apply the new-tables-only Prisma migration (`Category`, `ProductOffering`, `CategoryAttributeDefinition`, `ProductOfferingAttributeValue`, `CategoryAttributeType` enum) — purely additive, no existing table altered. `Product.priceFromClp` is untouched (still `NOT NULL`, unchanged validation) per the price-compatibility decision. ✅ ya ocurrió (Fase 1).
+2. ~~Run the idempotent category seed... then the idempotent Armazones-offering seed...~~ **Superseded** — ver "Migración de datos: dos categorías": renombrar `lentes-de-sol-opticos` → `lentes-de-sol` in-place, remapear ofertas `armazones` → `lentes-opticos`, eliminar la categoría `armazones` vacía, y solo entonces sembrar/backfillear lo que falte para productos sin ninguna oferta previa.
+3. Ship the offering-aware catalog/cotizador/admin code with `/catalogo/[slug]` (and, per this replanning, `/catalogo/armazones/[offeringSlug]` as an additional legacy pattern) as a redirect layer. All public price reads switch to `ProductOffering.priceFromClp` at this point (see "Fase de compatibilidad de precios").
 4. Manually verify every previously-published product URL still resolves (now via redirect) before considering any old code path removable — part of tasks.md's final validation phase.
 5. **Rollback**: since step 1 only adds tables and steps 2–3 only add rows/redirect logic (nothing existing is altered or dropped), rolling back is a plain code revert; the additive tables can remain unused harmlessly, or be dropped via a follow-up down migration if ever desired. No data-loss risk to `Product`/`Request`/`Brand`/existing images.
 6. **Follow-up, separate change (not part of this migration)**: once every visible product has at least one `ProductOffering` and no code references `Product.priceFromClp` outside the historical seed, a later cleanup change makes the column nullable and then removes it.
 
+## Dependencias con otros cambios OpenSpec
+
+Cinco cambios independientes, puramente documentales en esta pasada, se crearon junto con esta replanificación porque tocan áreas que Graphify identificó como relacionadas pero que no dependen estructuralmente de la taxonomía de categorías:
+
+- **`add-admin-brand-management`** — independiente de este cambio; se integra con `Product`/carrusel de inicio, no con `Category`/`ProductOffering`. Puede implementarse en cualquier momento.
+- **`improve-transactional-emails`** — la parte de plantillas cliente/negocio y horario comercial es independiente; la parte que muestra contexto de categoría/oferta en el correo **debe** esperar a que este cambio (`redesign-extensible-catalog-v2`) publique el snapshot final de `request-category-snapshot` con la taxonomía de dos categorías ya correcta — de lo contrario se documentaría/probaría contra un snapshot que va a cambiar de forma.
+- **`add-formal-admin-quotations`** — depende de `ProductOffering`/`Category` (Fases 1–3, ya implementadas) para sus líneas de detalle, pero explícitamente **no** debe depender de `Product.priceFromClp` como única fuente de precio (ver "Fase de compatibilidad de precios" arriba) — debe leer `ProductOffering.priceFromClp`, igual que el resto del catálogo público.
+- **`improve-visual-identity-and-content`** — independiente del catálogo salvo por la iconografía de `/cristales` (que si esta pasada define contenido nuevo de tipos/tratamientos, esa página necesitará iconos para las nuevas entradas — dependencia de contenido, no de código).
+- **`temporarily-disable-home-visit`** — completamente independiente de la taxonomía de categorías; prioritario porque afecta disponibilidad pública inmediata, no bloqueado por nada de este cambio.
+
+**Orden recomendado de ejecución** (detallado con el mismo criterio en cada cambio nuevo, ver sus propios `design.md`):
+1. `temporarily-disable-home-visit` (independiente, rápido, afecta disponibilidad pública ya).
+2. Corrección de taxonomía de `redesign-extensible-catalog-v2` (Fase 5-bis) — bloquea el resto de este cambio.
+3. `add-admin-brand-management` (independiente, puede ir en paralelo a 2).
+4. Resto de `redesign-extensible-catalog-v2` (imágenes de categoría, contenido de cristales, motor de compatibilidades, cotizador condicional, snapshot, filtros dinámicos, SEO, migración/backfill, cierre).
+5. `improve-transactional-emails` (la parte de contexto de categoría/oferta espera al punto 4; el resto puede ir en paralelo desde ahora).
+6. `add-formal-admin-quotations` (depende de que el modelo de `ProductOffering`/precio esté estable, ya lo está desde la Fase 3 — puede empezar en paralelo a 4).
+7. `improve-visual-identity-and-content` (puede ir en cualquier momento; conviene alinear su paso de iconografía de `/cristales` con el punto 4).
+
 ## Open Questions
 
-Only two questions remain genuinely open (all others from the prior draft — SUPERADMIN/ADMIN split, `configuration`'s shape, `Product.priceFromClp` deprecation path, and the `add-pepi-vision-360-v1` sequencing — are now closed decisions documented above):
+Cuestiones genuinamente abiertas (todas las demás del borrador previo — split SUPERADMIN/ADMIN, forma de `configuration`, ruta de baja de `Product.priceFromClp`, secuenciamiento con `add-pepi-vision-360-v1` — son decisiones cerradas ya documentadas arriba):
 
 - Exact copy for the new "¿Qué deseas cotizar?" first wizard step needs a business/marketing pass before implementation.
 - Should the legacy `/catalogo/[slug]` redirect be silent (308) or show a brief "este modelo ahora vive en..." interstitial? (This design assumes a silent permanent redirect.)
+- **(NUEVA)** ¿Puede un cliente cotizar únicamente el armazón sin cristales ópticos dentro de la categoría Lentes ópticos (equivalente al antiguo flujo "Armazones"), o el tipo de cristal es un paso obligatorio una vez elegida esa categoría? Ver "Contenido de cristales, tratamientos y opciones adicionales" — determina si `allowsLensType`/`allowsTreatments`/`allowsPrescription` deben poder omitirse dentro de Lentes ópticos.
+- **(NUEVA)** Para un producto ya ofertado tanto en `armazones` como en `lentes-opticos` antes de este remapeo (caso raro, creado manualmente por un admin durante las Fases 1–5) — ¿cuál oferta prevalece y cuál se desactiva? Ver "Migración de datos: dos categorías", paso 2 — este cambio documenta el caso pero no fija el criterio de desempate, que requiere revisión admin caso por caso.

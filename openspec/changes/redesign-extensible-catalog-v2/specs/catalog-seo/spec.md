@@ -11,8 +11,8 @@ Every `Category` page (`/catalogo/[categorySlug]`) SHALL render a title and meta
 Every `ProductOffering` detail page SHALL render a title and meta description specific to that offering's category context, so the same underlying `Product` appearing in two categories never produces identical `<title>`/description pairs.
 
 #### Scenario: The same product in two categories has two distinct titles
-- **WHEN** "Coral" is offered under both Armazones and Lentes ópticos with no custom `seoTitle` set on either offering
-- **THEN** the Armazones offering page's title SHALL include "Armazones" and the Lentes ópticos offering page's title SHALL include "Lentes ópticos", producing two distinct titles
+- **WHEN** "Coral" is offered under both Lentes ópticos and Lentes de sol with no custom `seoTitle` set on either offering
+- **THEN** the Lentes ópticos offering page's title SHALL include "Lentes ópticos" and the Lentes de sol offering page's title SHALL include "Lentes de sol", producing two distinct titles
 
 ### Requirement: Canonical URLs point to the category-scoped offering URL
 Every offering detail page SHALL declare a canonical URL equal to its own `/catalogo/[categorySlug]/[offeringSlug]` path — never the legacy `/catalogo/[slug]` path.

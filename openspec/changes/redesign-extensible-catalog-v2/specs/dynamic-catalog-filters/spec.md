@@ -4,8 +4,8 @@
 The public catalog SHALL support the existing common filters (brand, audience/gender, shape, material, color, availability, price range, text search) scoped to the currently selected category, validated with Zod exactly as today.
 
 #### Scenario: Common filters combine with the category scope
-- **WHEN** a visitor on `/catalogo/armazones` applies a brand filter and a price-range filter
-- **THEN** the result set SHALL only include Armazones offerings matching both filters — no offering from another category SHALL appear
+- **WHEN** a visitor on `/catalogo/lentes-opticos` applies a brand filter and a price-range filter
+- **THEN** the result set SHALL only include Lentes ópticos offerings matching both filters — no offering from another category SHALL appear
 
 ### Requirement: Category-defined attributes are administrable without migration
 The system SHALL allow a SUPERADMIN to define new filterable/displayable attributes for a category (`CategoryAttributeDefinition`: key, label, type, required, filterable, visibleInCard, visibleInDetail, options) without a database migration or code deployment.

@@ -43,6 +43,21 @@ The admin product-creation flow SHALL guide the admin through, in order: base mo
 - **WHEN** an admin creates a new product and saves the base model without enabling any category
 - **THEN** the product SHALL be persisted with its colors and photos, and SHALL simply not yet appear in any public catalog category until at least one offering is created
 
+### Requirement: Category images are administrable through an upload pipeline, not a raw path field
+`/admin/categories` SHALL let a SUPERADMIN upload, replace, and delete a public cover image for a `Category`, with real MIME validation and an optional WebP output, reusing the same public-bucket storage pattern already used for product photos.
+
+#### Scenario: Uploading a category image validates content, not just the declared type
+- **WHEN** a SUPERADMIN uploads a file for a category's cover image
+- **THEN** the system SHALL verify the file's actual content matches an accepted image type before storing it, rejecting a mismatched or oversized file rather than trusting the declared `Content-Type`
+
+#### Scenario: A category without an image shows a fallback, never a broken image
+- **WHEN** a category has no uploaded image
+- **THEN** the public catalog's category card SHALL render a placeholder rather than a broken `<img>` reference
+
+#### Scenario: Replacing or removing a category image is audit-logged
+- **WHEN** a SUPERADMIN replaces or removes a category's image
+- **THEN** the change SHALL be recorded as part of the existing `category.updated` audit action, with no separate action required
+
 ### Requirement: Category and offering mutations are audit-logged
 The system SHALL record an audit log entry for `category.created`, `category.updated`, `category.enabled`, `category.disabled`, `category.attributes_updated`, `offering.created`, `offering.updated`, `offering.enabled`, and `offering.disabled`, each with actor id, action, target type/id, and minimal metadata — never secrets, file contents, or full JSON blobs.
 

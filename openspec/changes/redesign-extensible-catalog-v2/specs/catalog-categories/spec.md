@@ -7,12 +7,16 @@ The system SHALL model commercial categories as rows in a `Category` table, neve
 - **WHEN** a SUPERADMIN creates a category named "Lentes deportivos" from `/admin/categories` using only existing capability flags and attribute types
 - **THEN** the category becomes usable across the public catalog, admin product form, and quote wizard without any Prisma schema migration, enum change, or code deployment
 
-### Requirement: Idempotent seed of the three initial categories
-The system SHALL seed exactly three initial categories — Armazones, Lentes ópticos, Lentes de sol ópticos — via an idempotent upsert-by-slug operation.
+### Requirement: Idempotent seed of the two definitive categories
+The system SHALL seed exactly two definitive categories — Lentes ópticos and Lentes de sol — via an idempotent upsert-by-slug operation. `Armazones` and `Lentes de sol ópticos` SHALL NOT be seeded categories: a physical frame is a `Product` selectable within Lentes ópticos, not its own category, and sun lenses (prescription and non-prescription) are unified under the single Lentes de sol category.
 
 #### Scenario: Seed runs twice without duplicating categories
-- **WHEN** the category seed script runs a second time against a database that already has the three initial categories
-- **THEN** the category count remains exactly three, and no existing category's `id` changes
+- **WHEN** the category seed script runs a second time against a database that already has the two definitive categories
+- **THEN** the category count remains exactly two, and no existing category's `id` changes
+
+#### Scenario: An installation migrating from the prior three-category taxonomy converges to two categories
+- **WHEN** a database already contains the prior `armazones` and `lentes-de-sol-opticos` categories from an earlier taxonomy
+- **THEN** the migration described in `catalog-data-migration` SHALL remap or rename those rows so that exactly Lentes ópticos and Lentes de sol remain, with no orphaned `ProductOffering` left referencing a removed category
 
 ### Requirement: Category capabilities are validated and typed
 Each `Category` SHALL declare its commercial capabilities (`requiresColor`, `allowsLensType`, `allowsTreatments`, `allowsPrescription`, `allowsPrescriptionAttachment`, `allowsLensTint`, `allowsFrameSelection`) as a JSON value validated against a fixed Zod schema, never as scattered conditionals keyed on category name or slug. `allowsPrescriptionAttachment` SHALL only have an observable effect when `allowsPrescription` is also `true`.

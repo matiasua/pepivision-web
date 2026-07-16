@@ -1,37 +1,44 @@
 ## ADDED Requirements
 
 ### Requirement: The quote wizard begins by selecting a category
-The quote flow SHALL first ask which category the customer wants to quote (e.g. Armazón, Lentes ópticos, Lentes de sol ópticos), sourced from active/visible `Category` rows, not a hardcoded list.
+The quote flow SHALL first ask which category the customer wants to quote (Lentes ópticos or Lentes de sol), sourced from active/visible `Category` rows, not a hardcoded list.
 
 #### Scenario: Category choice determines the rest of the flow
 - **WHEN** a customer selects "Lentes ópticos" as the first step
-- **THEN** the subsequent steps SHALL be exactly those enabled by that category's `capabilities`
+- **THEN** the subsequent steps SHALL be exactly those enabled by that category's `capabilities`, and the lens-type/treatment/additional-option choices offered SHALL be exactly that category's `quoteOptions` allowlist (see `lens-configuration`)
 
 ### Requirement: Wizard steps are derived from category capabilities, not duplicated per category
 The system SHALL implement a single, configuration-driven quote wizard component whose active steps are computed by filtering an ordered step list against the selected category's `capabilities` — it SHALL NOT implement separate wizard components per category.
 
-#### Scenario: Armazón flow shows only the applicable steps
-- **WHEN** a customer selects the Armazones category (`requiresColor: true`, `allowsFrameSelection: true`, all other capabilities `false`)
-- **THEN** the wizard SHALL show category → producto → color → contacto → resumen, and SHALL NOT show cristal, tratamientos, tinte, receta, or adjunto de receta steps
-
-#### Scenario: Lentes ópticos flow shows cristal, tratamientos, receta and the prescription attachment
+#### Scenario: Lentes ópticos flow shows cristal, tratamientos, opciones adicionales, receta and the prescription attachment
 - **WHEN** a customer selects the Lentes ópticos category (`requiresColor`, `allowsLensType`, `allowsTreatments`, `allowsPrescription`, `allowsPrescriptionAttachment`, `allowsFrameSelection` all `true`, `allowsLensTint: false`)
-- **THEN** the wizard SHALL show category → producto → color → tipo de cristal → tratamientos → receta → adjunto de receta → contacto → resumen, and SHALL NOT show a tinte step
+- **THEN** the wizard SHALL show categoría → producto → color → tipo de cristal → tratamientos → opciones adicionales → receta → adjunto de receta → contacto → resumen, and SHALL NOT show a tinte step
 
-#### Scenario: Lentes de sol ópticos flow additionally shows tinte
-- **WHEN** a customer selects the Lentes de sol ópticos category (all seven capabilities `true`)
-- **THEN** the wizard SHALL show category → producto → color → tipo de cristal → tinte → tratamientos → receta → adjunto de receta → contacto → resumen
+#### Scenario: Lentes de sol flow additionally shows tinte and sun-specific options
+- **WHEN** a customer selects the Lentes de sol category (all seven capabilities `true`)
+- **THEN** the wizard SHALL show categoría → producto → color → tipo de cristal → tinte → tratamientos → opciones adicionales → receta → adjunto de receta → contacto → resumen, and its lens-type step SHALL offer only Lentes de sol's allowed modalities (sin graduación, solar monofocal, solar progresivo) — never Lentes ópticos' Monofocal/Bifocal/Progresivo vocabulary
 
 #### Scenario: Prescription attachment step requires both its capabilities to be true
 - **WHEN** a category has `allowsPrescription: false` and `allowsPrescriptionAttachment: true`
 - **THEN** the wizard SHALL NOT show the prescription attachment step, since it is only active when both `allowsPrescription` and `allowsPrescriptionAttachment` are `true`
+
+### Requirement: Lens-type, treatment, and additional-option choices are scoped per category, not shown unconditionally
+Within the lens-type, treatments, and additional-options steps, the system SHALL only present the specific values allowed for the resolved category's `quoteOptions` (see `lens-configuration`) — never the full code-level catalog regardless of category.
+
+#### Scenario: A Lentes de sol-only option never appears for Lentes ópticos
+- **WHEN** a customer is in the Lentes ópticos flow
+- **THEN** sun-specific additional options (UV400, polarizado, degradado, espejado, solar graduado) SHALL NOT appear as selectable choices
+
+#### Scenario: The glass-type step uses the definitive terminology
+- **WHEN** the lens-type step is rendered for the Lentes ópticos category
+- **THEN** its options SHALL read "Monofocal", "Bifocal", and "Progresivo" — the value "Multifocal" SHALL NOT appear in any newly-rendered step or newly-persisted submission
 
 ### Requirement: Product/offering selection resolves from an active, visible offering in the chosen category
 When a customer selects a specific model, the system SHALL only offer `ProductOffering`s that are `active`, `visible`, and belong to the selected category.
 
 #### Scenario: An offering from a different category is not selectable
 - **WHEN** the wizard is scoped to the Lentes ópticos category
-- **THEN** offerings that exist only under Armazones SHALL NOT appear in the product selector
+- **THEN** offerings that exist only under Lentes de sol SHALL NOT appear in the product selector
 
 ### Requirement: The server re-resolves category, offering, product, brand, and color — never trusts the client
 Upon submission, the system SHALL re-resolve `categoryId → Category`, `offeringId → ProductOffering` (verified to belong to that category), `offering.productId → Product`, and `colorId → ProductColor` (verified to belong to that product) directly from PostgreSQL, ignoring any client-sent name, price, or capability claim.
@@ -47,6 +54,10 @@ Upon submission, the system SHALL re-resolve `categoryId → Category`, `offerin
 #### Scenario: A capability the category does not grant is never persisted or emailed
 - **WHEN** a submission includes prescription/treatment/tint data for a category whose `capabilities` do not permit that field
 - **THEN** the system SHALL ignore that field entirely rather than persisting or emailing it
+
+#### Scenario: A lens-type/treatment/option value outside the category's compatibility allowlist is rejected
+- **WHEN** a submission's `glassType`, a `treatments` entry, or an `additionalOptions` entry is not present in the resolved category's `quoteOptions` allowlist (see `lens-configuration`), even though the field itself is capability-enabled
+- **THEN** the system SHALL reject the submission with a validation error rather than persisting or emailing the out-of-allowlist value
 
 ### Requirement: Invalid or incomplete configuration is rejected before persistence
 A submission missing a required field for the resolved category's capabilities (e.g. no color chosen when `requiresColor` is true) SHALL be rejected before any database write.

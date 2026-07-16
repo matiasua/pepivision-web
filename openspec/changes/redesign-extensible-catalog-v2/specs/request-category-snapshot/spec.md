@@ -4,8 +4,8 @@
 Every quote `Request` SHALL store, inside its existing `details` JSON field, the resolved `categoryId`, `categoryName`, `categorySlug`, `offeringId`, `productId`, `productName`, `productCode`, `brandId`, `brandName`, `productColorId`, `productColorName`, `priceFromSnapshot`, plus the applicable configuration (glass type, treatments, tint, prescription information) — all resolved from PostgreSQL, never taken verbatim from client input.
 
 #### Scenario: A quote submission stores the full snapshot
-- **WHEN** a customer submits a quote for a Lentes de sol ópticos offering with a chosen color, glass type, treatments, and tint
-- **THEN** the resulting `Request.details` SHALL contain all of categoryId/categoryName/categorySlug/offeringId/productId/productName/productCode/brandId/brandName/productColorId/productColorName/priceFromSnapshot alongside the glass type, treatments, and tint
+- **WHEN** a customer submits a quote for a Lentes de sol offering with a chosen color, glass type, treatments, and tint
+- **THEN** the resulting `Request.details` SHALL contain all of categoryId/categoryName/categorySlug/offeringId/productId/productName/productCode/brandId/brandName/productColorId/productColorName/priceFromSnapshot alongside the glass type, treatments, and tint, using the definitive lens-configuration vocabulary (e.g. "Progresivo", never "Multifocal", for new submissions)
 
 ### Requirement: The stored snapshot is immutable against later catalog edits
 Once a `Request.details` snapshot is persisted, it SHALL NOT change when the referenced category, offering, product, or price is later edited, disabled, or deleted.
@@ -33,7 +33,7 @@ The customer confirmation and business notification email templates SHALL includ
 The WhatsApp deep-link message generated after a quote submission SHALL reference the category and offering/model chosen, consistent with the stored snapshot.
 
 #### Scenario: WhatsApp message reflects the chosen category
-- **WHEN** a customer completes a Lentes de sol ópticos quote for a specific model and color
+- **WHEN** a customer completes a Lentes de sol quote for a specific model and color
 - **THEN** the generated WhatsApp message text SHALL mention the category, model, and color
 
 ### Requirement: Admin request inbox can filter by category
