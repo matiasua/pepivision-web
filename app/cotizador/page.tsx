@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Container } from '@/components/Container';
 import { QuoteWizard } from '@/components/quote/QuoteWizard';
-import { getCatalog } from '@/modules/catalog/service';
+import { getQuoteFrameOptions } from '@/modules/requests/service';
 
 export const metadata: Metadata = {
   title: 'Cotizador de lentes',
@@ -19,14 +19,7 @@ export default async function CotizadorPage({
   searchParams: Promise<{ productId?: string }>;
 }) {
   const { productId } = await searchParams;
-  const products = await getCatalog({ availableOnly: false });
-  const frameOptions = products.map((product) => ({
-    id: product.id,
-    label: product.brandName
-      ? `${product.brandName} — ${product.name} · ${product.code} · ${product.priceLabel}`
-      : `${product.name} · ${product.code} · ${product.priceLabel}`,
-    colors: product.colors,
-  }));
+  const frameOptions = await getQuoteFrameOptions();
 
   // "Cotizar este modelo" on a product page links here with ?productId=…
   // Ignore it if it doesn't match a real, currently-listed product instead

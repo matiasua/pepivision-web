@@ -1,6 +1,11 @@
+import { Prisma, type Gender, type ProductShape } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+import type { CatalogFilters } from './schemas';
 
 const IMAGES_ORDERED = { orderBy: { sortOrder: 'asc' as const } };
+const OFFERING_INCLUDE_PRODUCT = {
+  product: { include: { colors: true, images: IMAGES_ORDERED, brand: true } },
+} as const;
 
 export function findOfferingById(id: string) {
   return prisma.productOffering.findUnique({ where: { id } });
@@ -39,9 +44,161 @@ export function listPublicOfferingsForCategory(categoryId: string) {
       deletedAt: null,
       category: { active: true, visible: true },
     },
-    include: { product: { include: { colors: true, images: IMAGES_ORDERED, brand: true } } },
+    include: OFFERING_INCLUDE_PRODUCT,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   });
+}
+
+const PRICE_BUCKET_RANGES: Record<string, Prisma.IntFilter> = {
+  low: { lt: 35000 },
+  mid: { gte: 35000, lte: 42000 },
+  high: { gt: 42000 },
+};
+
+/**
+ * Filtros comunes (5.1) reusados tal cual desde modules/catalog/schemas.ts,
+ * acotados a la categoría de la ruta — sin scoping por categoría propio ni
+ * filtros dinámicos (CategoryAttributeDefinition): eso queda deliberadamente
+ * para la Fase 6 (tasks.md 6.1-6.6), ver design.md.
+ */
+function buildPublicOfferingWhere(categoryId: string, filters: CatalogFilters): Prisma.ProductOfferingWhereInput {
+  const productWhere: Prisma.ProductWhereInput = { visible: true };
+  if (filters.gender) productWhere.gender = filters.gender;
+  if (filters.shape) productWhere.shape = filters.shape;
+  if (filters.material) productWhere.material = filters.material;
+  if (filters.availableOnly) productWhere.available = true;
+  if (filters.color) productWhere.colors = { some: { name: filters.color } };
+  if (filters.brand) productWhere.brand = { slug: filters.brand, active: true };
+  if (filters.q) {
+    productWhere.OR = [
+      { name: { contains: filters.q, mode: 'insensitive' } },
+      { code: { contains: filters.q, mode: 'insensitive' } },
+    ];
+  }
+
+  const where: Prisma.ProductOfferingWhereInput = {
+    categoryId,
+    active: true,
+    visible: true,
+    deletedAt: null,
+    category: { active: true, visible: true },
+    product: productWhere,
+  };
+  // El precio filtrable es el de la oferta (ProductOffering.priceFromClp),
+  // nunca Product.priceFromClp — ver design.md → "Fase de compatibilidad de precios".
+  if (filters.price) where.priceFromClp = PRICE_BUCKET_RANGES[filters.price];
+  return where;
+}
+
+export function listPublicOfferingsForCategoryFiltered(categoryId: string, filters: CatalogFilters) {
+  return prisma.productOffering.findMany({
+    where: buildPublicOfferingWhere(categoryId, filters),
+    include: OFFERING_INCLUDE_PRODUCT,
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  });
+}
+
+/** Opciones de marca para el filtro de `/catalogo/[categorySlug]` — solo marcas con al menos una oferta pública en esa categoría. */
+export function listBrandsWithPublicOfferingsInCategory(categoryId: string) {
+  return prisma.brand.findMany({
+    where: {
+      active: true,
+      products: {
+        some: {
+          visible: true,
+          offerings: { some: { categoryId, active: true, visible: true, deletedAt: null } },
+        },
+      },
+    },
+    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+  });
+}
+
+/** Para `/catalogo/[categorySlug]/[offeringSlug]` — `slug` es único por categoría, no global, ver ProductOffering.slug. */
+export function findPublicOfferingByCategoryAndSlug(categorySlug: string, offeringSlug: string) {
+  return prisma.productOffering.findFirst({
+    where: {
+      slug: offeringSlug,
+      active: true,
+      visible: true,
+      deletedAt: null,
+      category: { slug: categorySlug, active: true, visible: true },
+      product: { visible: true },
+    },
+    include: { ...OFFERING_INCLUDE_PRODUCT, category: true },
+  });
+}
+
+/** "También disponible como" (5.5) — otras ofertas públicas del mismo producto, en otras categorías. */
+export function listOtherPublicOfferingsForProduct(productId: string, excludeOfferingId: string) {
+  return prisma.productOffering.findMany({
+    where: {
+      productId,
+      id: { not: excludeOfferingId },
+      active: true,
+      visible: true,
+      deletedAt: null,
+      category: { active: true, visible: true },
+    },
+    include: { category: true },
+    orderBy: { category: { sortOrder: 'asc' } },
+  });
+}
+
+/** "Productos relacionados" dentro de la misma categoría (mismo género o forma), para la ficha de oferta. */
+export function listRelatedPublicOfferings(offering: {
+  id: string;
+  categoryId: string;
+  product: { gender: Gender; shape: ProductShape };
+}) {
+  return prisma.productOffering.findMany({
+    where: {
+      id: { not: offering.id },
+      categoryId: offering.categoryId,
+      active: true,
+      visible: true,
+      deletedAt: null,
+      category: { active: true, visible: true },
+      product: {
+        visible: true,
+        OR: [{ gender: offering.product.gender }, { shape: offering.product.shape }],
+      },
+    },
+    include: OFFERING_INCLUDE_PRODUCT,
+    orderBy: { createdAt: 'asc' },
+    take: 3,
+  });
+}
+
+/**
+ * Capa de compatibilidad (5.3): resuelve la oferta "por defecto" de un
+ * producto por su slug legado, para el redirect 308 desde
+ * `/catalogo/[slug]`. Prioriza la oferta de la categoría "armazones" (si es
+ * pública); si no existe, la primera oferta pública por `sortOrder`. `null`
+ * si el producto no existe, no es visible, o no tiene ninguna oferta
+ * pública — mismo caso que hoy resulta en 404.
+ */
+export async function findDefaultPublicOfferingForProductSlug(
+  productSlug: string
+): Promise<{ categorySlug: string; offeringSlug: string } | null> {
+  const product = await prisma.product.findFirst({ where: { slug: productSlug, visible: true }, select: { id: true } });
+  if (!product) return null;
+
+  const offerings = await prisma.productOffering.findMany({
+    where: {
+      productId: product.id,
+      active: true,
+      visible: true,
+      deletedAt: null,
+      category: { active: true, visible: true },
+    },
+    include: { category: { select: { slug: true } } },
+    orderBy: { sortOrder: 'asc' },
+  });
+  if (offerings.length === 0) return null;
+
+  const defaultOffering = offerings.find((o) => o.category.slug === 'armazones') ?? offerings[0];
+  return { categorySlug: defaultOffering.category.slug, offeringSlug: defaultOffering.slug };
 }
 
 interface OfferingRowInput {

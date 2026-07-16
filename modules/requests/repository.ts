@@ -48,6 +48,29 @@ export function findProductById(id: string) {
   });
 }
 
+/**
+ * Selector de armazón del paso 1 del cotizador (`/cotizador`) — lista
+ * `Product` directamente, no acotado por categoría/oferta: a diferencia del
+ * catálogo público (`modules/catalog/*`), este flujo sigue leyendo
+ * `Product.priceFromClp` a propósito. Ver design.md → "Fase de
+ * compatibilidad de precios": la migración de este precio de referencia es
+ * responsabilidad de las tareas 7.4/8.1, no de la 5.1.
+ */
+export function listAvailableFrameProducts() {
+  return prisma.product.findMany({
+    where: { visible: true },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      priceFromClp: true,
+      colors: { select: { id: true, name: true, hex: true } },
+      brand: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
 /** Case-insensitive lookup against the active comuna list (home-visit-coverage). */
 export function findActiveComunaByName(name: string) {
   return prisma.enabledComuna.findFirst({

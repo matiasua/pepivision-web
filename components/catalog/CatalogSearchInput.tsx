@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { buildFilterHref } from '@/modules/catalog/filter-url';
 
-export function CatalogSearchInput() {
+export function CatalogSearchInput({ basePath }: { basePath: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const urlQuery = searchParams.get('q') ?? '';
@@ -24,7 +24,7 @@ export function CatalogSearchInput() {
     setValue(next);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      router.push(buildFilterHref(searchParams, 'q', next.trim() || null));
+      router.push(buildFilterHref(basePath, searchParams, 'q', next.trim() || null));
     }, 300);
   }
 

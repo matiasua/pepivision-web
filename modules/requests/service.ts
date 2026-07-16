@@ -5,6 +5,7 @@ import { computeRetentionExpiresAt } from '@/lib/retention';
 import { isHoneypotTriggered } from '@/lib/honeypot';
 import { buildWhatsAppLink } from '@/lib/whatsapp';
 import { sanitizeAttachmentFileName, verifyAttachmentContent } from '@/lib/attachment-processing';
+import { formatClp } from '@/modules/catalog/labels';
 import { attachmentFileMetaSchema } from '@/modules/storage/schemas';
 import { buildAttachmentStorageKey, deletePrivateObject, uploadPrivateObject } from '@/modules/storage/private-service';
 import { getEffectiveBusinessSettings } from '@/modules/business-settings/service';
@@ -15,8 +16,26 @@ import {
   quoteBusinessNotification,
   quoteCustomerConfirmation,
 } from '@/modules/notifications/templates';
-import { createRequest, findActiveComunaByName, findProductById } from './repository';
+import { createRequest, findActiveComunaByName, findProductById, listAvailableFrameProducts } from './repository';
 import type { HomeVisitRequestInput, QuoteRequestInput } from './schemas';
+
+export interface QuoteFrameOption {
+  id: string;
+  label: string;
+  colors: { id: string; name: string; hex: string }[];
+}
+
+/** Opciones de armazón para el paso 1 del cotizador — ver el comentario de listAvailableFrameProducts en repository.ts. */
+export async function getQuoteFrameOptions(): Promise<QuoteFrameOption[]> {
+  const products = await listAvailableFrameProducts();
+  return products.map((product) => ({
+    id: product.id,
+    label: product.brand?.name
+      ? `${product.brand.name} — ${product.name} · ${product.code} · Desde ${formatClp(product.priceFromClp)}`
+      : `${product.name} · ${product.code} · Desde ${formatClp(product.priceFromClp)}`,
+    colors: product.colors,
+  }));
+}
 
 export interface PrescriptionFileInput {
   buffer: Buffer;

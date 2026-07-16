@@ -37,43 +37,45 @@ describe('modules/catalog/schemas', () => {
 });
 
 describe('modules/catalog/filter-url', () => {
+  const basePath = '/catalogo/armazones';
+
   it('adds a new param while preserving existing ones', () => {
-    const href = buildFilterHref(new URLSearchParams('gender=MUJER'), 'shape', 'REDONDO');
-    expect(href).toBe('/catalogo?gender=MUJER&shape=REDONDO');
+    const href = buildFilterHref(basePath, new URLSearchParams('gender=MUJER'), 'shape', 'REDONDO');
+    expect(href).toBe('/catalogo/armazones?gender=MUJER&shape=REDONDO');
   });
 
   it('removes a param when value is null', () => {
-    const href = buildFilterHref(new URLSearchParams('gender=MUJER&shape=REDONDO'), 'gender', null);
-    expect(href).toBe('/catalogo?shape=REDONDO');
+    const href = buildFilterHref(basePath, new URLSearchParams('gender=MUJER&shape=REDONDO'), 'gender', null);
+    expect(href).toBe('/catalogo/armazones?shape=REDONDO');
   });
 
   it('returns the bare route when no params remain', () => {
-    const href = buildFilterHref(new URLSearchParams('gender=MUJER'), 'gender', null);
-    expect(href).toBe('/catalogo');
+    const href = buildFilterHref(basePath, new URLSearchParams('gender=MUJER'), 'gender', null);
+    expect(href).toBe('/catalogo/armazones');
   });
 
   it('toggle clears the value when it is already active', () => {
-    const href = buildToggleHref(new URLSearchParams('color=Fucsia'), 'color', 'Fucsia');
-    expect(href).toBe('/catalogo');
+    const href = buildToggleHref(basePath, new URLSearchParams('color=Fucsia'), 'color', 'Fucsia');
+    expect(href).toBe('/catalogo/armazones');
   });
 
   it('toggle sets the value when a different one is active', () => {
-    const href = buildToggleHref(new URLSearchParams('color=Fucsia'), 'color', 'Negro');
-    expect(href).toBe('/catalogo?color=Negro');
+    const href = buildToggleHref(basePath, new URLSearchParams('color=Fucsia'), 'color', 'Negro');
+    expect(href).toBe('/catalogo/armazones?color=Negro');
   });
 
   it('sets the brand filter by slug and persists it across other filter changes', () => {
-    const withBrand = buildFilterHref(new URLSearchParams('gender=MUJER'), 'brand', 'vespa');
-    expect(withBrand).toBe('/catalogo?gender=MUJER&brand=vespa');
+    const withBrand = buildFilterHref(basePath, new URLSearchParams('gender=MUJER'), 'brand', 'vespa');
+    expect(withBrand).toBe('/catalogo/armazones?gender=MUJER&brand=vespa');
 
-    const thenShape = buildFilterHref(new URLSearchParams(withBrand.split('?')[1]), 'shape', 'REDONDO');
-    expect(thenShape).toBe('/catalogo?gender=MUJER&brand=vespa&shape=REDONDO');
+    const thenShape = buildFilterHref(basePath, new URLSearchParams(withBrand.split('?')[1]), 'shape', 'REDONDO');
+    expect(thenShape).toBe('/catalogo/armazones?gender=MUJER&brand=vespa&shape=REDONDO');
   });
 
   it('clearing all filters (each set to null) also drops the brand filter', () => {
     let params = new URLSearchParams('gender=MUJER&brand=vespa');
     for (const key of ['gender', 'brand']) {
-      params = new URLSearchParams(buildFilterHref(params, key, null).split('?')[1] ?? '');
+      params = new URLSearchParams(buildFilterHref(basePath, params, key, null).split('?')[1] ?? '');
     }
     expect(params.toString()).toBe('');
   });

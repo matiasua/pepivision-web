@@ -2,19 +2,26 @@ import { test, expect } from '@playwright/test';
 import { prisma } from '../../lib/prisma';
 import { E2E_CATALOG_PRODUCT_SLUG } from '../fixtures/test-data';
 
-// Flujos 4-10: catálogo, búsqueda/filtro, filtro por marca, ficha de
-// producto, galería (cambiar foto), lightbox, selección de color.
+// Flujos 4-10: selector de categorías, listado + filtros de una categoría,
+// búsqueda/filtro, filtro por marca, ficha de oferta, galería (cambiar
+// foto), lightbox, selección de color.
 test.describe('Sitio público — catálogo y ficha de producto', () => {
-  test('abre el catálogo', async ({ page }) => {
+  test('abre el selector de categorías', async ({ page }) => {
     await page.goto('/catalogo');
-    await expect(page.getByRole('heading', { name: 'Catálogo de armazones' })).toBeVisible();
-    // At least the dev seed's products should render.
-    await expect(page.getByRole('link', { name: 'Ver detalles' }).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Catálogo', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Armazones' })).toBeVisible();
+  });
+
+  test('abre el catálogo de una categoría', async ({ page }) => {
+    await page.goto('/catalogo/armazones');
+    await expect(page.getByRole('heading', { name: 'Armazones' })).toBeVisible();
+    // El fixture E2E siempre tiene una oferta pública en Armazones.
+    await expect(page.getByRole('link', { name: 'Ver armazón' }).first()).toBeVisible();
   });
 
   test('busca por nombre y filtra por género', async ({ page }) => {
-    await page.goto('/catalogo');
-    const initialCount = await page.getByRole('link', { name: 'Ver detalles' }).count();
+    await page.goto('/catalogo/armazones');
+    const initialCount = await page.getByRole('link', { name: 'Ver armazón' }).count();
     expect(initialCount).toBeGreaterThan(0);
 
     await page.getByLabel('Buscar armazón').fill('zzz-no-existe-zzz');
@@ -27,12 +34,12 @@ test.describe('Sitio público — catálogo y ficha de producto', () => {
     // Gender filter chip narrows the result set (or at minimum doesn't error).
     await page.getByRole('link', { name: 'Mujer', exact: true }).click();
     await page.waitForURL(/gender=MUJER/);
-    await expect(page.getByRole('heading', { name: 'Catálogo de armazones' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Armazones' })).toBeVisible();
   });
 
   test('filtra por marca', async ({ page }) => {
-    await page.goto('/catalogo');
-    const brandLinks = page.locator('a[href*="/catalogo?brand="], a[href*="&brand="]');
+    await page.goto('/catalogo/armazones');
+    const brandLinks = page.locator('a[href*="/catalogo/armazones?brand="], a[href*="&brand="]');
     const brandCount = await brandLinks.count();
     test.skip(brandCount === 0, 'No hay chips de marca visibles en este viewport/estado.');
 
@@ -40,19 +47,20 @@ test.describe('Sitio público — catálogo y ficha de producto', () => {
     await page.waitForURL(/brand=/);
   });
 
-  test('abre una ficha de producto desde el catálogo', async ({ page }) => {
-    await page.goto('/catalogo');
-    await page.getByRole('link', { name: 'Ver detalles' }).first().click();
-    await expect(page.getByRole('link', { name: 'Volver al catálogo' })).toBeVisible();
+  test('abre una ficha de oferta desde el catálogo', async ({ page }) => {
+    await page.goto('/catalogo/armazones');
+    await page.getByRole('link', { name: 'Ver armazón' }).first().click();
+    await expect(page.getByRole('link', { name: /Volver a/ })).toBeVisible();
     await expect(page.locator('h1')).toBeVisible();
   });
 
   test('cambia de fotografía en la galería, y abre/cierra el lightbox', async ({ page }) => {
     // Targets the dedicated E2E fixture product (e2e/global-setup.ts) —
-    // guaranteed to have exactly two real, physically-uploaded photos,
-    // rather than "whichever seeded product happens to have one" (not
-    // guaranteed to exist at all on a freshly-migrated CI database, which
-    // has no photos until an admin uploads one).
+    // guaranteed to have exactly two real, physically-uploaded photos and a
+    // public offering in "armazones", rather than "whichever seeded product
+    // happens to have one" (not guaranteed to exist at all on a
+    // freshly-migrated CI database, which has no photos until an admin
+    // uploads one, nor any offering until the Fase 10 backfill runs).
     //
     // The fixture's photos are real MinIO objects at OBJECT_STORAGE_PUBLIC_URL
     // (http://localhost:9000) — correct for a real end-user's browser, but
@@ -68,7 +76,7 @@ test.describe('Sitio público — catálogo y ficha de producto', () => {
       await route.fulfill({ response });
     });
 
-    await page.goto(`/catalogo/${E2E_CATALOG_PRODUCT_SLUG}`);
+    await page.goto(`/catalogo/armazones/${E2E_CATALOG_PRODUCT_SLUG}`);
 
     // 1-2: la ficha del producto fixture abre y su portada está visible.
     const coverButton = page.getByRole('button', { name: /Ver en grande/ });
@@ -115,6 +123,9 @@ test.describe('Sitio público — catálogo y ficha de producto', () => {
       select: { slug: true },
     });
     test.skip(!withColorPhotos, 'Ningún producto sembrado tiene fotografías asociadas a color.');
+    // Puede ser la URL legada (sin categoría) — la capa de compatibilidad
+    // (5.3) la redirige 308 a la ficha por categoría; page.goto sigue el
+    // redirect de forma transparente, igual que un navegador real.
     await page.goto(`/catalogo/${withColorPhotos!.slug}`);
 
     const hasColorFilter = await page.getByText('Ver fotografías por color').count();
@@ -123,6 +134,72 @@ test.describe('Sitio público — catálogo y ficha de producto', () => {
     const colorChip = page.getByText('Ver fotografías por color').locator('..').getByRole('button').first();
     await colorChip.click();
     await expect(colorChip).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+// 5.6: capa de compatibilidad — redirect permanente y 404 preservado.
+test.describe('Catálogo — capa de compatibilidad de URLs legadas', () => {
+  test('una URL de producto antigua redirige permanentemente a su categoría', async ({ page }) => {
+    await page.goto(`/catalogo/${E2E_CATALOG_PRODUCT_SLUG}`);
+    await expect(page).toHaveURL(new RegExp(`/catalogo/armazones/${E2E_CATALOG_PRODUCT_SLUG}$`));
+    await expect(page.locator('h1')).toBeVisible();
+  });
+
+  test('un producto sin ninguna oferta pública sigue devolviendo 404', async ({ page }) => {
+    const productWithoutOffering = await prisma.product.findFirst({
+      where: { visible: true, slug: { not: E2E_CATALOG_PRODUCT_SLUG }, offerings: { none: {} } },
+      select: { slug: true },
+    });
+    test.skip(!productWithoutOffering, 'No hay productos sembrados sin ofertas para probar este caso.');
+
+    const response = await page.goto(`/catalogo/${productWithoutOffering!.slug}`);
+    expect(response?.status()).toBe(404);
+  });
+
+  test('una categoría desconocida devuelve 404', async ({ page }) => {
+    const response = await page.goto('/catalogo/categoria-que-no-existe-zzz');
+    expect(response?.status()).toBe(404);
+  });
+});
+
+// 5.7: navegación responsive y estado vacío por categoría.
+test.describe('Catálogo — responsive y estado vacío', () => {
+  test('desktop: los filtros se muestran directamente, sin botón "Filtros"', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.goto('/catalogo/armazones');
+    await expect(page.getByRole('heading', { name: 'Filtros' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Filtros' })).toHaveCount(0);
+  });
+
+  test('tablet: la categoría sigue siendo navegable', async ({ page }) => {
+    await page.setViewportSize({ width: 834, height: 1194 });
+    await page.goto('/catalogo/armazones');
+    await expect(page.getByRole('heading', { name: 'Armazones' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Ver armazón' }).first()).toBeVisible();
+  });
+
+  test('mobile: el botón "Filtros" abre un panel modal y se puede cerrar', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/catalogo/armazones');
+
+    const openButton = page.getByRole('button', { name: 'Filtros' });
+    await expect(openButton).toBeVisible();
+    await openButton.click();
+
+    const dialog = page.getByRole('dialog', { name: 'Filtros del catálogo' });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Filtros' })).toBeVisible();
+
+    await dialog.getByRole('button', { name: 'Cerrar filtros' }).click();
+    await expect(dialog).not.toBeVisible();
+  });
+
+  test('estado vacío al filtrar sin resultados dentro de una categoría', async ({ page }) => {
+    await page.goto('/catalogo/armazones');
+    await page.getByLabel('Buscar armazón').fill('zzz-no-existe-zzz');
+    await page.waitForURL(/q=zzz-no-existe-zzz/);
+    await expect(page.getByText('Sin resultados')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Limpiar filtros' })).toBeVisible();
   });
 });
 

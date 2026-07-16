@@ -28,7 +28,13 @@ function chipClass(active: boolean) {
   }`;
 }
 
-export function CatalogFilters({ brands }: { brands: { slug: string; name: string }[] }) {
+export function CatalogFilters({
+  basePath,
+  brands,
+}: {
+  basePath: string;
+  brands: { slug: string; name: string }[];
+}) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -87,18 +93,18 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
   const availableOnly = searchParams.get('availableOnly') === '1';
 
   function onPriceChange(value: string) {
-    router.push(buildFilterHref(searchParams, 'price', value === 'Todos' ? null : value));
+    router.push(buildFilterHref(basePath, searchParams, 'price', value === 'Todos' ? null : value));
   }
 
   function onAvailableChange(checked: boolean) {
-    router.push(buildFilterHref(searchParams, 'availableOnly', checked ? '1' : null));
+    router.push(buildFilterHref(basePath, searchParams, 'availableOnly', checked ? '1' : null));
   }
 
   const panel = (
     <div className="rounded-card border border-line bg-white p-5.5 shadow-brand-sm">
       <div className="mb-1.5 flex items-center justify-between">
         <h3 className="text-[17px] font-semibold">Filtros</h3>
-        <Link href="/catalogo" className="text-[12.5px] font-semibold text-fucsia">
+        <Link href={basePath} className="text-[12.5px] font-semibold text-fucsia">
           Limpiar
         </Link>
       </div>
@@ -107,13 +113,17 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
         <div className="mt-4">
           <div className="mb-2.5 text-[13px] font-semibold text-navy">Marca</div>
           <div className="flex flex-wrap gap-1.5">
-            <Link href={buildFilterHref(searchParams, 'brand', null)} aria-current={!brand} className={chipClass(!brand)}>
+            <Link
+              href={buildFilterHref(basePath, searchParams, 'brand', null)}
+              aria-current={!brand}
+              className={chipClass(!brand)}
+            >
               Todas
             </Link>
             {brands.map((option) => (
               <Link
                 key={option.slug}
-                href={buildToggleHref(searchParams, 'brand', option.slug)}
+                href={buildToggleHref(basePath, searchParams, 'brand', option.slug)}
                 aria-current={brand === option.slug}
                 className={chipClass(brand === option.slug)}
               >
@@ -127,13 +137,17 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
       <div className="mt-4">
         <div className="mb-2.5 text-[13px] font-semibold text-navy">Público</div>
         <div className="flex flex-wrap gap-1.5">
-          <Link href={buildFilterHref(searchParams, 'gender', null)} aria-current={!gender} className={chipClass(!gender)}>
+          <Link
+            href={buildFilterHref(basePath, searchParams, 'gender', null)}
+            aria-current={!gender}
+            className={chipClass(!gender)}
+          >
             Todos
           </Link>
           {GENDER_OPTIONS.map((option) => (
             <Link
               key={option}
-              href={buildFilterHref(searchParams, 'gender', option)}
+              href={buildFilterHref(basePath, searchParams, 'gender', option)}
               aria-current={gender === option}
               className={chipClass(gender === option)}
             >
@@ -146,13 +160,17 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
       <div className="mt-4.5">
         <div className="mb-2.5 text-[13px] font-semibold text-navy">Forma</div>
         <div className="flex flex-wrap gap-1.5">
-          <Link href={buildFilterHref(searchParams, 'shape', null)} aria-current={!shape} className={chipClass(!shape)}>
+          <Link
+            href={buildFilterHref(basePath, searchParams, 'shape', null)}
+            aria-current={!shape}
+            className={chipClass(!shape)}
+          >
             Todas
           </Link>
           {SHAPE_OPTIONS.map((option) => (
             <Link
               key={option}
-              href={buildFilterHref(searchParams, 'shape', option)}
+              href={buildFilterHref(basePath, searchParams, 'shape', option)}
               aria-current={shape === option}
               className={chipClass(shape === option)}
             >
@@ -165,13 +183,17 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
       <div className="mt-4.5">
         <div className="mb-2.5 text-[13px] font-semibold text-navy">Material</div>
         <div className="flex flex-wrap gap-1.5">
-          <Link href={buildFilterHref(searchParams, 'material', null)} aria-current={!material} className={chipClass(!material)}>
+          <Link
+            href={buildFilterHref(basePath, searchParams, 'material', null)}
+            aria-current={!material}
+            className={chipClass(!material)}
+          >
             Todos
           </Link>
           {MATERIAL_OPTIONS.map((option) => (
             <Link
               key={option}
-              href={buildFilterHref(searchParams, 'material', option)}
+              href={buildFilterHref(basePath, searchParams, 'material', option)}
               aria-current={material === option}
               className={chipClass(material === option)}
             >
@@ -187,7 +209,7 @@ export function CatalogFilters({ brands }: { brands: { slug: string; name: strin
           {Object.entries(COLOR_SWATCHES).map(([name, hex]) => (
             <Link
               key={name}
-              href={buildToggleHref(searchParams, 'color', name)}
+              href={buildToggleHref(basePath, searchParams, 'color', name)}
               aria-label={name}
               aria-current={color === name}
               title={name}

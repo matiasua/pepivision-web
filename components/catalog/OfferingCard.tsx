@@ -1,37 +1,39 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { WhatsAppIcon } from '@/components/icons';
-import type { CatalogProductView } from '@/modules/catalog/service';
+import type { OfferingCardView } from '@/modules/catalog/service';
 import { ImagePlaceholder } from './ImagePlaceholder';
 
 // `unoptimized`: see the comment on ProductGallery — next/image's optimizer
 // can't fetch from MinIO's private-network address in this environment.
-export function ProductCard({ product }: { product: CatalogProductView }) {
+export function OfferingCard({ offering }: { offering: OfferingCardView }) {
+  const href = `/catalogo/${offering.categorySlug}/${offering.offeringSlug}`;
+
   return (
     <div className="flex flex-col overflow-hidden rounded-card border border-line bg-white shadow-brand-sm transition-transform duration-200 hover:-translate-y-1">
-      <Link href={`/catalogo/${product.slug}`} className="relative block aspect-[4/3] bg-gray">
-        {product.coverImageUrl ? (
-          <Image src={product.coverImageUrl} alt={product.name} fill className="object-cover" unoptimized />
+      <Link href={href} className="relative block aspect-[4/3] bg-gray">
+        {offering.coverImageUrl ? (
+          <Image src={offering.coverImageUrl} alt={offering.name} fill className="object-cover" unoptimized />
         ) : (
           <ImagePlaceholder label="Foto armazón" />
         )}
-        {product.badgeLabel ? (
+        {offering.badgeLabel ? (
           <span className="absolute left-3 top-3 rounded-pill bg-navy px-2.5 py-1 text-[11.5px] font-semibold text-white">
-            {product.badgeLabel}
+            {offering.badgeLabel}
           </span>
         ) : null}
       </Link>
       <div className="flex flex-1 flex-col p-4">
-        {product.brandName ? (
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-[#5b6b85]">{product.brandName}</div>
+        {offering.brandName ? (
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-[#5b6b85]">{offering.brandName}</div>
         ) : null}
-        <div className="font-display text-[16.5px] font-semibold text-navy">{product.name}</div>
+        <div className="font-display text-[16.5px] font-semibold text-navy">{offering.name}</div>
         <div className="mt-0.5 text-xs text-[#5b6b85]">
-          {product.code} · {product.shapeLabel} · {product.materialLabel}
+          {offering.code} · {offering.shapeLabel} · {offering.materialLabel}
         </div>
-        {product.colors.length > 0 ? (
+        {offering.colors.length > 0 ? (
           <div className="mt-2.5 flex gap-1.5">
-            {product.colors.map((color) => (
+            {offering.colors.map((color) => (
               <span
                 key={color.id}
                 role="img"
@@ -44,20 +46,20 @@ export function ProductCard({ product }: { product: CatalogProductView }) {
           </div>
         ) : null}
         <div className="mt-3.5 flex items-center justify-between">
-          <div className="font-display text-[19px] font-bold text-fucsia">{product.priceLabel}</div>
-          <span className={`text-xs font-semibold ${product.available ? 'text-success' : 'text-[#b45309]'}`}>
-            {product.availabilityLabel}
+          <div className="font-display text-[19px] font-bold text-fucsia">{offering.priceLabel}</div>
+          <span className={`text-xs font-semibold ${offering.available ? 'text-success' : 'text-[#b45309]'}`}>
+            {offering.availabilityLabel}
           </span>
         </div>
         <div className="mt-auto flex gap-2 pt-3.5">
           <Link
-            href={`/catalogo/${product.slug}`}
+            href={href}
             className="flex-1 rounded-[11px] bg-navy py-2.5 text-center text-[13.5px] font-semibold text-white"
           >
-            Ver detalles
+            {offering.ctaLabel}
           </Link>
           <a
-            href={product.waInquiryHref}
+            href={offering.waInquiryHref}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Consultar por WhatsApp"

@@ -13,6 +13,11 @@ export function listActiveVisibleCategories() {
   });
 }
 
+/** Resolución pública de `/catalogo/[categorySlug]` — una categoría inactiva u oculta no resuelve (404), igual que un producto con `visible:false`. */
+export function findActiveVisibleCategoryBySlug(slug: string) {
+  return prisma.category.findFirst({ where: { slug, active: true, visible: true } });
+}
+
 /**
  * Para el selector de categorías del formulario admin de producto
  * ("Disponibilidad en el catálogo") — a diferencia de

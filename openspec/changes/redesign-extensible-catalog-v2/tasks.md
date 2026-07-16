@@ -40,13 +40,13 @@
 
 ## 5. Catálogo público
 
-- [ ] 5.1 Reconstruir `modules/catalog/*` con `ProductOffering` como entidad principal de lectura pública — incluyendo que el precio mostrado (listado y ficha) se lea exclusivamente de `ProductOffering.priceFromClp`; `Product.priceFromClp` deja de leerse para mostrar precio público a partir de aquí (ver design.md → "Fase de compatibilidad de precios").
-- [ ] 5.2 Construir `/catalogo` (selector de categorías), `/catalogo/[categorySlug]` (listado + filtros), `/catalogo/[categorySlug]/[offeringSlug]` (detalle).
-- [ ] 5.3 Implementar la capa de compatibilidad: `/catalogo/[slug]` resuelve la oferta por defecto del producto y redirige (308) a su URL por categoría.
-- [ ] 5.4 Actualizar la tarjeta de oferta con CTA específico por categoría ("Ver armazón" / "Configurar lentes" / "Configurar lentes de sol ópticos").
-- [ ] 5.5 Agregar en la ficha de oferta el bloque "También disponible como" (enlaces cruzados entre categorías del mismo producto).
-- [ ] 5.6 Prueba: una URL antigua redirige correctamente; un producto sin ninguna oferta visible sigue devolviendo 404.
-- [ ] 5.7 Prueba: navegación responsive (mobile/tablet/desktop) y estado vacío por categoría.
+- [x] 5.1 Reconstruir `modules/catalog/*` con `ProductOffering` como entidad principal de lectura pública — incluyendo que el precio mostrado (listado y ficha) se lea exclusivamente de `ProductOffering.priceFromClp`; `Product.priceFromClp` deja de leerse para mostrar precio público a partir de aquí (ver design.md → "Fase de compatibilidad de precios").
+- [x] 5.2 Construir `/catalogo` (selector de categorías), `/catalogo/[categorySlug]` (listado + filtros), `/catalogo/[categorySlug]/[offeringSlug]` (detalle).
+- [x] 5.3 Implementar la capa de compatibilidad: `/catalogo/[slug]` resuelve la oferta por defecto del producto y redirige (308) a su URL por categoría.
+- [x] 5.4 Actualizar la tarjeta de oferta con CTA específico por categoría ("Ver armazón" / "Configurar lentes" / "Configurar lentes de sol ópticos").
+- [x] 5.5 Agregar en la ficha de oferta el bloque "También disponible como" (enlaces cruzados entre categorías del mismo producto).
+- [x] 5.6 Prueba: una URL antigua redirige correctamente; un producto sin ninguna oferta visible sigue devolviendo 404.
+- [x] 5.7 Prueba: navegación responsive (mobile/tablet/desktop) y estado vacío por categoría.
 
 ## 6. Filtros dinámicos
 

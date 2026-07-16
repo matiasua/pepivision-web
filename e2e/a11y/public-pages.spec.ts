@@ -4,6 +4,7 @@ import { expectNoSeriousA11yViolations } from '../fixtures/axe';
 const STATIC_PAGES: [string, string][] = [
   ['/', 'home'],
   ['/catalogo', 'catalogo'],
+  ['/catalogo/armazones', 'catalogo-categoria'],
   ['/cotizador', 'cotizador'],
   ['/domicilio', 'domicilio'],
   ['/derechos-arco', 'derechos-arco'],
@@ -20,8 +21,8 @@ for (const [path, label] of STATIC_PAGES) {
   });
 }
 
-test('axe: sin violaciones serious/critical en una ficha de producto', async ({ page }, testInfo) => {
-  await page.goto('/catalogo');
-  await page.getByRole('link', { name: 'Ver detalles' }).first().click();
-  await expectNoSeriousA11yViolations(page, testInfo, 'ficha-producto');
+test('axe: sin violaciones serious/critical en una ficha de oferta', async ({ page }, testInfo) => {
+  await page.goto('/catalogo/armazones');
+  await page.getByRole('link', { name: 'Ver armazón' }).first().click();
+  await expectNoSeriousA11yViolations(page, testInfo, 'ficha-oferta');
 });

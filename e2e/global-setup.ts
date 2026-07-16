@@ -79,6 +79,23 @@ async function createCatalogFixture() {
     },
   });
 
+  // Desde redesign-extensible-catalog-v2, la lectura pública del catálogo
+  // pasa a ser por ProductOffering — un Product visible sin ninguna oferta
+  // pública simplemente no aparece en ningún lado (ver design.md → "Fase de
+  // compatibilidad de precios"). "armazones" existe siempre en este punto:
+  // el seed (`prisma db seed`) corre antes que la suite E2E, ver README.md.
+  const armazonesCategory = await prisma.category.findUniqueOrThrow({ where: { slug: 'armazones' } });
+  const offering = await prisma.productOffering.create({
+    data: {
+      productId: product.id,
+      categoryId: armazonesCategory.id,
+      slug: E2E_CATALOG_PRODUCT_SLUG,
+      priceFromClp: product.priceFromClp,
+      active: true,
+      visible: true,
+    },
+  });
+
   const color = await prisma.productColor.create({
     data: { productId: product.id, name: 'E2E Negro', hex: '#1c1c22' },
   });
@@ -121,7 +138,15 @@ async function createCatalogFixture() {
     await s3Client.send(new HeadObjectCommand({ Bucket: env.OBJECT_STORAGE_BUCKET, Key: key }));
   }
 
-  return { id: product.id, slug: product.slug, colorId: color.id, imageIds, storageKeys };
+  return {
+    id: product.id,
+    slug: product.slug,
+    colorId: color.id,
+    imageIds,
+    storageKeys,
+    categorySlug: armazonesCategory.slug,
+    offeringSlug: offering.slug,
+  };
 }
 
 export default async function globalSetup() {

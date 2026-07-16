@@ -13,7 +13,15 @@ export interface E2eFixtures {
   superadmin: { id: string; email: string; username: string; password: string };
   admin: { id: string; email: string; username: string; password: string };
   comuna: { id: string; name: string };
-  catalogProduct: { id: string; slug: string; colorId: string; imageIds: string[]; storageKeys: string[] };
+  catalogProduct: {
+    id: string;
+    slug: string;
+    colorId: string;
+    imageIds: string[];
+    storageKeys: string[];
+    categorySlug: string;
+    offeringSlug: string;
+  };
 }
 
 export async function readE2eFixtures(): Promise<E2eFixtures> {
