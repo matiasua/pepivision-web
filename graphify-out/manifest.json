@@ -1,8 +1,8 @@
 {
   ".claude/settings.local.json": {
-    "mtime": 1784214419.9193919,
-    "ast_hash": "e96a3adbe234b20d5a2cac7485f0694f",
-    "semantic_hash": "e96a3adbe234b20d5a2cac7485f0694f"
+    "mtime": 1784217701.2017176,
+    "ast_hash": "99133056a8fe8909c4071b3c5290f84c",
+    "semantic_hash": "99133056a8fe8909c4071b3c5290f84c"
   },
   "app/admin/actions.ts": {
     "mtime": 1783958109.084034,
@@ -1355,9 +1355,9 @@
     "semantic_hash": "9720a0e3487835d7d9af262d2e16a148"
   },
   "CLAUDE.md": {
-    "mtime": 1783896306.1889875,
-    "ast_hash": "ba15c320dd6945efb436c3da8a70ed11",
-    "semantic_hash": "ba15c320dd6945efb436c3da8a70ed11"
+    "mtime": 1784215546.9538622,
+    "ast_hash": "a208daf46219e246b5062eb761670e50",
+    "semantic_hash": "a208daf46219e246b5062eb761670e50"
   },
   "README.md": {
     "mtime": 1784142768.6387947,
@@ -1535,64 +1535,64 @@
     "semantic_hash": "b1aba589403cf000109206d5081c0e1c"
   },
   "openspec/changes/redesign-extensible-catalog-v2/design.md": {
-    "mtime": 1784088645.7072768,
-    "ast_hash": "dd08b45fa8596b22c332d3d68a225876",
-    "semantic_hash": "dd08b45fa8596b22c332d3d68a225876"
+    "mtime": 1784217211.9862783,
+    "ast_hash": "b4cba6e35544ccf3b25b55f301ac74c0",
+    "semantic_hash": "b4cba6e35544ccf3b25b55f301ac74c0"
   },
   "openspec/changes/redesign-extensible-catalog-v2/proposal.md": {
-    "mtime": 1784008286.553229,
-    "ast_hash": "183acda40d11497983bfd146b636c50d",
-    "semantic_hash": "183acda40d11497983bfd146b636c50d"
+    "mtime": 1784216599.761049,
+    "ast_hash": "3b545b8378c9148c63f315d0737a4506",
+    "semantic_hash": "3b545b8378c9148c63f315d0737a4506"
   },
   "openspec/changes/redesign-extensible-catalog-v2/specs/catalog-administration/spec.md": {
-    "mtime": 1784005635.198909,
-    "ast_hash": "875447b599149ce646b109a0684055ee",
-    "semantic_hash": "875447b599149ce646b109a0684055ee"
+    "mtime": 1784216975.0562289,
+    "ast_hash": "ef91daedc5a96e4105a6db1cf045a22d",
+    "semantic_hash": "ef91daedc5a96e4105a6db1cf045a22d"
   },
   "openspec/changes/redesign-extensible-catalog-v2/specs/catalog-categories/spec.md": {
-    "mtime": 1784008310.8040757,
-    "ast_hash": "59f7b546f77eff98b920151744f695ab",
-    "semantic_hash": "59f7b546f77eff98b920151744f695ab"
+    "mtime": 1784216965.1847339,
+    "ast_hash": "9539577916ce6ce7b86bbed656226270",
+    "semantic_hash": "9539577916ce6ce7b86bbed656226270"
   },
   "openspec/changes/redesign-extensible-catalog-v2/specs/catalog-data-migration/spec.md": {
-    "mtime": 1784008391.503411,
-    "ast_hash": "bab08b531ad25f57e9bebee4ed2a30d5",
-    "semantic_hash": "bab08b531ad25f57e9bebee4ed2a30d5"
+    "mtime": 1784217014.669298,
+    "ast_hash": "d79e30d5d3e77d46334b84a7273c57af",
+    "semantic_hash": "d79e30d5d3e77d46334b84a7273c57af"
   },
   "openspec/changes/redesign-extensible-catalog-v2/specs/catalog-navigation/spec.md": {
-    "mtime": 1784005598.4690874,
-    "ast_hash": "c9cf1a2c76bd80464382902e60af5bfd",
-    "semantic_hash": "c9cf1a2c76bd80464382902e60af5bfd"
+    "mtime": 1784217050.3880477,
+    "ast_hash": "32b2d8060d70ae296114f82dbad90001",
+    "semantic_hash": "32b2d8060d70ae296114f82dbad90001"
   },
   "openspec/changes/redesign-extensible-catalog-v2/specs/catalog-seo/spec.md": {
-    "mtime": 1784005665.2626681,
-    "ast_hash": "d2e9b11c6b02d521bba2c3f3477b1c15",
-    "semantic_hash": "d2e9b11c6b02d521bba2c3f3477b1c15"
+    "mtime": 1784217128.7963426,
+    "ast_hash": "99ec5513e65b04b55a8916bdc3bb747a",
+    "semantic_hash": "99ec5513e65b04b55a8916bdc3bb747a"
   },
   "openspec/changes/redesign-extensible-catalog-v2/specs/configurable-quote-flow/spec.md": {
-    "mtime": 1784008353.130364,
-    "ast_hash": "9fc0d7163cd3a8799d564443e70033e5",
-    "semantic_hash": "9fc0d7163cd3a8799d564443e70033e5"
+    "mtime": 1784217222.679059,
+    "ast_hash": "7d0210af38bea86679aaf50b51fb477e",
+    "semantic_hash": "7d0210af38bea86679aaf50b51fb477e"
   },
   "openspec/changes/redesign-extensible-catalog-v2/specs/dynamic-catalog-filters/spec.md": {
-    "mtime": 1784005580.2370374,
-    "ast_hash": "fc42f7f175b718e2117f5999777a24af",
-    "semantic_hash": "fc42f7f175b718e2117f5999777a24af"
+    "mtime": 1784217228.5400622,
+    "ast_hash": "25c11d43504432c324e8fc9678dd647f",
+    "semantic_hash": "25c11d43504432c324e8fc9678dd647f"
   },
   "openspec/changes/redesign-extensible-catalog-v2/specs/product-offerings/spec.md": {
-    "mtime": 1784008411.6609654,
-    "ast_hash": "73a0409d67bf15cbb5a65f46313f6cf2",
-    "semantic_hash": "73a0409d67bf15cbb5a65f46313f6cf2"
+    "mtime": 1784217240.0842736,
+    "ast_hash": "a58135b8fe5e5f1e29a0ce8e0bb715b4",
+    "semantic_hash": "a58135b8fe5e5f1e29a0ce8e0bb715b4"
   },
   "openspec/changes/redesign-extensible-catalog-v2/specs/request-category-snapshot/spec.md": {
-    "mtime": 1784008361.3971806,
-    "ast_hash": "e0b16a39a1d2af853d9c62e1059fad2a",
-    "semantic_hash": "e0b16a39a1d2af853d9c62e1059fad2a"
+    "mtime": 1784217120.6256156,
+    "ast_hash": "1f6cb074a8d9a6dcb31734ee7def133e",
+    "semantic_hash": "1f6cb074a8d9a6dcb31734ee7def133e"
   },
   "openspec/changes/redesign-extensible-catalog-v2/tasks.md": {
-    "mtime": 1784148954.9251091,
-    "ast_hash": "fea7266ba091799579e4ba0d19ffe944",
-    "semantic_hash": "fea7266ba091799579e4ba0d19ffe944"
+    "mtime": 1784217033.483106,
+    "ast_hash": "84bb4a3a082fa320353e0e074d93b50c",
+    "semantic_hash": "84bb4a3a082fa320353e0e074d93b50c"
   },
   "openspec/config.yaml": {
     "mtime": 1783895901.29732,
@@ -1778,5 +1778,160 @@
     "mtime": 1783995233.10318,
     "ast_hash": "2af91713baa9e208421bab9485748449",
     "semantic_hash": "2af91713baa9e208421bab9485748449"
+  },
+  "openspec/changes/add-admin-brand-management/.openspec.yaml": {
+    "mtime": 1784216538.125949,
+    "ast_hash": "660a554a372451d11030420ef6afec0a",
+    "semantic_hash": "660a554a372451d11030420ef6afec0a"
+  },
+  "openspec/changes/add-admin-brand-management/README.md": {
+    "mtime": 1784216538.1262448,
+    "ast_hash": "136fa2d91d208d49e903f678552771d8",
+    "semantic_hash": "136fa2d91d208d49e903f678552771d8"
+  },
+  "openspec/changes/add-admin-brand-management/design.md": {
+    "mtime": 1784217371.2550871,
+    "ast_hash": "d813d4ba505a1aed31ddd67c50941c45",
+    "semantic_hash": "d813d4ba505a1aed31ddd67c50941c45"
+  },
+  "openspec/changes/add-admin-brand-management/proposal.md": {
+    "mtime": 1784217337.728973,
+    "ast_hash": "0d7ae6a7e87c5a039be941383338d2b4",
+    "semantic_hash": "0d7ae6a7e87c5a039be941383338d2b4"
+  },
+  "openspec/changes/add-admin-brand-management/specs/admin-brand-management/spec.md": {
+    "mtime": 1784217401.5042465,
+    "ast_hash": "38ce83e5401f22566ac4a6364ad5a9ad",
+    "semantic_hash": "38ce83e5401f22566ac4a6364ad5a9ad"
+  },
+  "openspec/changes/add-admin-brand-management/tasks.md": {
+    "mtime": 1784217385.3069546,
+    "ast_hash": "9bc1f41bdd22cb5264ef489b7afacb76",
+    "semantic_hash": "9bc1f41bdd22cb5264ef489b7afacb76"
+  },
+  "openspec/changes/add-formal-admin-quotations/.openspec.yaml": {
+    "mtime": 1784216539.3828335,
+    "ast_hash": "660a554a372451d11030420ef6afec0a",
+    "semantic_hash": "660a554a372451d11030420ef6afec0a"
+  },
+  "openspec/changes/add-formal-admin-quotations/README.md": {
+    "mtime": 1784216539.3830993,
+    "ast_hash": "cadb11c8f43e44435142a379eaa0e752",
+    "semantic_hash": "cadb11c8f43e44435142a379eaa0e752"
+  },
+  "openspec/changes/add-formal-admin-quotations/design.md": {
+    "mtime": 1784217531.4633117,
+    "ast_hash": "a694d70013cf8742c6a869dbc05f8294",
+    "semantic_hash": "a694d70013cf8742c6a869dbc05f8294"
+  },
+  "openspec/changes/add-formal-admin-quotations/proposal.md": {
+    "mtime": 1784217493.8879752,
+    "ast_hash": "40a88c937cce46ff093b182773c5e732",
+    "semantic_hash": "40a88c937cce46ff093b182773c5e732"
+  },
+  "openspec/changes/add-formal-admin-quotations/specs/admin-formal-quotations/spec.md": {
+    "mtime": 1784217568.5682597,
+    "ast_hash": "ff7de73785942e829093b1a0d6dc695e",
+    "semantic_hash": "ff7de73785942e829093b1a0d6dc695e"
+  },
+  "openspec/changes/add-formal-admin-quotations/tasks.md": {
+    "mtime": 1784217547.6120422,
+    "ast_hash": "02e130cd532bf70c551fa7ebf08ca1d3",
+    "semantic_hash": "02e130cd532bf70c551fa7ebf08ca1d3"
+  },
+  "openspec/changes/improve-transactional-emails/.openspec.yaml": {
+    "mtime": 1784216538.740004,
+    "ast_hash": "660a554a372451d11030420ef6afec0a",
+    "semantic_hash": "660a554a372451d11030420ef6afec0a"
+  },
+  "openspec/changes/improve-transactional-emails/README.md": {
+    "mtime": 1784216538.7402613,
+    "ast_hash": "806853f4a2612a029d3f288e3c069e94",
+    "semantic_hash": "806853f4a2612a029d3f288e3c069e94"
+  },
+  "openspec/changes/improve-transactional-emails/design.md": {
+    "mtime": 1784217450.0581465,
+    "ast_hash": "b452c8ae36e42ee72cffa1c05d68901d",
+    "semantic_hash": "b452c8ae36e42ee72cffa1c05d68901d"
+  },
+  "openspec/changes/improve-transactional-emails/proposal.md": {
+    "mtime": 1784217418.8537211,
+    "ast_hash": "41c0a44e540270ea6150fe2c97ece175",
+    "semantic_hash": "41c0a44e540270ea6150fe2c97ece175"
+  },
+  "openspec/changes/improve-transactional-emails/specs/transactional-email-content-assurance/spec.md": {
+    "mtime": 1784217476.4985604,
+    "ast_hash": "163edad9e0b03cea76284b5968a43b5e",
+    "semantic_hash": "163edad9e0b03cea76284b5968a43b5e"
+  },
+  "openspec/changes/improve-transactional-emails/tasks.md": {
+    "mtime": 1784217461.2618036,
+    "ast_hash": "1513dcae440578cc73b07498afe889b8",
+    "semantic_hash": "1513dcae440578cc73b07498afe889b8"
+  },
+  "openspec/changes/improve-visual-identity-and-content/.openspec.yaml": {
+    "mtime": 1784216539.9930077,
+    "ast_hash": "660a554a372451d11030420ef6afec0a",
+    "semantic_hash": "660a554a372451d11030420ef6afec0a"
+  },
+  "openspec/changes/improve-visual-identity-and-content/README.md": {
+    "mtime": 1784216539.9932477,
+    "ast_hash": "a95eee84e06d82b89310fd7bbf73dcb9",
+    "semantic_hash": "a95eee84e06d82b89310fd7bbf73dcb9"
+  },
+  "openspec/changes/improve-visual-identity-and-content/design.md": {
+    "mtime": 1784217603.9401278,
+    "ast_hash": "e671fe1035f4a722f58b10e1b009263c",
+    "semantic_hash": "e671fe1035f4a722f58b10e1b009263c"
+  },
+  "openspec/changes/improve-visual-identity-and-content/proposal.md": {
+    "mtime": 1784217584.173391,
+    "ast_hash": "52d15eb3e87509191cf20579f616a553",
+    "semantic_hash": "52d15eb3e87509191cf20579f616a553"
+  },
+  "openspec/changes/improve-visual-identity-and-content/specs/visual-identity-and-accessibility/spec.md": {
+    "mtime": 1784217628.896209,
+    "ast_hash": "bd8b189c77e0329202d9e0953c70e36f",
+    "semantic_hash": "bd8b189c77e0329202d9e0953c70e36f"
+  },
+  "openspec/changes/improve-visual-identity-and-content/tasks.md": {
+    "mtime": 1784217614.3978183,
+    "ast_hash": "37b9e966e582c847f9f4ecd6367b4e99",
+    "semantic_hash": "37b9e966e582c847f9f4ecd6367b4e99"
+  },
+  "openspec/changes/redesign-extensible-catalog-v2/specs/lens-configuration/spec.md": {
+    "mtime": 1784217105.7478662,
+    "ast_hash": "f68730505de1a3e0b6c8fd43a1ae51f8",
+    "semantic_hash": "f68730505de1a3e0b6c8fd43a1ae51f8"
+  },
+  "openspec/changes/temporarily-disable-home-visit/.openspec.yaml": {
+    "mtime": 1784216540.6253734,
+    "ast_hash": "660a554a372451d11030420ef6afec0a",
+    "semantic_hash": "660a554a372451d11030420ef6afec0a"
+  },
+  "openspec/changes/temporarily-disable-home-visit/README.md": {
+    "mtime": 1784216540.6256804,
+    "ast_hash": "5ae088daf5346a64a5a2a737e50b10a6",
+    "semantic_hash": "5ae088daf5346a64a5a2a737e50b10a6"
+  },
+  "openspec/changes/temporarily-disable-home-visit/design.md": {
+    "mtime": 1784217288.0793006,
+    "ast_hash": "9083fa301016c09b832b1d9d382b02ff",
+    "semantic_hash": "9083fa301016c09b832b1d9d382b02ff"
+  },
+  "openspec/changes/temporarily-disable-home-visit/proposal.md": {
+    "mtime": 1784217260.7496138,
+    "ast_hash": "580d8139759ed282f14d93e605092dd1",
+    "semantic_hash": "580d8139759ed282f14d93e605092dd1"
+  },
+  "openspec/changes/temporarily-disable-home-visit/specs/home-visit-availability-flag/spec.md": {
+    "mtime": 1784217318.8685482,
+    "ast_hash": "a6581966b6f6ee6be94d708f73cf6e28",
+    "semantic_hash": "a6581966b6f6ee6be94d708f73cf6e28"
+  },
+  "openspec/changes/temporarily-disable-home-visit/tasks.md": {
+    "mtime": 1784217302.3696804,
+    "ast_hash": "fc14995f744115a4c60a081507163e23",
+    "semantic_hash": "fc14995f744115a4c60a081507163e23"
   }
 }
