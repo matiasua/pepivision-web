@@ -231,7 +231,41 @@ export async function getOfferingDetail(
   };
 }
 
-/** Capa de compatibilidad (5.3): destino del redirect 308 desde `/catalogo/[slug]`, o `null` si debe seguir siendo 404. */
+/** Capa de compatibilidad (8.1): destino del redirect 308 desde `/catalogo/[slug]`, o `null` si debe seguir siendo 404. */
 export function getLegacyRedirectTarget(productSlug: string) {
   return findDefaultPublicOfferingForProductSlug(productSlug);
+}
+
+export type OfferingPageResolution =
+  | { kind: 'found'; offering: OfferingDetailView; related: OfferingCardView[] }
+  | { kind: 'redirect'; categorySlug: string; offeringSlug: string }
+  | { kind: 'not_found' };
+
+/**
+ * Resuelve `/catalogo/[categorySlug]/[offeringSlug]` con el fallback de 3
+ * segmentos (8.7, gap identificado en la corrección de taxonomía): si
+ * `categorySlug` no resuelve a una categoría activa/visible (p. ej. la
+ * extinta "armazones" o "lentes-de-sol-opticos"), se intenta resolver
+ * `offeringSlug` como un slug de producto legado — mismo mecanismo que
+ * `/catalogo/[slug]` (getLegacyRedirectTarget) — y, si resuelve, se
+ * redirige 308 a la ubicación nueva en vez de devolver 404. Deliberadamente
+ * NO se intenta este fallback cuando `categorySlug` sí es una categoría
+ * válida pero `offeringSlug` simplemente no existe en ella — evita que un
+ * producto capture por error el slug de una categoría vigente con una
+ * oferta que no le pertenece.
+ */
+export async function resolveOfferingPage(
+  categorySlug: string,
+  offeringSlug: string
+): Promise<OfferingPageResolution> {
+  const category = await getCategorySummary(categorySlug);
+  if (!category) {
+    const legacyTarget = await getLegacyRedirectTarget(offeringSlug);
+    if (legacyTarget) return { kind: 'redirect', ...legacyTarget };
+    return { kind: 'not_found' };
+  }
+
+  const result = await getOfferingDetail(categorySlug, offeringSlug);
+  if (!result) return { kind: 'not_found' };
+  return { kind: 'found', ...result };
 }

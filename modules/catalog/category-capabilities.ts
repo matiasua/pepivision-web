@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import { ValidationError } from '@/lib/errors';
 
-// Perfil por defecto (todo ausente -> estos valores) = el perfil de
-// Armazones, la categoría más simple — ver design.md de
-// redesign-extensible-catalog-v2 → "Capacidades tipadas". Una categoría
-// creada sin configurar explícitamente sus capacidades se comporta como un
-// listado de producto simple en vez de exponer accidentalmente pasos de
-// cristal/tratamientos/receta/tinte que nadie pidió.
+// Perfil por defecto (todo ausente -> estos valores) = el perfil más simple
+// posible (listado de producto simple, sin pasos opcionales) — ver
+// design.md de redesign-extensible-catalog-v2 → "Capacidades tipadas". No
+// corresponde a ninguna de las dos categorías definitivas (ambas activan
+// varias capacidades); se mantiene como valor de fábrica seguro para una
+// categoría futura (p. ej. "Accesorios"), y una categoría creada sin
+// configurar explícitamente sus capacidades no expone accidentalmente
+// pasos de cristal/tratamientos/receta/tinte que nadie pidió.
 export const categoryCapabilitiesSchema = z.object({
   /// El armazón/producto requiere seleccionar un ProductColor.
   requiresColor: z.boolean().default(true),
@@ -22,10 +24,10 @@ export const categoryCapabilitiesSchema = z.object({
   /// esto en true pero allowsPrescription en false simplemente nunca
   /// muestra el paso de adjunto (no es un error).
   allowsPrescriptionAttachment: z.boolean().default(false),
-  /// Habilita el paso de tinte/color del cristal (lentes de sol ópticos).
+  /// Habilita el paso de tinte/color del cristal (lentes de sol).
   allowsLensTint: z.boolean().default(false),
   /// true: el paso "producto/oferta" es una selección de un armazón
-  /// concreto (las tres categorías iniciales). false: selector de
+  /// concreto (las dos categorías definitivas). false: selector de
   /// producto genérico para una categoría futura que no se basa en elegir
   /// un armazón (p. ej. "Accesorios").
   allowsFrameSelection: z.boolean().default(true),
@@ -33,8 +35,8 @@ export const categoryCapabilitiesSchema = z.object({
 
 export type CategoryCapabilities = z.infer<typeof categoryCapabilitiesSchema>;
 
-// El propio schema, aplicado a un objeto vacío, produce el perfil
-// Armazones (todos los .default() de arriba) — es el mismo fallback que
+// El propio schema, aplicado a un objeto vacío, produce el perfil por
+// defecto (todos los .default() de arriba) — es el mismo fallback que
 // usamos tanto para "categoría recién creada sin configurar" como para
 // "JSON almacenado inválido" (fail closed).
 const FAIL_CLOSED_CAPABILITIES: CategoryCapabilities = categoryCapabilitiesSchema.parse({});

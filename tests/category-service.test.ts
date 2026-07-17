@@ -115,10 +115,10 @@ describe('modules/catalog/category-service — updateCategory', () => {
   });
 
   it('never touches the existing slug, and audits category.updated', async () => {
-    findCategoryById.mockResolvedValue({ id: 'cat_1', slug: 'armazones' });
-    updateCategoryRow.mockResolvedValue({ id: 'cat_1', name: 'Armazones renombrados' });
+    findCategoryById.mockResolvedValue({ id: 'cat_1', slug: 'lentes-opticos' });
+    updateCategoryRow.mockResolvedValue({ id: 'cat_1', name: 'Lentes ópticos renombrados' });
 
-    await updateCategory('cat_1', validInput({ name: 'Armazones renombrados' }), actor);
+    await updateCategory('cat_1', validInput({ name: 'Lentes ópticos renombrados' }), actor);
 
     const [, data] = updateCategoryRow.mock.calls[0];
     expect(data).not.toHaveProperty('slug');
@@ -126,7 +126,7 @@ describe('modules/catalog/category-service — updateCategory', () => {
   });
 
   it('rejects malformed capabilities at write time instead of persisting them', async () => {
-    findCategoryById.mockResolvedValue({ id: 'cat_1', slug: 'armazones' });
+    findCategoryById.mockResolvedValue({ id: 'cat_1', slug: 'lentes-opticos' });
 
     await expect(updateCategory('cat_1', validInput({ capabilities: { allowsLensType: 'yes-please' } }), actor)).rejects.toThrow();
     expect(updateCategoryRow).not.toHaveBeenCalled();
@@ -137,7 +137,7 @@ describe('modules/catalog/category-service — setCategoryActive', () => {
   afterEach(() => vi.clearAllMocks());
 
   it('audits category.enabled when activating', async () => {
-    findCategoryById.mockResolvedValue({ id: 'cat_1', slug: 'armazones', name: 'Armazones' });
+    findCategoryById.mockResolvedValue({ id: 'cat_1', slug: 'lentes-opticos', name: 'Lentes ópticos' });
     setCategoryActiveRow.mockResolvedValue({ id: 'cat_1', active: true });
 
     await setCategoryActive('cat_1', true, actor);
@@ -147,7 +147,7 @@ describe('modules/catalog/category-service — setCategoryActive', () => {
   });
 
   it('audits category.disabled when deactivating', async () => {
-    findCategoryById.mockResolvedValue({ id: 'cat_1', slug: 'armazones', name: 'Armazones' });
+    findCategoryById.mockResolvedValue({ id: 'cat_1', slug: 'lentes-opticos', name: 'Lentes ópticos' });
     setCategoryActiveRow.mockResolvedValue({ id: 'cat_1', active: false });
 
     await setCategoryActive('cat_1', false, actor);

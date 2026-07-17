@@ -8,6 +8,7 @@ import { Gender, ProductBadge, ProductMaterial, ProductShape, PrismaClient } fro
 import { slugify } from '../lib/slug';
 import { getBrandLogos } from '../lib/brands';
 import { categoryCapabilitiesSchema, type CategoryCapabilities } from '../modules/catalog/category-capabilities';
+import { migrateToDefinitiveTaxonomy } from '../modules/catalog/taxonomy-migration';
 
 const prisma = new PrismaClient();
 
@@ -43,30 +44,29 @@ const SEED_PRODUCTS = [
   { code: 'PV-110', name: 'Coral', price: 45900, gender: Gender.MUJER, shape: ProductShape.CAT_EYE, material: ProductMaterial.METAL, colors: ['Dorado', 'Fucsia', 'Plata'], badge: ProductBadge.NUEVO, available: true, sizes: '53-18-140 mm', description: 'Cat eye de metal con detalles finos y un toque sofisticado. Para brillar con elegancia.', brandSlug: 'jorgio' },
 ];
 
-// redesign-extensible-catalog-v2 (Fase 2): las tres categorías iniciales,
-// con sus capabilities cerradas en design.md → "Capacidades tipadas —
-// Valores iniciales de las tres categorías (CERRADO...)". Solo estas tres
-// se siembran por script — toda categoría posterior se crea desde
-// /admin/categories (Fase 4), nunca agregándola aquí.
-const SEED_CATEGORIES: { slug: string; name: string; sortOrder: number; capabilities: CategoryCapabilities }[] = [
-  {
-    slug: 'armazones',
-    name: 'Armazones',
-    sortOrder: 0,
-    capabilities: {
-      requiresColor: true,
-      allowsLensType: false,
-      allowsTreatments: false,
-      allowsPrescription: false,
-      allowsPrescriptionAttachment: false,
-      allowsLensTint: false,
-      allowsFrameSelection: true,
-    },
-  },
+// redesign-extensible-catalog-v2 (Fase 5, corrección de taxonomía): las dos
+// categorías comerciales definitivas — ver design.md → "Taxonomía
+// definitiva de categorías" y "Capacidades tipadas — Valores de las dos
+// categorías definitivas (CERRADO)". Armazones deja de sembrarse (un
+// armazón es el Product físico, seleccionable dentro de Lentes ópticos, no
+// una categoría propia); Lentes de sol ópticos se renombra a Lentes de sol
+// vía migrateToDefinitiveTaxonomy() antes de este upsert, nunca se vuelve a
+// sembrar por separado. Solo estas dos se siembran por script — toda
+// categoría posterior se crea desde /admin/categories (Fase 4), nunca
+// agregándola aquí.
+const SEED_CATEGORIES: {
+  slug: string;
+  name: string;
+  shortDescription: string;
+  sortOrder: number;
+  capabilities: CategoryCapabilities;
+}[] = [
   {
     slug: 'lentes-opticos',
     name: 'Lentes ópticos',
-    sortOrder: 1,
+    shortDescription:
+      'Elige tu armazón y personalízalo con los cristales que necesitas según tu receta y estilo de vida.',
+    sortOrder: 0,
     capabilities: {
       requiresColor: true,
       allowsLensType: true,
@@ -78,9 +78,11 @@ const SEED_CATEGORIES: { slug: string; name: string; sortOrder: number; capabili
     },
   },
   {
-    slug: 'lentes-de-sol-opticos',
-    name: 'Lentes de sol ópticos',
-    sortOrder: 2,
+    slug: 'lentes-de-sol',
+    name: 'Lentes de sol',
+    shortDescription:
+      'Descubre lentes de sol con protección UV, opciones polarizadas y modelos graduables según tu receta.',
+    sortOrder: 1,
     capabilities: {
       requiresColor: true,
       allowsLensType: true,
@@ -94,21 +96,33 @@ const SEED_CATEGORIES: { slug: string; name: string; sortOrder: number; capabili
 ];
 
 /**
- * Idempotente vía upsert-por-slug, igual que seedBrands() — re-ejecutar no
- * duplica categorías ni cambia el `id` de una ya existente. Exportada
- * (a diferencia del resto de este script) para que
+ * Idempotente vía migración + upsert-por-slug, igual que seedBrands() —
+ * re-ejecutar no duplica categorías ni cambia el `id` de una ya existente.
+ * Exportada (a diferencia del resto de este script) para que
  * tests-integration/category-seed.test.ts pueda ejercer la idempotencia
  * real contra Postgres sin correr todo el seed de catálogo/comunas.
  *
- * A diferencia de seedBrands() (que sí resincroniza name/logoPath/sortOrder
- * en cada corrida — seguro ahí porque Brand no tiene ningún panel admin
- * que los edite), Category SÍ tendrá `/admin/categories` (Fase 4,
- * name/sortOrder/capabilities/active/visible/etc. editables). Por eso
- * `update: {}`: una categoría que ya existe nunca se toca — el seed solo
- * crea las que faltan, para no pisar silenciosamente una edición
- * administrativa posterior con una nueva corrida de `prisma db seed`.
+ * Primero corre migrateToDefinitiveTaxonomy() (no-op en una base que nunca
+ * tuvo las categorías legadas): renombra lentes-de-sol-opticos in-place y
+ * remapea las ofertas de armazones hacia lentes-opticos antes de sembrar/
+ * converger a las dos filas definitivas. A diferencia de seedBrands() (que
+ * sí resincroniza name/logoPath/sortOrder en cada corrida — seguro ahí
+ * porque Brand no tiene ningún panel admin que los edite), Category SÍ
+ * tiene `/admin/categories` (name/sortOrder/capabilities/active/visible/etc.
+ * editables). Por eso `update: {}`: una categoría que ya existe nunca se
+ * toca — el seed solo crea las que faltan, para no pisar silenciosamente
+ * una edición administrativa posterior con una nueva corrida de
+ * `prisma db seed`.
  */
 export async function seedCategories() {
+  const migrationReport = await migrateToDefinitiveTaxonomy();
+  if (migrationReport.conflicts.length > 0) {
+    console.warn(
+      `Migración de taxonomía: ${migrationReport.conflicts.length} producto(s) con ofertas en armazones y lentes-opticos requieren revisión manual admin — no se fusionaron automáticamente.`,
+      migrationReport.conflicts
+    );
+  }
+
   for (const item of SEED_CATEGORIES) {
     // Valida incluso este valor hardcoded contra el mismo schema Zod que
     // protege una escritura real desde /admin/categories — nunca se asume
@@ -117,12 +131,19 @@ export async function seedCategories() {
     await prisma.category.upsert({
       where: { slug: item.slug },
       update: {},
-      create: { slug: item.slug, name: item.name, sortOrder: item.sortOrder, capabilities },
+      create: {
+        slug: item.slug,
+        name: item.name,
+        shortDescription: item.shortDescription,
+        sortOrder: item.sortOrder,
+        capabilities,
+      },
     });
   }
 
   const count = await prisma.category.count();
   console.log(`Seed de categorías completo. ${count} categorías en la base de datos.`);
+  return migrationReport;
 }
 
 // Dev bootstrap for `home-visit-coverage`: there is no admin panel yet to

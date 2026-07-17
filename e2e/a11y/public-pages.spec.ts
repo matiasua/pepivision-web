@@ -7,7 +7,7 @@ import { isHomeVisitEnabled } from '../../lib/feature-flags';
 const STATIC_PAGES: [string, string][] = [
   ['/', 'home'],
   ['/catalogo', 'catalogo'],
-  ['/catalogo/armazones', 'catalogo-categoria'],
+  ['/catalogo/lentes-opticos', 'catalogo-categoria'],
   ['/cotizador', 'cotizador'],
   ['/derechos-arco', 'derechos-arco'],
   ['/faq', 'faq'],
@@ -39,7 +39,7 @@ test(`axe: /domicilio responde ${homeVisitEnabled ? '200 y el formulario es acce
 });
 
 test('axe: sin violaciones serious/critical en una ficha de oferta', async ({ page }, testInfo) => {
-  await page.goto('/catalogo/armazones');
-  await page.getByRole('link', { name: 'Ver armazón' }).first().click();
+  await page.goto('/catalogo/lentes-opticos');
+  await page.getByRole('link', { name: 'Configurar lentes' }).first().click();
   await expectNoSeriousA11yViolations(page, testInfo, 'ficha-oferta');
 });

@@ -1,20 +1,20 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { Container } from '@/components/Container';
 import { LinkButton } from '@/components/Button';
 import { ProductGallery } from '@/components/catalog/ProductGallery';
 import { RelatedProducts } from '@/components/catalog/RelatedProducts';
 import { OtherCategoryOfferings } from '@/components/catalog/OtherCategoryOfferings';
 import { WhatsAppIcon, ChevronRightIcon } from '@/components/icons';
-import { getOfferingDetail } from '@/modules/catalog/service';
+import { resolveOfferingPage } from '@/modules/catalog/service';
 
 type Params = { categorySlug: string; offeringSlug: string };
 
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { categorySlug, offeringSlug } = await params;
-  const result = await getOfferingDetail(categorySlug, offeringSlug);
-  if (!result) return {};
+  const result = await resolveOfferingPage(categorySlug, offeringSlug);
+  if (result.kind !== 'found') return {};
 
   return {
     title: result.offering.name,
@@ -24,8 +24,11 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 
 export default async function OfertaPage({ params }: { params: Promise<Params> }) {
   const { categorySlug, offeringSlug } = await params;
-  const result = await getOfferingDetail(categorySlug, offeringSlug);
-  if (!result) notFound();
+  const result = await resolveOfferingPage(categorySlug, offeringSlug);
+  if (result.kind === 'redirect') {
+    permanentRedirect(`/catalogo/${result.categorySlug}/${result.offeringSlug}`);
+  }
+  if (result.kind === 'not_found') notFound();
 
   const { offering, related } = result;
 

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Gender } from '@prisma/client';
 import { parseCatalogFilters } from '@/modules/catalog/schemas';
 import { buildFilterHref, buildToggleHref } from '@/modules/catalog/filter-url';
-import { formatClp } from '@/modules/catalog/labels';
+import { formatClp, offeringCtaLabel } from '@/modules/catalog/labels';
 import { slugify } from '@/lib/slug';
 
 describe('modules/catalog/schemas', () => {
@@ -37,39 +37,39 @@ describe('modules/catalog/schemas', () => {
 });
 
 describe('modules/catalog/filter-url', () => {
-  const basePath = '/catalogo/armazones';
+  const basePath = '/catalogo/lentes-opticos';
 
   it('adds a new param while preserving existing ones', () => {
     const href = buildFilterHref(basePath, new URLSearchParams('gender=MUJER'), 'shape', 'REDONDO');
-    expect(href).toBe('/catalogo/armazones?gender=MUJER&shape=REDONDO');
+    expect(href).toBe('/catalogo/lentes-opticos?gender=MUJER&shape=REDONDO');
   });
 
   it('removes a param when value is null', () => {
     const href = buildFilterHref(basePath, new URLSearchParams('gender=MUJER&shape=REDONDO'), 'gender', null);
-    expect(href).toBe('/catalogo/armazones?shape=REDONDO');
+    expect(href).toBe('/catalogo/lentes-opticos?shape=REDONDO');
   });
 
   it('returns the bare route when no params remain', () => {
     const href = buildFilterHref(basePath, new URLSearchParams('gender=MUJER'), 'gender', null);
-    expect(href).toBe('/catalogo/armazones');
+    expect(href).toBe('/catalogo/lentes-opticos');
   });
 
   it('toggle clears the value when it is already active', () => {
     const href = buildToggleHref(basePath, new URLSearchParams('color=Fucsia'), 'color', 'Fucsia');
-    expect(href).toBe('/catalogo/armazones');
+    expect(href).toBe('/catalogo/lentes-opticos');
   });
 
   it('toggle sets the value when a different one is active', () => {
     const href = buildToggleHref(basePath, new URLSearchParams('color=Fucsia'), 'color', 'Negro');
-    expect(href).toBe('/catalogo/armazones?color=Negro');
+    expect(href).toBe('/catalogo/lentes-opticos?color=Negro');
   });
 
   it('sets the brand filter by slug and persists it across other filter changes', () => {
     const withBrand = buildFilterHref(basePath, new URLSearchParams('gender=MUJER'), 'brand', 'vespa');
-    expect(withBrand).toBe('/catalogo/armazones?gender=MUJER&brand=vespa');
+    expect(withBrand).toBe('/catalogo/lentes-opticos?gender=MUJER&brand=vespa');
 
     const thenShape = buildFilterHref(basePath, new URLSearchParams(withBrand.split('?')[1]), 'shape', 'REDONDO');
-    expect(thenShape).toBe('/catalogo/armazones?gender=MUJER&brand=vespa&shape=REDONDO');
+    expect(thenShape).toBe('/catalogo/lentes-opticos?gender=MUJER&brand=vespa&shape=REDONDO');
   });
 
   it('clearing all filters (each set to null) also drops the brand filter', () => {
@@ -84,6 +84,24 @@ describe('modules/catalog/filter-url', () => {
 describe('modules/catalog/labels', () => {
   it('formats CLP amounts with thousands separators', () => {
     expect(formatClp(39900)).toBe('$39.900');
+  });
+
+  // 8.2: CTA map corregido a las dos categorías definitivas.
+  it('returns the definitive CTA label for lentes-opticos', () => {
+    expect(offeringCtaLabel('lentes-opticos')).toBe('Configurar lentes');
+  });
+
+  it('returns the definitive CTA label for lentes-de-sol', () => {
+    expect(offeringCtaLabel('lentes-de-sol')).toBe('Configurar lentes de sol');
+  });
+
+  it('no longer recognizes the retired armazones/lentes-de-sol-opticos slugs — falls back to the generic label', () => {
+    expect(offeringCtaLabel('armazones')).toBe('Ver oferta');
+    expect(offeringCtaLabel('lentes-de-sol-opticos')).toBe('Ver oferta');
+  });
+
+  it('falls back to the generic CTA label for an unknown/future category slug', () => {
+    expect(offeringCtaLabel('lentes-deportivos')).toBe('Ver oferta');
   });
 });
 

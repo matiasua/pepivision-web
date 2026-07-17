@@ -7,7 +7,7 @@ import { getCategoryPicker } from '@/modules/catalog/service';
 
 export const metadata: Metadata = {
   title: 'Catálogo',
-  description: 'Explora nuestras categorías: armazones, lentes ópticos y lentes de sol ópticos.',
+  description: 'Explora nuestras categorías: lentes ópticos y lentes de sol.',
 };
 
 // Sin esto, Next.js congelaría el listado de categorías en build time — una

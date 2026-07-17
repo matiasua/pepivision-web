@@ -1,10 +1,10 @@
 // Cubre Fase 3, tareas 3.3-3.9 de redesign-extensible-catalog-v2. Real
-// Postgres via Prisma, no mocks. Reutiliza las dos categorías reales
-// sembradas en la Fase 2 (armazones, lentes-opticos) como fixtures
+// Postgres via Prisma, no mocks. Reutiliza las dos categorías definitivas
+// sembradas en la Fase 5 (lentes-opticos, lentes-de-sol) como fixtures
 // compartidos — igual que otros archivos de esta carpeta reutilizan
 // Brand/EnabledComuna — y crea una tercera categoría efímera propia solo
 // para el escenario de categoría inactiva (3.8), que sí se limpia.
-import { afterAll, describe, expect, it } from 'vitest';
+import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { AdminRole, Gender, ProductMaterial, ProductShape } from '@prisma/client';
 import { createProduct } from '@/modules/catalog/admin-service';
 import {
@@ -13,6 +13,7 @@ import {
   updateOffering,
   verifyOfferingOwnership,
 } from '@/modules/catalog/offering-service';
+import { seedCategories } from '../prisma/seed';
 import { createTestAdmin, deleteTestAdmins, prisma, uniqueTag } from './helpers';
 
 describe('modules/catalog/offering-service — ProductOffering (integration)', () => {
@@ -21,6 +22,13 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   const productIds: string[] = [];
   const offeringIds: string[] = [];
   const categoryIds: string[] = [];
+
+  // Garantiza que las dos categorías definitivas existen sin asumir que
+  // `prisma db seed` ya corrió en este entorno — mismo camino real que usa
+  // la app (idempotente, nunca duplica ni pisa una edición admin).
+  beforeAll(async () => {
+    await seedCategories();
+  });
 
   afterAll(async () => {
     await prisma.productOffering.deleteMany({ where: { id: { in: offeringIds } } });
@@ -72,13 +80,13 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   it('3.4 — the same Product in two categories reuses its colors/images, never duplicates them', async () => {
     const actor = await makeActor();
     const product = await makeProduct();
-    const armazonesId = await categoryIdBySlug('armazones');
-    const lentesOpticosId = await categoryIdBySlug('lentes-opticos');
+    const opticalId = await categoryIdBySlug('lentes-opticos');
+    const sunId = await categoryIdBySlug('lentes-de-sol');
 
     const offeringA = await createOffering(
       {
         productId: product.id,
-        categoryId: armazonesId,
+        categoryId: opticalId,
         title: undefined,
         commercialDescription: undefined,
         priceFromClp: 19990,
@@ -94,7 +102,7 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
     const offeringB = await createOffering(
       {
         productId: product.id,
-        categoryId: lentesOpticosId,
+        categoryId: sunId,
         title: undefined,
         commercialDescription: undefined,
         priceFromClp: 39990,
@@ -123,12 +131,12 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   it('3.6 — creating a second offering for the same (productId, categoryId) is rejected', async () => {
     const actor = await makeActor();
     const product = await makeProduct();
-    const armazonesId = await categoryIdBySlug('armazones');
+    const opticalId = await categoryIdBySlug('lentes-opticos');
 
     const first = await createOffering(
       {
         productId: product.id,
-        categoryId: armazonesId,
+        categoryId: opticalId,
         title: undefined,
         commercialDescription: undefined,
         priceFromClp: 19990,
@@ -147,7 +155,7 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
       createOffering(
         {
           productId: product.id,
-          categoryId: armazonesId,
+          categoryId: opticalId,
           title: undefined,
           commercialDescription: undefined,
           priceFromClp: 9990,
@@ -162,20 +170,20 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
       )
     ).rejects.toThrow();
 
-    const count = await prisma.productOffering.count({ where: { productId: product.id, categoryId: armazonesId } });
+    const count = await prisma.productOffering.count({ where: { productId: product.id, categoryId: opticalId } });
     expect(count).toBe(1);
   });
 
   it('3.7 — an offering that does not belong to the claimed category is rejected', async () => {
     const actor = await makeActor();
     const product = await makeProduct();
-    const armazonesId = await categoryIdBySlug('armazones');
-    const lentesOpticosId = await categoryIdBySlug('lentes-opticos');
+    const opticalId = await categoryIdBySlug('lentes-opticos');
+    const sunId = await categoryIdBySlug('lentes-de-sol');
 
     const offering = await createOffering(
       {
         productId: product.id,
-        categoryId: armazonesId,
+        categoryId: opticalId,
         title: undefined,
         commercialDescription: undefined,
         priceFromClp: 19990,
@@ -190,15 +198,15 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
     );
     offeringIds.push(offering.id);
 
-    await expect(verifyOfferingOwnership(offering.id, lentesOpticosId, product.id)).rejects.toThrow();
-    await expect(verifyOfferingOwnership(offering.id, armazonesId, product.id)).resolves.toMatchObject({ id: offering.id });
+    await expect(verifyOfferingOwnership(offering.id, sunId, product.id)).rejects.toThrow();
+    await expect(verifyOfferingOwnership(offering.id, opticalId, product.id)).resolves.toMatchObject({ id: offering.id });
   });
 
   it('3.8 — inactive category / invisible offering are excluded from public listings', async () => {
     const actor = await makeActor();
     const productVisible = await makeProduct();
     const productHiddenOffering = await makeProduct();
-    const armazonesId = await categoryIdBySlug('armazones');
+    const opticalId = await categoryIdBySlug('lentes-opticos');
 
     const inactiveCategory = await prisma.category.create({
       data: {
@@ -214,7 +222,7 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
     const visibleOffering = await createOffering(
       {
         productId: productVisible.id,
-        categoryId: armazonesId,
+        categoryId: opticalId,
         title: undefined,
         commercialDescription: undefined,
         priceFromClp: 19990,
@@ -230,7 +238,7 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
     const invisibleOffering = await createOffering(
       {
         productId: productHiddenOffering.id,
-        categoryId: armazonesId,
+        categoryId: opticalId,
         title: undefined,
         commercialDescription: undefined,
         priceFromClp: 19990,
@@ -261,8 +269,8 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
     );
     offeringIds.push(visibleOffering.id, invisibleOffering.id, offeringInInactiveCategory.id);
 
-    const armazonesListing = await listVisibleOfferingsForCategory(armazonesId);
-    const listedIds = armazonesListing.map((o) => o.id);
+    const opticalListing = await listVisibleOfferingsForCategory(opticalId);
+    const listedIds = opticalListing.map((o) => o.id);
     expect(listedIds).toContain(visibleOffering.id);
     expect(listedIds).not.toContain(invisibleOffering.id);
 
@@ -273,12 +281,12 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   it('3.3 — creating and updating an offering with a different price never touches Product.priceFromClp (no reverse sync)', async () => {
     const actor = await makeActor();
     const product = await makeProduct(29990); // precio V1 del Product base
-    const armazonesId = await categoryIdBySlug('armazones');
+    const opticalId = await categoryIdBySlug('lentes-opticos');
 
     const offering = await createOffering(
       {
         productId: product.id,
-        categoryId: armazonesId,
+        categoryId: opticalId,
         title: undefined,
         commercialDescription: undefined,
         priceFromClp: 15000, // deliberadamente distinto al priceFromClp del Product
@@ -301,7 +309,7 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
       offering.id,
       {
         productId: product.id,
-        categoryId: armazonesId,
+        categoryId: opticalId,
         title: undefined,
         commercialDescription: undefined,
         priceFromClp: 45000, // otra edición, otra vez distinta
@@ -323,12 +331,12 @@ describe('modules/catalog/offering-service — ProductOffering (integration)', (
   it('3.9 — editing Product.priceFromClp after an offering exists does not change the offering price', async () => {
     const actor = await makeActor();
     const product = await makeProduct(29990);
-    const armazonesId = await categoryIdBySlug('armazones');
+    const opticalId = await categoryIdBySlug('lentes-opticos');
 
     const offering = await createOffering(
       {
         productId: product.id,
-        categoryId: armazonesId,
+        categoryId: opticalId,
         title: undefined,
         commercialDescription: undefined,
         priceFromClp: 19990,

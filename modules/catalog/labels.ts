@@ -32,15 +32,14 @@ export function formatClp(amountClp: number): string {
 }
 
 /**
- * CTA por categoría (5.4, design.md) para las 3 categorías conocidas al
- * momento de este cambio. Una categoría nueva (creada desde el admin, sin
- * código nuevo) usa el fallback genérico — nunca queda sin CTA ni hereda
- * por error un texto pensado para otra categoría.
+ * CTA por categoría (8.2, design.md) para las dos categorías definitivas.
+ * Una categoría nueva (creada desde el admin, sin código nuevo) usa el
+ * fallback genérico — nunca queda sin CTA ni hereda por error un texto
+ * pensado para otra categoría.
  */
 const CATEGORY_CTA_LABELS: Record<string, string> = {
-  armazones: 'Ver armazón',
   'lentes-opticos': 'Configurar lentes',
-  'lentes-de-sol-opticos': 'Configurar lentes de sol ópticos',
+  'lentes-de-sol': 'Configurar lentes de sol',
 };
 const DEFAULT_OFFERING_CTA_LABEL = 'Ver oferta';
 

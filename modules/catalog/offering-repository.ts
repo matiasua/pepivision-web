@@ -171,10 +171,14 @@ export function listRelatedPublicOfferings(offering: {
 }
 
 /**
- * Capa de compatibilidad (5.3): resuelve la oferta "por defecto" de un
- * producto por su slug legado, para el redirect 308 desde
- * `/catalogo/[slug]`. Prioriza la oferta de la categoría "armazones" (si es
- * pública); si no existe, la primera oferta pública por `sortOrder`. `null`
+ * Capa de compatibilidad (8.1, design.md → "Compatibilidad de URLs"):
+ * resuelve la oferta "por defecto" de un producto por su slug legado, para
+ * el redirect 308 desde `/catalogo/[slug]` (incluye `/catalogo/armazones/
+ * [offeringSlug]`, tratado como slug de producto legado por la misma
+ * ruta). Prioriza la oferta de la categoría "lentes-opticos" (si es
+ * pública) — la categoría "armazones" ya no existe, así que un armazón sin
+ * otra oferta ahora vive por defecto en Lentes ópticos tras la migración de
+ * taxonomía; si no existe, la primera oferta pública por `sortOrder`. `null`
  * si el producto no existe, no es visible, o no tiene ninguna oferta
  * pública — mismo caso que hoy resulta en 404.
  */
@@ -197,7 +201,7 @@ export async function findDefaultPublicOfferingForProductSlug(
   });
   if (offerings.length === 0) return null;
 
-  const defaultOffering = offerings.find((o) => o.category.slug === 'armazones') ?? offerings[0];
+  const defaultOffering = offerings.find((o) => o.category.slug === 'lentes-opticos') ?? offerings[0];
   return { categorySlug: defaultOffering.category.slug, offeringSlug: defaultOffering.slug };
 }
 

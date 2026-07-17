@@ -82,13 +82,14 @@ async function createCatalogFixture() {
   // Desde redesign-extensible-catalog-v2, la lectura pública del catálogo
   // pasa a ser por ProductOffering — un Product visible sin ninguna oferta
   // pública simplemente no aparece en ningún lado (ver design.md → "Fase de
-  // compatibilidad de precios"). "armazones" existe siempre en este punto:
-  // el seed (`prisma db seed`) corre antes que la suite E2E, ver README.md.
-  const armazonesCategory = await prisma.category.findUniqueOrThrow({ where: { slug: 'armazones' } });
+  // compatibilidad de precios"). "lentes-opticos" existe siempre en este
+  // punto (categoría definitiva post-migración de taxonomía, Fase 5): el
+  // seed (`prisma db seed`) corre antes que la suite E2E, ver README.md.
+  const opticalCategory = await prisma.category.findUniqueOrThrow({ where: { slug: 'lentes-opticos' } });
   const offering = await prisma.productOffering.create({
     data: {
       productId: product.id,
-      categoryId: armazonesCategory.id,
+      categoryId: opticalCategory.id,
       slug: E2E_CATALOG_PRODUCT_SLUG,
       priceFromClp: product.priceFromClp,
       active: true,
@@ -144,7 +145,7 @@ async function createCatalogFixture() {
     colorId: color.id,
     imageIds,
     storageKeys,
-    categorySlug: armazonesCategory.slug,
+    categorySlug: opticalCategory.slug,
     offeringSlug: offering.slug,
   };
 }

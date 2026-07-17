@@ -12,13 +12,14 @@ const BASE_URL = process.env.PLAYWRIGHT_BASE_URL || 'http://nginx';
 module.exports = {
   ci: {
     collect: {
-      // "armazones" is one of prisma/seed.ts's fixed, idempotent seed
-      // categories — stable across environments that ran the seed, unlike
-      // an offering slug (this config is plain JSON-ish and can't await a
-      // DB query, and any offering created only for E2E fixtures is already
-      // gone by the time Lighthouse runs — it runs after Playwright's
-      // global-teardown, see README.md).
-      url: [`${BASE_URL}/`, `${BASE_URL}/catalogo`, `${BASE_URL}/catalogo/armazones`],
+      // "lentes-opticos" is one of prisma/seed.ts's fixed, idempotent seed
+      // categories (redesign-extensible-catalog-v2, Fase 5 — reemplaza la
+      // extinta "armazones") — stable across environments that ran the
+      // seed, unlike an offering slug (this config is plain JSON-ish and
+      // can't await a DB query, and any offering created only for E2E
+      // fixtures is already gone by the time Lighthouse runs — it runs
+      // after Playwright's global-teardown, see README.md).
+      url: [`${BASE_URL}/`, `${BASE_URL}/catalogo`, `${BASE_URL}/catalogo/lentes-opticos`],
       numberOfRuns: 1,
       settings: {
         // Set by scripts/run-lighthouse.mjs right before invoking `lhci` —

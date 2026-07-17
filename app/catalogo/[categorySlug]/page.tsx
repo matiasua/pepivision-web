@@ -12,6 +12,7 @@ import {
   getCatalogForCategory,
   getLegacyRedirectTarget,
 } from '@/modules/catalog/service';
+import { resolveLegacyCategorySlug } from '@/modules/catalog/legacy-slugs';
 import { parseCatalogFilters, type CatalogFilters as CatalogFiltersType } from '@/modules/catalog/schemas';
 
 type Params = { categorySlug: string };
@@ -95,12 +96,20 @@ export default async function CategoriaPage({
   // notFound() real si la categoría deja de existir entre ambas llamadas.
   const category = await getCategorySummary(categorySlug);
   if (!category) {
-    // Capa de compatibilidad (5.3): `/catalogo/[categorySlug]` y la antigua
+    // Capa de compatibilidad (5.3, extendida en el cierre técnico de la
+    // corrección de taxonomía): `/catalogo/[categorySlug]` y la antigua
     // `/catalogo/[slug]` (slug de producto) ocupan la misma forma de URL de
     // un solo segmento — Next.js no permite dos nombres de parámetro
     // distintos en la misma posición de ruta, así que ambos casos se
-    // resuelven aquí. Si `categorySlug` no calza con ninguna categoría,
-    // se intenta como slug legado de producto antes de devolver 404.
+    // resuelven aquí. Orden deliberado: primero el mapa cerrado de slugs de
+    // categoría legados (armazones, lentes-de-sol-opticos) — reservados,
+    // nunca capturables por un Product.slug coincidente — y solo si
+    // `categorySlug` no es ninguno de esos, se intenta como slug legado de
+    // producto antes de devolver 404.
+    const legacyCategoryTarget = resolveLegacyCategorySlug(categorySlug);
+    if (legacyCategoryTarget) {
+      permanentRedirect(`/catalogo/${legacyCategoryTarget}`);
+    }
     const legacyTarget = await getLegacyRedirectTarget(categorySlug);
     if (legacyTarget) {
       permanentRedirect(`/catalogo/${legacyTarget.categorySlug}/${legacyTarget.offeringSlug}`);

@@ -19,8 +19,31 @@ The system SHALL serve `/catalogo`, `/catalogo/[categorySlug]`, and `/catalogo/[
 - **THEN** the page SHALL be built from the `ProductOffering` matching `(categorySlug: 'lentes-opticos', slug: 'coral')`, including its category-specific price and commercial copy
 
 #### Scenario: An unknown category slug returns not-found
-- **WHEN** a visitor requests `/catalogo/categoria-inexistente`
+- **WHEN** a visitor requests `/catalogo/categoria-inexistente` — a slug that was never a category and is not one of the reserved legacy category slugs described below
 - **THEN** the system SHALL return a not-found response
+
+### Requirement: Retired category slugs redirect permanently to their replacement category — CLOSED, resolves prior ambiguity
+`armazones` and `lentes-de-sol-opticos` are retired, reserved category slugs — removed as `Category` rows by the taxonomy migration, but never available for reuse (by a future category or by a `Product.slug`). A bare, single-segment `/catalogo/[categorySlug]` request for one of these two exact slugs SHALL issue a permanent redirect to its replacement category's listing page, resolved via a closed, static, code-level map (`armazones` → `lentes-opticos`, `lentes-de-sol-opticos` → `lentes-de-sol`) — never by querying the database or any visitor-supplied value as a redirect destination. This is a single explicit rule, previously undocumented: the general "unknown category slug returns not-found" requirement above does not apply to these two identifiers, and the 3-segment legacy-offering redirect (below) does not substitute for it — a visitor requesting just the retired category's listing page (no offering segment) still deserves a working destination, not a 404.
+
+#### Scenario: The bare armazones category redirects to lentes-opticos
+- **WHEN** a visitor requests `/catalogo/armazones` (no offering segment) after the Armazones category has been removed by the taxonomy migration
+- **THEN** the system SHALL issue a permanent redirect to `/catalogo/lentes-opticos`
+
+#### Scenario: The bare lentes-de-sol-opticos category redirects to lentes-de-sol
+- **WHEN** a visitor requests `/catalogo/lentes-de-sol-opticos` (no offering segment)
+- **THEN** the system SHALL issue a permanent redirect to `/catalogo/lentes-de-sol`
+
+#### Scenario: A retired category slug is resolved before the legacy Product.slug fallback
+- **WHEN** `/catalogo/armazones` or `/catalogo/lentes-de-sol-opticos` is requested
+- **THEN** the system SHALL resolve it via the closed legacy-category-slug map first, without attempting to look up a `Product` whose `slug` happens to equal that value
+
+#### Scenario: A Product cannot capture a reserved legacy category slug
+- **WHEN** a `Product.slug` happens to equal `armazones` or `lentes-de-sol-opticos`
+- **THEN** requesting `/catalogo/armazones` or `/catalogo/lentes-de-sol-opticos` SHALL still redirect to the replacement category, never to that product's page — these two identifiers are permanently reserved and unavailable to any `Product.slug` or future `Category.slug`
+
+#### Scenario: The taxonomy migration never recreates the retired categories
+- **WHEN** the redirect map resolves `armazones` or `lentes-de-sol-opticos`
+- **THEN** the system SHALL NOT create, restore, or reference a `Category` row with either retired slug — the map is a pure code-level redirect, not a database lookup
 
 ### Requirement: Legacy product URLs redirect permanently to their category-scoped URL
 `/catalogo/[slug]` (the pre-existing product-detail route) SHALL remain resolvable and SHALL issue a permanent redirect to the corresponding `/catalogo/[categorySlug]/[offeringSlug]` URL.

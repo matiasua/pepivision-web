@@ -27,8 +27,8 @@ test.afterAll(async () => {
 });
 
 test('abre el cotizador desde la ficha de un producto (modelo pre-seleccionado)', async ({ page }) => {
-  await page.goto('/catalogo/armazones');
-  await page.getByRole('link', { name: 'Ver armazón' }).first().click();
+  await page.goto('/catalogo/lentes-opticos');
+  await page.getByRole('link', { name: 'Configurar lentes' }).first().click();
   await page.getByRole('link', { name: 'Cotizar este modelo' }).click();
 
   await expect(page).toHaveURL(/\/cotizador\?productId=/);
