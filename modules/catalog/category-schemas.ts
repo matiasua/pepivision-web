@@ -15,7 +15,11 @@ export const categoryFormSchema = z.object({
   visible: z.boolean(),
   sortOrder: z.coerce.number().int().default(0),
   icon: optionalNonEmpty(z.string().trim().max(60)),
-  imagePath: optionalNonEmpty(z.string().trim().max(300)),
+  // `imagePath`/`imageStorageKey` NO forman parte de este schema — Fase 6
+  // (design.md → "Imágenes de categoría") las gestiona exclusivamente vía
+  // saveCategoryImage()/deleteCategoryImage(), nunca como un valor
+  // arbitrario enviado por el cliente en el formulario general. Ver
+  // CategoryImageManager.tsx.
   seoTitle: optionalNonEmpty(z.string().trim().max(160)),
   seoDescription: optionalNonEmpty(z.string().trim().max(300)),
   capabilities: categoryCapabilitiesSchema,

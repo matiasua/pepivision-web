@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildPublicUrl, buildStorageKey } from '@/modules/storage/service';
+import { buildCategoryStorageKey, buildPublicUrl, buildStorageKey } from '@/modules/storage/service';
 
 describe('modules/storage/service — buildStorageKey', () => {
   // Gallery photos no longer have a fixed slot (MAIN/FRONT/SIDE) — every
@@ -19,6 +19,24 @@ describe('modules/storage/service — buildStorageKey', () => {
     const a = buildStorageKey('prod_123', 'photo', 'jpg');
     const b = buildStorageKey('prod_123', 'photo', 'jpg');
     expect(a).not.toBe(b);
+  });
+});
+
+describe('modules/storage/service — buildCategoryStorageKey (Fase 6)', () => {
+  it('namespaces the key under categories/<categoryId>/cover-', () => {
+    const key = buildCategoryStorageKey('cat_123', 'webp');
+    expect(key).toMatch(/^categories\/cat_123\/cover-[0-9a-f]{16}\.webp$/);
+  });
+
+  it('generates a different key on every call (no collisions on replace)', () => {
+    const a = buildCategoryStorageKey('cat_123', 'webp');
+    const b = buildCategoryStorageKey('cat_123', 'webp');
+    expect(a).not.toBe(b);
+  });
+
+  it('never embeds an original filename — only the category id and a random suffix', () => {
+    const key = buildCategoryStorageKey('cat_123', 'webp');
+    expect(key).not.toMatch(/\.\.|\/\/|[^a-z0-9/_.-]/i);
   });
 });
 

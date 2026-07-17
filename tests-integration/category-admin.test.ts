@@ -40,7 +40,6 @@ describe('modules/catalog/category-service — delete/deactivate with real Produ
         visible: true,
         sortOrder: 99,
         icon: undefined,
-        imagePath: undefined,
         seoTitle: undefined,
         seoDescription: undefined,
         capabilities: {

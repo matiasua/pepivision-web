@@ -468,6 +468,8 @@ La Fase 3 (incluida 3.3) implementa **únicamente** la garantía de dominio del 
 - **Public fallback**: when `imagePath` is null, `/catalogo`'s category card already renders an empty gray placeholder box (existing behavior, unchanged) — no broken `<img>` tag.
 - **Authorization**: SUPERADMIN-only, same as all other category-structure mutations (see "Autorización" below) — an image is part of category structure, not routine merchandising.
 - **Audit**: folds into the existing `category.updated` action (no new action needed — an image change is a category-field change like any other).
+- **`Category.imageStorageKey` (new column, added during implementation)**: `imagePath` alone is a public URL — safely deleting/replacing the underlying MinIO object requires the actual storage key, never re-derived by parsing the URL (same discipline `ProductImage.storageKey` already establishes). Additive, nullable migration; `imagePath` is unchanged in shape. `saveCategoryImage()`/`deleteCategoryImage()` (`modules/catalog/category-service.ts`) are the only writers of either field — the general category form (`categoryFormSchema`) no longer accepts `imagePath` as a client-supplied value at all.
+- **Admin UI gating**: `CategoryImageManager.tsx` only renders once a category exists (`categoryId` present) — identical constraint already established for `CategoryAttributesManager` ("guarda la categoría primero, luego configura"), not a new exception introduced for images.
 
 ### Autorización — **CLOSED**
 

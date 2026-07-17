@@ -12,7 +12,9 @@ import {
 import {
   createCategory,
   deleteCategory,
+  deleteCategoryImage,
   reorderCategories,
+  saveCategoryImage,
   setCategoryActive,
   updateCategory,
   type RemoveCategoryResult,
@@ -86,6 +88,53 @@ export async function deleteCategoryAction(categoryId: string): Promise<DeleteCa
     return { status: 'success' };
   } catch (error) {
     logger.error('category.delete_failed', { categoryId, error: error instanceof Error ? error.message : String(error) });
+    return { status: 'error', message: toErrorResponse(error).message };
+  }
+}
+
+export type CategoryImageActionResult =
+  | { status: 'error'; message: string }
+  | { status: 'success'; imagePath: string | null };
+
+// Fase 6 (design.md → "Imágenes de categoría"): SUPERADMIN-only, misma
+// palanca de "estructura de categoría" que el resto de este archivo — una
+// imagen de categoría no es mercadeo rutinario de oferta, es parte de la
+// estructura de la categoría. Nunca acepta `imageStorageKey`/`imagePath`
+// directamente del cliente: ambos se derivan server-side en
+// saveCategoryImage()/deleteCategoryImage().
+export async function uploadCategoryImageAction(categoryId: string, formData: FormData): Promise<CategoryImageActionResult> {
+  const session = await requireRole('SUPERADMIN');
+  const file = formData.get('file');
+  if (!(file instanceof File)) {
+    return { status: 'error', message: 'Selecciona un archivo de imagen.' };
+  }
+
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const category = await saveCategoryImage(categoryId, { buffer, contentType: file.type, size: file.size }, session);
+    return { status: 'success', imagePath: category.imagePath };
+  } catch (error) {
+    // Nunca reenvía el mensaje crudo del error: puede originarse en Sharp,
+    // MinIO/S3 o Prisma y filtrar detalles internos (storage keys, info de
+    // conexión) — mismo criterio que product_image.upload_action_failed.
+    logger.error('category_image.upload_action_failed', {
+      categoryId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { status: 'error', message: toErrorResponse(error).message };
+  }
+}
+
+export async function deleteCategoryImageAction(categoryId: string): Promise<SimpleActionResult> {
+  const session = await requireRole('SUPERADMIN');
+  try {
+    await deleteCategoryImage(categoryId, session);
+    return { status: 'success' };
+  } catch (error) {
+    logger.error('category_image.delete_action_failed', {
+      categoryId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return { status: 'error', message: toErrorResponse(error).message };
   }
 }

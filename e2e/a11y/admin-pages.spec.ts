@@ -79,4 +79,15 @@ test.describe('con sesión SUPERADMIN', () => {
     await page.goto('/admin/users');
     await expectNoSeriousA11yViolations(page, testInfo, 'admin-users');
   });
+
+  test('axe: listado de categorías (/admin/categories)', async ({ page }, testInfo) => {
+    await page.goto('/admin/categories');
+    await expectNoSeriousA11yViolations(page, testInfo, 'admin-categories-list');
+  });
+
+  test('axe: edición de categoría (incluye el widget de imagen, Fase 6)', async ({ page }, testInfo) => {
+    const category = await prisma.category.findFirstOrThrow();
+    await page.goto(`/admin/categories/${category.id}/edit`);
+    await expectNoSeriousA11yViolations(page, testInfo, 'admin-category-edit');
+  });
 });

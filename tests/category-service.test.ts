@@ -61,7 +61,6 @@ function validInput(overrides: Partial<Record<string, unknown>> = {}) {
     visible: true,
     sortOrder: 0,
     icon: undefined,
-    imagePath: undefined,
     seoTitle: undefined,
     seoDescription: undefined,
     capabilities: VALID_CAPABILITIES,

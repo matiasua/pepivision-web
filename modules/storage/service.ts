@@ -8,6 +8,18 @@ export function buildStorageKey(productId: string, slot: string, extension: stri
   return `products/${productId}/${slot.toLowerCase()}-${suffix}.${extension}`;
 }
 
+/**
+ * Category cover image key (redesign-extensible-catalog-v2, Fase 6) —
+ * mirrors `buildStorageKey`'s pattern (`categories/${categoryId}/cover-
+ * ${random}.${extension}`, see design.md → "Imágenes de categoría").
+ * `categoryId` is a server-generated cuid, never user input, so this key
+ * never embeds an original filename or a locally-supplied path.
+ */
+export function buildCategoryStorageKey(categoryId: string, extension: string): string {
+  const suffix = randomBytes(8).toString('hex');
+  return `categories/${categoryId}/cover-${suffix}.${extension}`;
+}
+
 export function buildPublicUrl(key: string): string {
   return `${env.OBJECT_STORAGE_PUBLIC_URL}/${env.OBJECT_STORAGE_BUCKET}/${key}`;
 }

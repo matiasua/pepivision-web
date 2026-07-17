@@ -413,6 +413,11 @@ model Category {
   sortOrder        Int      @default(0)
   icon             String?
   imagePath        String?
+  /// Storage key of the MinIO object backing `imagePath` — never derived by
+  /// parsing the public URL. Needed to safely delete/replace the object
+  /// (see modules/catalog/category-service.ts#saveCategoryImage/
+  /// deleteCategoryImage), same discipline as ProductImage.storageKey.
+  imageStorageKey  String?
   seoTitle         String?
   seoDescription   String?
   /// Validado por categoryCapabilitiesSchema (Zod) en cada escritura — ver

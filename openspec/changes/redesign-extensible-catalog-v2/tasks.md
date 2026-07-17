@@ -53,12 +53,12 @@ Numeración reestructurada tras la corrección de taxonomía (dos categorías de
 
 ## 6. Imágenes de categorías (nueva, ver design.md → "Imágenes de categoría")
 
-- [ ] 6.1 Implementar `processCategoryImage` (o extender `processProductImage` con salida configurable) — validación MIME real vía `sharp`, salida JPEG y opción WebP.
-- [ ] 6.2 Implementar subida/reemplazo/eliminación en el bucket público, reutilizando `modules/storage/service.ts` (misma clave de patrón `categories/${categoryId}/cover-${random}.${extension}`).
-- [ ] 6.3 Extender `CategoryForm.tsx` con el widget de subida/previsualización/reemplazo/eliminación (reemplaza el `<input>` de texto plano actual para `imagePath`).
-- [ ] 6.4 Confirmar el fallback público ya existente (placeholder gris cuando `imagePath` es null) sigue funcionando sin cambios.
-- [ ] 6.5 Auditoría: la subida de imagen se registra como parte de `category.updated` (sin acción nueva).
-- [ ] 6.6 Prueba: subir/reemplazar/eliminar una imagen de categoría; MIME inválido rechazado; tamaño excedido rechazado.
+- [x] 6.1 Implementar `processCategoryImage` (o extender `processProductImage` con salida configurable) — validación MIME real vía `sharp`, salida JPEG y opción WebP. Implementado extrayendo un `processImage(input, format)` compartido en `lib/image-processing.ts`; `processProductImage` sigue produciendo JPEG sin cambios, `processCategoryImage` produce WebP (nueva capacidad).
+- [x] 6.2 Implementar subida/reemplazo/eliminación en el bucket público, reutilizando `modules/storage/service.ts` (misma clave de patrón `categories/${categoryId}/cover-${random}.${extension}`). Implementado en `modules/catalog/category-service.ts#saveCategoryImage()` (subida y reemplazo unificados — sube el objeto nuevo, persiste en Postgres, y solo entonces borra el anterior) y `#deleteCategoryImage()` (idempotente). Requirió agregar `Category.imageStorageKey` (migración aditiva/nullable) — `imagePath` por sí solo no permite borrar/reemplazar el objeto de forma segura.
+- [x] 6.3 Extender `CategoryForm.tsx` con el widget de subida/previsualización/reemplazo/eliminación (reemplaza el `<input>` de texto plano actual para `imagePath`). Nuevo `components/admin/CategoryImageManager.tsx`, gated en `categoryId` existente — mismo patrón ya establecido por `CategoryAttributesManager` ("guarda la categoría primero"), no un caso nuevo a resolver.
+- [x] 6.4 Confirmar el fallback público ya existente (placeholder gris cuando `imagePath` es null) sigue funcionando sin cambios. Confirmado — `app/catalogo/page.tsx` no fue modificado; el fallback ya era data-driven, sin cambio de código necesario.
+- [x] 6.5 Auditoría: la subida de imagen se registra como parte de `category.updated` (sin acción nueva). Implementado — `saveCategoryImage`/`deleteCategoryImage` registran `category.updated` con `metadata.imageAction` (`uploaded`/`replaced`/`removed`), nunca binarios/URLs firmadas/rutas locales.
+- [x] 6.6 Prueba: subir/reemplazar/eliminar una imagen de categoría; MIME inválido rechazado; tamaño excedido rechazado. Unit (`tests/category-image-service.test.ts`, `tests/image-processing.test.ts`, `tests/storage-service.test.ts`, `tests/category-picker-mapper.test.ts`, `tests/admin-categories-actions.test.ts`), integración con Postgres+MinIO reales (`tests-integration/category-image-storage.test.ts`), E2E admin+público (`e2e/admin/category-image.spec.ts`, `e2e/public/category-cards.spec.ts`) — todas en verde.
 
 ## 7. Contenido de cristales y tratamientos (nueva, ver design.md → "Contenido de cristales, tratamientos y opciones adicionales")
 

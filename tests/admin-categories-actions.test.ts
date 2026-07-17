@@ -23,6 +23,8 @@ vi.mock('@/modules/catalog/category-service', () => ({
   deleteCategory: vi.fn().mockResolvedValue({ status: 'removed' }),
   setCategoryActive: vi.fn().mockResolvedValue({ id: 'cat_1' }),
   reorderCategories: vi.fn().mockResolvedValue(undefined),
+  saveCategoryImage: vi.fn().mockResolvedValue({ id: 'cat_1', imagePath: 'https://storage.test/x.webp' }),
+  deleteCategoryImage: vi.fn().mockResolvedValue({ id: 'cat_1', imagePath: null }),
 }));
 
 vi.mock('@/modules/catalog/category-attribute-service', () => ({
@@ -37,8 +39,15 @@ vi.mock('@/modules/catalog/offering-service', () => ({
   setOfferingActive: vi.fn().mockResolvedValue({ id: 'off_1' }),
 }));
 
-const { createCategoryAction, updateCategoryAction, deleteCategoryAction, setCategoryActiveAction, reorderCategoriesAction } =
-  await import('@/app/admin/categories/actions');
+const {
+  createCategoryAction,
+  updateCategoryAction,
+  deleteCategoryAction,
+  setCategoryActiveAction,
+  reorderCategoriesAction,
+  uploadCategoryImageAction,
+  deleteCategoryImageAction,
+} = await import('@/app/admin/categories/actions');
 const { createOfferingAction, updateOfferingAction, setOfferingActiveAction } = await import('@/app/admin/products/actions');
 
 const SUPERADMIN_SESSION = {
@@ -59,7 +68,6 @@ const validCategoryInput = {
   visible: true,
   sortOrder: 0,
   icon: undefined,
-  imagePath: undefined,
   seoTitle: undefined,
   seoDescription: undefined,
   capabilities: {
@@ -113,6 +121,48 @@ describe('app/admin/categories/actions — category structure requires SUPERADMI
     expect(requireRole).toHaveBeenCalledTimes(4);
     expect(requireRole).toHaveBeenCalledWith('SUPERADMIN');
     expect(requireSession).not.toHaveBeenCalled();
+  });
+
+  // Fase 6: la imagen de categoría es parte de la estructura de categoría
+  // (design.md → "Autorización"), no mercadeo rutinario de oferta — misma
+  // palanca SUPERADMIN-only que el resto de este describe.
+  it('uploadCategoryImageAction gates on SUPERADMIN and never invokes requireSession', async () => {
+    requireRole.mockResolvedValue(SUPERADMIN_SESSION);
+    const formData = new FormData();
+    formData.set('file', new File([Buffer.from('fake')], 'cover.jpg', { type: 'image/jpeg' }));
+
+    const result = await uploadCategoryImageAction('cat_1', formData);
+
+    expect(requireRole).toHaveBeenCalledWith('SUPERADMIN');
+    expect(requireSession).not.toHaveBeenCalled();
+    expect(result.status).toBe('success');
+  });
+
+  it('uploadCategoryImageAction rejects when requireRole denies an ADMIN (not SUPERADMIN)', async () => {
+    requireRole.mockRejectedValue(new ForbiddenError('No tienes permiso para realizar esta acción.'));
+    const formData = new FormData();
+    formData.set('file', new File([Buffer.from('fake')], 'cover.jpg', { type: 'image/jpeg' }));
+
+    await expect(uploadCategoryImageAction('cat_1', formData)).rejects.toThrow(ForbiddenError);
+  });
+
+  it('uploadCategoryImageAction rejects a call with no file, without ever calling the service', async () => {
+    requireRole.mockResolvedValue(SUPERADMIN_SESSION);
+    const result = await uploadCategoryImageAction('cat_1', new FormData());
+    expect(result.status).toBe('error');
+  });
+
+  it('deleteCategoryImageAction gates on SUPERADMIN', async () => {
+    requireRole.mockResolvedValue(SUPERADMIN_SESSION);
+    const result = await deleteCategoryImageAction('cat_1');
+    expect(requireRole).toHaveBeenCalledWith('SUPERADMIN');
+    expect(requireSession).not.toHaveBeenCalled();
+    expect(result.status).toBe('success');
+  });
+
+  it('deleteCategoryImageAction rejects when requireRole denies an ADMIN', async () => {
+    requireRole.mockRejectedValue(new ForbiddenError('No tienes permiso para realizar esta acción.'));
+    await expect(deleteCategoryImageAction('cat_1')).rejects.toThrow(ForbiddenError);
   });
 });
 

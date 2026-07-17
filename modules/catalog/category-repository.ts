@@ -49,7 +49,11 @@ interface CategoryRowInput {
   visible: boolean;
   sortOrder: number;
   icon: string | null;
-  imagePath: string | null;
+  // Deliberadamente ausente de este tipo, no `string | null`: `imagePath`/
+  // `imageStorageKey` (Fase 6) nunca se escriben desde el formulario
+  // general — solo vía updateCategoryImageFields(). Omitir la clave en
+  // `data` dentro de una llamada a `update()` la deja intacta; en
+  // `create()`, el nuevo registro simplemente parte sin imagen.
   seoTitle: string | null;
   seoDescription: string | null;
   capabilities: Prisma.InputJsonValue;
@@ -79,6 +83,15 @@ export function countCategoryOfferings(categoryId: string) {
 
 export function setCategoryActiveRow(id: string, active: boolean) {
   return prisma.category.update({ where: { id }, data: { active } });
+}
+
+/**
+ * Narrow update scoped to the two image fields (Fase 6) — mirrors
+ * `updateProductImageRow`'s scope discipline: a category image
+ * upload/replace/delete never touches name/slug/capabilities/etc.
+ */
+export function updateCategoryImageFields(id: string, input: { imagePath: string | null; imageStorageKey: string | null }) {
+  return prisma.category.update({ where: { id }, data: input });
 }
 
 export function runInTransaction<T>(fn: (tx: Prisma.TransactionClient) => Promise<T>) {

@@ -38,7 +38,6 @@ export default async function EditCategoryPage({ params }: { params: Promise<{ i
     visible: category.visible,
     sortOrder: String(category.sortOrder),
     icon: category.icon ?? '',
-    imagePath: category.imagePath ?? '',
     seoTitle: category.seoTitle ?? '',
     seoDescription: category.seoDescription ?? '',
     capabilities: parseCategoryCapabilities(category.capabilities),
@@ -68,6 +67,8 @@ export default async function EditCategoryPage({ params }: { params: Promise<{ i
         onSubmit={boundUpdate}
         categoryId={category.id}
         attributes={attributes}
+        imagePath={category.imagePath}
+        categoryName={category.name}
       />
     </AdminShell>
   );

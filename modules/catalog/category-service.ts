@@ -1,5 +1,9 @@
 import { ValidationError } from '@/lib/errors';
+import { logger } from '@/lib/logger';
 import { slugify } from '@/lib/slug';
+import { processCategoryImage } from '@/lib/image-processing';
+import { imageFileMetaSchema } from '@/modules/storage/schemas';
+import { buildCategoryStorageKey, buildPublicUrl, deleteObject, uploadObject } from '@/modules/storage/service';
 import type { CurrentSession } from '@/modules/auth/service';
 import { recordAudit } from '@/modules/auth/service';
 import { validateCategoryCapabilities } from './category-capabilities';
@@ -15,6 +19,7 @@ import {
   reorderCategoryRows,
   runInTransaction,
   setCategoryActiveRow,
+  updateCategoryImageFields,
   updateCategoryRow,
 } from './category-repository';
 import type { CategoryFormInput } from './category-schemas';
@@ -56,7 +61,6 @@ function toRowInput(input: CategoryFormInput) {
     visible: input.visible,
     sortOrder: input.sortOrder,
     icon: input.icon ?? null,
-    imagePath: input.imagePath ?? null,
     seoTitle: input.seoTitle ?? null,
     seoDescription: input.seoDescription ?? null,
     capabilities: validateCategoryCapabilities(input.capabilities),
@@ -178,4 +182,135 @@ export async function deleteCategory(id: string): Promise<RemoveCategoryResult> 
 
   await deleteCategoryRow(id);
   return { status: 'removed' };
+}
+
+/**
+ * Sube o reemplaza la imagen de portada de una categoría (Fase 6, design.md
+ * → "Imágenes de categoría"). Una única función cubre ambos casos — la
+ * única diferencia real es si queda un objeto anterior que limpiar al
+ * final — evitando duplicar el pipeline de procesamiento/subida/persistencia.
+ *
+ * Orden seguro (sección 9): procesar → subir el objeto NUEVO → persistir en
+ * Postgres → solo entonces borrar el objeto anterior (best-effort, nunca
+ * bloquea la respuesta ni revierte la categoría a una URL rota). Si la
+ * persistencia en BD falla, el objeto nuevo recién subido se compensa
+ * (borra) y el error nunca deja una categoría con una referencia inválida.
+ */
+export async function saveCategoryImage(
+  categoryId: string,
+  file: { buffer: Buffer; contentType: string; size: number },
+  actor: CurrentSession
+) {
+  const category = await findCategoryById(categoryId);
+  if (!category) {
+    throw new ValidationError('La categoría ya no existe.');
+  }
+
+  const meta = imageFileMetaSchema.safeParse({ type: file.contentType, size: file.size });
+  if (!meta.success) {
+    throw new ValidationError(meta.error.issues[0]?.message ?? 'Archivo inválido.');
+  }
+
+  let processed;
+  try {
+    processed = await processCategoryImage(file.buffer);
+  } catch (error) {
+    logger.error('category_image.process_failed', {
+      categoryId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw new ValidationError('No se pudo procesar la imagen. Verifica que el archivo no esté dañado.');
+  }
+
+  const storageKey = buildCategoryStorageKey(categoryId, processed.extension);
+  try {
+    await uploadObject({ key: storageKey, body: processed.buffer, contentType: processed.contentType });
+  } catch (error) {
+    logger.error('category_image.upload_failed', { categoryId, error: error instanceof Error ? error.message : String(error) });
+    throw new ValidationError('No se pudo subir la imagen al almacenamiento. Intenta nuevamente.');
+  }
+
+  const url = buildPublicUrl(storageKey);
+  const previousStorageKey = category.imageStorageKey;
+
+  let updated;
+  try {
+    updated = await updateCategoryImageFields(categoryId, { imagePath: url, imageStorageKey: storageKey });
+  } catch (error) {
+    await deleteObject(storageKey).catch((cleanupError) => {
+      logger.error('category_image.orphan_cleanup_failed', {
+        categoryId,
+        storageKey,
+        error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+      });
+    });
+    logger.error('category_image.persist_failed', { categoryId, error: error instanceof Error ? error.message : String(error) });
+    throw new ValidationError('No se pudo guardar la imagen. Intenta nuevamente.');
+  }
+
+  if (previousStorageKey) {
+    await deleteObject(previousStorageKey).catch((error) => {
+      logger.error('category_image.old_object_cleanup_failed', {
+        categoryId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  }
+
+  await recordAudit({
+    actorId: actor.adminUser.id,
+    action: 'category.updated',
+    targetType: 'Category',
+    targetId: categoryId,
+    metadata: {
+      slug: category.slug,
+      name: category.name,
+      imageAction: previousStorageKey ? 'replaced' : 'uploaded',
+      mimeType: processed.contentType,
+      width: processed.width,
+      height: processed.height,
+    },
+  });
+
+  return updated;
+}
+
+/**
+ * Elimina la imagen de portada de una categoría. Idempotente: si no hay
+ * imagen, no hace nada y devuelve la categoría sin cambios — nunca falla
+ * por "no hay nada que borrar". Orden: la fila (referencia autoritativa) se
+ * limpia primero; si el borrado del objeto en MinIO falla después, el peor
+ * resultado es un objeto huérfano (registrado en el log), nunca una
+ * categoría apuntando a un archivo inexistente — mismo criterio que
+ * `deleteProductImage`.
+ */
+export async function deleteCategoryImage(categoryId: string, actor: CurrentSession) {
+  const category = await findCategoryById(categoryId);
+  if (!category) {
+    throw new ValidationError('La categoría ya no existe.');
+  }
+
+  if (!category.imageStorageKey) {
+    return category;
+  }
+
+  const storageKey = category.imageStorageKey;
+  const updated = await updateCategoryImageFields(categoryId, { imagePath: null, imageStorageKey: null });
+
+  await deleteObject(storageKey).catch((error) => {
+    logger.error('category_image.delete_object_failed', {
+      categoryId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
+
+  await recordAudit({
+    actorId: actor.adminUser.id,
+    action: 'category.updated',
+    targetType: 'Category',
+    targetId: categoryId,
+    metadata: { slug: category.slug, name: category.name, imageAction: 'removed' },
+  });
+
+  return updated;
 }

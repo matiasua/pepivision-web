@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { CategoryAttributesManager } from './CategoryAttributesManager';
+import { CategoryImageManager } from './CategoryImageManager';
 import type { CategoryAttributeView } from '@/app/admin/categories/actions';
 import { StatusToast, useStatusToast } from './StatusToast';
 
@@ -24,7 +25,6 @@ export interface CategoryFormValues {
   visible: boolean;
   sortOrder: string;
   icon: string;
-  imagePath: string;
   seoTitle: string;
   seoDescription: string;
   capabilities: CategoryCapabilitiesValues;
@@ -48,7 +48,6 @@ const EMPTY_VALUES: CategoryFormValues = {
   visible: true,
   sortOrder: '0',
   icon: '',
-  imagePath: '',
   seoTitle: '',
   seoDescription: '',
   capabilities: EMPTY_CATEGORY_CAPABILITIES,
@@ -72,12 +71,17 @@ export function CategoryForm({
   onSubmit,
   categoryId,
   attributes,
+  imagePath,
+  categoryName,
 }: {
   initialValues?: CategoryFormValues;
   title: string;
   onSubmit: (values: CategoryFormValues) => Promise<SaveActionResult>;
   categoryId?: string;
   attributes?: CategoryAttributeView[];
+  /** Solo relevante en edición — la imagen se gestiona vía CategoryImageManager, no como campo del formulario general. */
+  imagePath?: string | null;
+  categoryName?: string;
 }) {
   const [values, setValues] = useState<CategoryFormValues>(initialValues ?? EMPTY_VALUES);
   const [error, setError] = useState('');
@@ -148,15 +152,6 @@ export function CategoryForm({
             id="category-icon"
             value={values.icon}
             onChange={(e) => set('icon', e.target.value)}
-            className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 outline-none"
-          />
-        </div>
-        <div>
-          <label htmlFor="category-image-path" className="text-[13px] font-semibold text-navy">Imagen (ruta)</label>
-          <input
-            id="category-image-path"
-            value={values.imagePath}
-            onChange={(e) => set('imagePath', e.target.value)}
             className="mt-1.5 w-full rounded-input border border-line bg-white px-3.5 py-3 outline-none"
           />
         </div>
@@ -247,6 +242,17 @@ export function CategoryForm({
           ))}
         </div>
       </div>
+
+      {categoryId ? (
+        <CategoryImageManager categoryId={categoryId} imagePath={imagePath ?? null} categoryName={categoryName ?? values.name} />
+      ) : (
+        <div className="mt-5">
+          <span className="text-[13px] font-semibold text-navy">Imagen de portada</span>
+          <div className="mt-2.5 rounded-input bg-gray px-3.5 py-3 text-xs text-grafito">
+            Podrás subir una imagen después de guardar esta categoría por primera vez.
+          </div>
+        </div>
+      )}
 
       <div className="mt-5">
         {categoryId ? (
