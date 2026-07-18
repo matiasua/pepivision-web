@@ -5,7 +5,21 @@ import { computeRetentionExpiresAt } from '@/lib/retention';
 import { isHoneypotTriggered } from '@/lib/honeypot';
 import { buildWhatsAppLink } from '@/lib/whatsapp';
 import { sanitizeAttachmentFileName, verifyAttachmentContent } from '@/lib/attachment-processing';
-import { formatClp } from '@/modules/catalog/labels';
+import { findCategoryById } from '@/modules/catalog/category-repository';
+import { parseCategoryCapabilities } from '@/modules/catalog/category-capabilities';
+import { isReservedLegacyCategorySlug } from '@/modules/catalog/legacy-slugs';
+import {
+  getAdditionalOptionLabel,
+  getLensModalityLabel,
+  getTreatmentLabel,
+  isAdditionalOptionSelectable,
+  isLensModalitySelectable,
+  isTreatmentSelectable,
+  requiresPrescription,
+  resolveCategoryQuoteOptions,
+  type LensModalityId,
+  type QuoteOptions,
+} from '@/modules/catalog/quote-options';
 import { attachmentFileMetaSchema } from '@/modules/storage/schemas';
 import { buildAttachmentStorageKey, deletePrivateObject, uploadPrivateObject } from '@/modules/storage/private-service';
 import { getEffectiveBusinessSettings } from '@/modules/business-settings/service';
@@ -16,26 +30,9 @@ import {
   quoteBusinessNotification,
   quoteCustomerConfirmation,
 } from '@/modules/notifications/templates';
-import { createRequest, findActiveComunaByName, findProductById, listAvailableFrameProducts } from './repository';
+import { createRequest, findActiveComunaByName } from './repository';
+import { getQuoteOfferingContext } from './quote-wizard-service';
 import type { HomeVisitRequestInput, QuoteRequestInput } from './schemas';
-
-export interface QuoteFrameOption {
-  id: string;
-  label: string;
-  colors: { id: string; name: string; hex: string }[];
-}
-
-/** Opciones de armazón para el paso 1 del cotizador — ver el comentario de listAvailableFrameProducts en repository.ts. */
-export async function getQuoteFrameOptions(): Promise<QuoteFrameOption[]> {
-  const products = await listAvailableFrameProducts();
-  return products.map((product) => ({
-    id: product.id,
-    label: product.brand?.name
-      ? `${product.brand.name} — ${product.name} · ${product.code} · Desde ${formatClp(product.priceFromClp)}`
-      : `${product.name} · ${product.code} · Desde ${formatClp(product.priceFromClp)}`,
-    colors: product.colors,
-  }));
-}
 
 export interface PrescriptionFileInput {
   buffer: Buffer;
@@ -43,15 +40,6 @@ export interface PrescriptionFileInput {
   size: number;
   originalFileName: string;
 }
-
-const TREATMENT_LABELS: Record<string, string> = {
-  azul: 'Filtro de luz azul',
-  ar: 'Antirreflejo',
-  foto: 'Fotocromático',
-  uv: 'Protección UV',
-  delgado: 'Cristales más delgados',
-  raya: 'Resistente a rayaduras',
-};
 
 export interface QuoteSubmissionResult {
   customerName: string;
@@ -72,6 +60,16 @@ export async function submitQuote(
   if (isHoneypotTriggered(input.website)) {
     return { customerName: input.name, whatsappHref };
   }
+
+  // Fase 10 (cotizador configurable): re-resuelve la categoría server-side
+  // — nunca confía en el estado React ni en un capability/allowlist
+  // reclamado por el cliente. La oferta/producto/color se resuelven más
+  // abajo, una vez conocida la categoría.
+  const category = await findCategoryById(input.categoryId);
+  if (!category || !category.active || !category.visible || isReservedLegacyCategorySlug(category.slug)) {
+    throw new ValidationError('La categoría seleccionada ya no está disponible.');
+  }
+  const capabilities = parseCategoryCapabilities(category.capabilities);
 
   // Step 2 of the transactional flow (design.md → "Adjuntos de
   // solicitudes"): validate the file's declared meta AND its actual
@@ -107,36 +105,119 @@ export async function submitQuote(
   let frameBrandId: string | null = null;
   let frameBrandName: string | null = null;
   let frameBrandSlug: string | null = null;
+  let frameProductId: string | null = null;
+  let offeringId: string | null = null;
+  let priceFromSnapshot: number | null = null;
+  // Sin oferta (ruta de asesoría): la allowlist efectiva es la de la
+  // categoría sola — una oferta puntual solo puede restringirla más, nunca
+  // ampliarla (getQuoteOfferingContext ya aplica esa intersección).
+  let effectiveOptions: QuoteOptions = resolveCategoryQuoteOptions(capabilities.quoteOptions);
 
-  if (input.frameChoice === 'catalog' && input.frameProductId) {
-    const product = await findProductById(input.frameProductId);
-    if (!product) {
-      throw new ValidationError('El modelo seleccionado ya no está disponible. Elige otro.');
+  if (input.frameChoice === 'catalog') {
+    if (!input.offeringId) {
+      throw new ValidationError('Selecciona un modelo del catálogo.');
     }
-    frameProductName = `${product.name} (${product.code})`;
-    frameProductDisplayName = product.name;
-    frameProductCode = product.code;
+    const offeringContext = await getQuoteOfferingContext(category.id, input.offeringId);
+    if (!offeringContext.ok) {
+      throw new ValidationError('El modelo u oferta seleccionados ya no están disponibles.');
+    }
+    const context = offeringContext.data;
+    offeringId = context.offeringId;
+    frameProductId = context.product.id;
+    frameProductName = `${context.product.name} (${context.product.code})`;
+    frameProductDisplayName = context.product.name;
+    frameProductCode = context.product.code;
     // Brand, like color below, is always resolved from PostgreSQL here —
     // never trusted from anything the browser might have sent.
-    frameBrandId = product.brand?.id ?? null;
-    frameBrandName = product.brand?.name ?? null;
-    frameBrandSlug = product.brand?.slug ?? null;
+    frameBrandId = context.brand?.id ?? null;
+    frameBrandName = context.brand?.name ?? null;
+    frameBrandSlug = context.brand?.slug ?? null;
+    priceFromSnapshot = context.priceFromClp;
+    effectiveOptions = context.effectiveOptions;
 
-    // The color's real name/hex always come from this lookup, never from
-    // whatever the client happened to send — the id only selects *which*
-    // row to read, and that row must belong to this exact product.
-    const color = product.colors.find((c) => c.id === input.frameProductColorId);
-    if (!color) {
-      throw new ValidationError('Selecciona un color válido para este modelo.');
+    if (capabilities.requiresColor) {
+      // The color's real name/hex always come from this lookup, never from
+      // whatever the client happened to send — the id only selects *which*
+      // row to read, and that row must belong to this exact product.
+      const color = context.product.colors.find((c) => c.id === input.frameProductColorId);
+      if (!color) {
+        throw new ValidationError('Selecciona un color válido para este modelo.');
+      }
+      frameProductColorId = color.id;
+      frameProductColorName = color.name;
+      frameProductColorHex = color.hex;
     }
-    frameProductColorId = color.id;
-    frameProductColorName = color.name;
-    frameProductColorHex = color.hex;
 
     const brandPrefix = frameBrandName ? `${frameBrandName} ` : '';
+    const colorSuffix = frameProductColorName ? ` en color ${frameProductColorName}` : '';
     whatsappHref = buildWhatsAppLink(
-      `Hola Pepi Visión 360, quiero cotizar el modelo ${brandPrefix}${frameProductName} en color ${frameProductColorName}. Mi nombre es ${input.name}.`
+      `Hola Pepi Visión 360, quiero cotizar el modelo ${brandPrefix}${frameProductName}${colorSuffix}. Mi nombre es ${input.name}.`
     );
+  }
+
+  // Fase 9 (motor de compatibilidades): valida tipo de cristal/modalidad,
+  // tratamientos y opciones adicionales contra la allowlist EFECTIVA ya
+  // resuelta arriba (categoría ∩ exclusiones de la oferta) — única fuente
+  // de verdad, nunca una segunda matriz en este archivo. Un campo
+  // condicionado a una capability que la categoría no otorga simplemente
+  // se ignora (nunca se valida, nunca se persiste, nunca se envía).
+  let lensModalityLabel: string | null = null;
+  let treatmentIdsToStore: string[] = [];
+  let treatmentLabels: string[] = [];
+  let additionalOptionIdsToStore: string[] = [];
+  let additionalOptionLabels: string[] = [];
+  let prescriptionStepActive = false;
+
+  if (capabilities.allowsLensType) {
+    if (!input.lensModality || !isLensModalitySelectable(effectiveOptions, input.lensModality)) {
+      throw new ValidationError('Selecciona un tipo de cristal válido para esta categoría.');
+    }
+    lensModalityLabel = getLensModalityLabel(input.lensModality);
+    prescriptionStepActive = capabilities.allowsPrescription && requiresPrescription(input.lensModality as LensModalityId);
+  } else {
+    prescriptionStepActive = capabilities.allowsPrescription;
+  }
+
+  if (capabilities.allowsTreatments) {
+    if (new Set(input.treatments).size !== input.treatments.length) {
+      throw new ValidationError('Hay tratamientos duplicados en la selección.');
+    }
+    for (const id of input.treatments) {
+      if (!isTreatmentSelectable(effectiveOptions, id)) {
+        throw new ValidationError('Uno de los tratamientos seleccionados no está disponible para esta categoría.');
+      }
+    }
+    treatmentIdsToStore = [...input.treatments];
+    treatmentLabels = treatmentIdsToStore.map((id) => getTreatmentLabel(id)).filter((label): label is string => label !== null);
+
+    if (new Set(input.additionalOptions).size !== input.additionalOptions.length) {
+      throw new ValidationError('Hay opciones adicionales duplicadas en la selección.');
+    }
+    for (const id of input.additionalOptions) {
+      if (!isAdditionalOptionSelectable(effectiveOptions, id)) {
+        throw new ValidationError('Una de las opciones adicionales seleccionadas no está disponible para esta categoría.');
+      }
+    }
+    additionalOptionIdsToStore = [...input.additionalOptions];
+    additionalOptionLabels = additionalOptionIdsToStore
+      .map((id) => getAdditionalOptionLabel(id))
+      .filter((label): label is string => label !== null);
+  }
+
+  if (prescriptionStepActive && !input.hasPrescription) {
+    throw new ValidationError('Indica si cuentas con una receta óptica vigente.');
+  }
+  const prescriptionAnswer = prescriptionStepActive ? (input.hasPrescription ?? null) : null;
+
+  // Un adjunto de receta solo es válido cuando la categoría otorga AMBAS
+  // capabilities y la respuesta de receta activa es "Sí" — un archivo
+  // enviado fuera de esas condiciones nunca se sube ni se persiste (ver
+  // Fase 7: "prescriptionAttachment solo tiene efecto cuando
+  // allowsPrescription también es true").
+  const prescriptionAttachmentAllowed =
+    prescriptionStepActive && capabilities.allowsPrescriptionAttachment && prescriptionAnswer === 'Sí';
+  if (!prescriptionAttachmentAllowed) {
+    prescriptionFile = null;
   }
 
   // Steps 3–4: generate the storage key and upload only now, right before
@@ -181,10 +262,21 @@ export async function submitQuote(
       email: input.email ?? null,
       comuna: input.comuna ?? null,
       message: input.message ?? null,
-      hasPrescription: input.hasPrescription !== 'No estoy seguro' ? input.hasPrescription === 'Sí' : null,
+      hasPrescription: prescriptionAnswer !== null && prescriptionAnswer !== 'No estoy seguro' ? prescriptionAnswer === 'Sí' : null,
       details: {
+        // Fase 10: campos de categoría/oferta, additivos — nunca leídos
+        // por RequestCard.tsx ni los templates de correo todavía (eso
+        // llega en una fase posterior), pero ya quedan persistidos como
+        // snapshot temporal inmutable de esta solicitud (ver design.md →
+        // "Precios y cotizador configurable"; el snapshot histórico
+        // definitivo pertenece a la Fase 11, no reimplementado aquí).
+        categoryId: category.id,
+        categoryName: category.name,
+        categorySlug: category.slug,
+        offeringId,
+        priceFromSnapshot,
         frameChoice: input.frameChoice,
-        frameProductId: input.frameProductId ?? null,
+        frameProductId,
         frameProductName,
         frameProductColorId,
         frameProductColorName,
@@ -192,10 +284,12 @@ export async function submitQuote(
         frameBrandId,
         frameBrandName,
         frameBrandSlug,
-        glassType: input.glassType,
-        treatments: input.treatments,
-        treatmentLabels: input.treatments.map((id) => TREATMENT_LABELS[id]),
-        prescriptionAnswer: input.hasPrescription,
+        glassType: lensModalityLabel,
+        treatments: treatmentIdsToStore,
+        treatmentLabels,
+        additionalOptions: additionalOptionIdsToStore,
+        additionalOptionLabels,
+        prescriptionAnswer,
       },
       consentAcceptedAt: now,
       retentionExpiresAt: computeRetentionExpiresAt(now, settings.requestRetentionMonths),
@@ -222,8 +316,6 @@ export async function submitQuote(
     hoursText: settings.hoursText,
     locationText: settings.locationText,
   };
-  const treatmentLabels = input.treatments.map((id) => TREATMENT_LABELS[id]);
-
   if (input.email) {
     const customerEmail = quoteCustomerConfirmation({
       requestId: request.id,
@@ -232,9 +324,9 @@ export async function submitQuote(
       frameProductName: frameProductDisplayName,
       frameProductCode,
       frameProductColorName,
-      glassType: input.glassType,
+      glassType: lensModalityLabel ?? '—',
       treatmentLabels,
-      prescriptionAnswer: input.hasPrescription,
+      prescriptionAnswer: prescriptionAnswer ?? '—',
       hasPrescriptionAttachment: Boolean(attachmentToCreate),
       comuna: input.comuna ?? null,
       message: input.message ?? null,
@@ -266,9 +358,9 @@ export async function submitQuote(
     frameProductName: frameProductDisplayName,
     frameProductCode,
     frameProductColorName,
-    glassType: input.glassType,
+    glassType: lensModalityLabel ?? '—',
     treatmentLabels,
-    prescriptionAnswer: input.hasPrescription,
+    prescriptionAnswer: prescriptionAnswer ?? '—',
     // Never the file itself, its storageKey, or any other detail — just a
     // pointer to go look at it in the authenticated admin panel.
     hasPrescriptionAttachment: Boolean(attachmentToCreate),

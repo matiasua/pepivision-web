@@ -5,6 +5,22 @@ import { readE2eFixtures, uniqueTag } from '../fixtures/test-data';
 import { tinyPdfBuffer, tinyPngBuffer } from '../fixtures/files';
 import { clickWizardChoice } from '../fixtures/wizard';
 
+/** Fase 10: categoría → oferta/asesoría → cristal → tratamientos → opciones adicionales → receta → datos → resumen. */
+async function completeAdviceUpToPrescription(page: import('@playwright/test').Page, lensModalityLabel: string) {
+  await page.goto('/cotizador');
+  await clickWizardChoice(page, 'Lentes ópticos');
+  await page.getByRole('button', { name: 'Continuar' }).click();
+
+  await clickWizardChoice(page, 'Necesito asesoría');
+  await page.getByRole('button', { name: 'Continuar' }).click();
+
+  await clickWizardChoice(page, lensModalityLabel);
+  await page.getByRole('button', { name: 'Continuar' }).click();
+
+  await page.getByRole('button', { name: 'Continuar' }).click(); // tratamientos, opcional
+  await page.getByRole('button', { name: 'Continuar' }).click(); // opciones adicionales, opcional
+}
+
 // Read once, explicitly, from the same environment this Playwright run
 // itself executes in (not guessed, not an accidental default) — the
 // home-visit route/form only exist to test when the flag is actually on
@@ -31,22 +47,18 @@ test('abre el cotizador desde la ficha de un producto (modelo pre-seleccionado)'
   await page.getByRole('link', { name: 'Configurar lentes' }).first().click();
   await page.getByRole('link', { name: 'Cotizar este modelo' }).click();
 
-  await expect(page).toHaveURL(/\/cotizador\?productId=/);
+  await expect(page).toHaveURL(/\/cotizador\?categorySlug=lentes-opticos&offeringId=/);
   await expect(page.getByRole('heading', { name: 'Cotizador de lentes' })).toBeVisible();
+  // Con oferta preseleccionada, el wizard arranca directamente en el paso
+  // "modelo" (10.4: nunca pide seleccionar de nuevo lo ya conocido).
+  await expect(page.getByText('¿Ya tienes un modelo elegido?')).toBeVisible();
 });
 
-test('envía una cotización completa SIN receta (flujo de asesoría, 5 pasos)', async ({ page }) => {
+test('envía una cotización completa SIN receta (flujo de asesoría)', async ({ page }) => {
   const tag = uniqueTag('quote');
   const phone = `+56 9 ${Math.floor(10000000 + Math.random() * 89999999)}`;
 
-  await page.goto('/cotizador');
-  await clickWizardChoice(page, 'Necesito asesoría');
-  await page.getByRole('button', { name: 'Continuar' }).click();
-
-  await clickWizardChoice(page, 'Monofocal');
-  await page.getByRole('button', { name: 'Continuar' }).click();
-
-  await page.getByRole('button', { name: 'Continuar' }).click(); // treatments optional
+  await completeAdviceUpToPrescription(page, 'Monofocal');
 
   await clickWizardChoice(page, 'No');
   await page.getByRole('button', { name: 'Continuar' }).click();
@@ -54,6 +66,8 @@ test('envía una cotización completa SIN receta (flujo de asesoría, 5 pasos)',
   await page.locator('#quote-name').fill(`Cliente E2E ${tag}`);
   await page.locator('#quote-phone').fill(phone);
   await page.locator('#quote-email').fill(`${tag}@e2e.test.pepivision360.invalid`);
+  await page.getByRole('button', { name: 'Continuar' }).click(); // -> resumen
+
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Solicitar cotización' }).click();
 
@@ -69,14 +83,11 @@ test('envía una cotización CON receta adjunta (PDF permitido) y crea un Reques
   const tag = uniqueTag('quote');
   const phone = `+56 9 ${Math.floor(10000000 + Math.random() * 89999999)}`;
 
-  await page.goto('/cotizador');
-  await clickWizardChoice(page, 'Necesito asesoría');
-  await page.getByRole('button', { name: 'Continuar' }).click();
-  await clickWizardChoice(page, 'Bifocal');
-  await page.getByRole('button', { name: 'Continuar' }).click();
-  await page.getByRole('button', { name: 'Continuar' }).click();
+  await completeAdviceUpToPrescription(page, 'Bifocal');
 
   await clickWizardChoice(page, 'Sí');
+  await page.getByRole('button', { name: 'Continuar' }).click(); // -> adjunto de receta
+
   await page.locator('input[type="file"]').setInputFiles({
     name: 'receta.pdf',
     mimeType: 'application/pdf',
@@ -87,6 +98,8 @@ test('envía una cotización CON receta adjunta (PDF permitido) y crea un Reques
   await page.locator('#quote-name').fill(`Cliente E2E ${tag}`);
   await page.locator('#quote-phone').fill(phone);
   await page.locator('#quote-email').fill(`${tag}@e2e.test.pepivision360.invalid`);
+  await page.getByRole('button', { name: 'Continuar' }).click(); // -> resumen
+
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Solicitar cotización' }).click();
 
@@ -105,14 +118,11 @@ test('permite adjuntar una imagen (JPG/PNG) como receta en lugar de un PDF', asy
   const tag = uniqueTag('quote');
   const phone = `+56 9 ${Math.floor(10000000 + Math.random() * 89999999)}`;
 
-  await page.goto('/cotizador');
-  await clickWizardChoice(page, 'Necesito asesoría');
-  await page.getByRole('button', { name: 'Continuar' }).click();
-  await clickWizardChoice(page, 'Progresivo');
-  await page.getByRole('button', { name: 'Continuar' }).click();
-  await page.getByRole('button', { name: 'Continuar' }).click();
+  await completeAdviceUpToPrescription(page, 'Progresivo');
 
   await clickWizardChoice(page, 'Sí');
+  await page.getByRole('button', { name: 'Continuar' }).click(); // -> adjunto de receta
+
   await page.locator('input[type="file"]').setInputFiles({
     name: 'receta.png',
     mimeType: 'image/png',
@@ -122,6 +132,8 @@ test('permite adjuntar una imagen (JPG/PNG) como receta en lugar de un PDF', asy
 
   await page.locator('#quote-name').fill(`Cliente E2E ${tag}`);
   await page.locator('#quote-phone').fill(phone);
+  await page.getByRole('button', { name: 'Continuar' }).click(); // -> resumen
+
   await page.getByRole('checkbox').check();
   await page.getByRole('button', { name: 'Solicitar cotización' }).click();
 

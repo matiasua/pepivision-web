@@ -10,29 +10,56 @@ const nameSchema = z.string().trim().min(2, 'Ingresa tu nombre completo.').max(1
 const phoneSchema = z.string().trim().min(6, 'Ingresa un teléfono de contacto válido.').max(30);
 const optionalEmailSchema = optionalNonEmpty(z.string().trim().max(160).email('Revisa el formato de tu correo.'));
 
-// "Progresivo" reemplaza el nombre legado "Multifocal" (Fase 7,
-// redesign-extensible-catalog-v2 → spec lens-configuration): una nueva
-// solicitud con glassType: "Multifocal" ahora es rechazada por
-// quoteRequestSchema. Filas históricas de Request.details que ya
-// persistieron "Multifocal" no se reescriben — siguen siendo legibles tal
-// cual en el panel admin (RequestCard.tsx renderiza el string guardado sin
-// transformarlo).
-export const GLASS_TYPES = ['Monofocal', 'Bifocal', 'Progresivo', 'No estoy seguro'] as const;
-export const TREATMENT_IDS = ['azul', 'ar', 'foto', 'uv', 'delgado', 'raya'] as const;
+// Vocabulario V1, retirado de nuevas solicitudes (Fase 10,
+// redesign-extensible-catalog-v2 → cotizador configurable) — se mantiene
+// exportado únicamente como referencia histórica de qué pudo haber
+// quedado persistido en filas antiguas de `Request.details` (nunca
+// reescritas). El cotizador ya no valida contra un enum fijo aquí: la
+// selección real de tipo de cristal/tratamientos/opciones se valida
+// exclusivamente contra la allowlist efectiva de la categoría resuelta
+// (ver modules/catalog/quote-options-service.ts#resolveAndValidateLensSelection)
+// — nunca una segunda matriz de compatibilidades en este archivo.
+export const LEGACY_GLASS_TYPES = ['Monofocal', 'Bifocal', 'Progresivo', 'Multifocal', 'No estoy seguro'] as const;
+export const LEGACY_TREATMENT_IDS = ['azul', 'ar', 'foto', 'uv', 'delgado', 'raya'] as const;
 export const PRESCRIPTION_ANSWERS = ['Sí', 'No', 'No estoy seguro'] as const;
+
+const MAX_SELECTION_ITEMS = 20;
+
+// IDs de dominio acotados por longitud/forma aquí (defensa superficial
+// contra payloads absurdos); la validación semántica real — cuáles IDs
+// existen y cuáles admite la categoría resuelta — vive exclusivamente en
+// el motor de compatibilidades de la Fase 9, nunca duplicada en este schema.
+const domainIdSchema = z.string().trim().min(1).max(60);
 
 export const quoteRequestSchema = z
   .object({
+    // Toda solicitud nueva queda scopeada a una categoría — reemplaza el
+    // flujo V1 sin categoría (Fase 10). Filas históricas sin este campo
+    // siguen siendo válidas/legibles: este schema solo gobierna
+    // solicitudes nuevas.
+    categoryId: domainIdSchema,
     frameChoice: z.enum(['catalog', 'advice'], { message: 'Indica si eliges del catálogo o necesitas asesoría.' }),
-    frameProductId: z.string().trim().min(1).optional(),
-    // Client-sent value only picks which color to *look up*; the real
-    // name/hex persisted on the request are always resolved from
-    // PostgreSQL server-side (see modules/requests/service.ts) — never
-    // trusted verbatim from the browser.
-    frameProductColorId: z.string().trim().min(1).optional(),
-    glassType: z.enum(GLASS_TYPES, { message: 'Selecciona un tipo de cristal.' }),
-    treatments: z.array(z.enum(TREATMENT_IDS)).max(TREATMENT_IDS.length).default([]),
-    hasPrescription: z.enum(PRESCRIPTION_ANSWERS, { message: 'Indica si cuentas con una receta óptica vigente.' }),
+    // Reemplaza a `frameProductId` (V1): ahora se elige una ProductOffering
+    // concreta (oferta comercial dentro de la categoría), no un Product
+    // suelto — el Product/marca/color se re-resuelven server-side desde
+    // esta oferta, nunca desde un id de producto enviado directamente por
+    // el cliente.
+    offeringId: domainIdSchema.optional(),
+    // El valor enviado solo elige *cuál* color mirar; nombre/hex reales se
+    // resuelven siempre desde PostgreSQL server-side — nunca confiados tal
+    // cual del navegador.
+    frameProductColorId: domainIdSchema.optional(),
+    // ID estable del motor de compatibilidades (p. ej. "monofocal",
+    // "sin-graduacion", "solar-progresivo") — nunca el label visible.
+    // Ausente cuando la categoría resuelta no ofrece paso de cristal, o
+    // cuando frameChoice es "advice" y la categoría no lo exige.
+    lensModality: domainIdSchema.optional(),
+    treatments: z.array(domainIdSchema).max(MAX_SELECTION_ITEMS).default([]),
+    additionalOptions: z.array(domainIdSchema).max(MAX_SELECTION_ITEMS).default([]),
+    // Ausente cuando la modalidad resuelta no requiere graduación (p. ej.
+    // "sin-graduacion") — el motor de compatibilidades exige/rechaza esto
+    // server-side, ver requiresPrescription() en quote-options.ts.
+    hasPrescription: z.enum(PRESCRIPTION_ANSWERS, { message: 'Indica si cuentas con una receta óptica vigente.' }).optional(),
     name: nameSchema,
     phone: phoneSchema,
     email: optionalEmailSchema,
@@ -41,9 +68,9 @@ export const quoteRequestSchema = z
     consent: consentSchema,
     website: honeypotSchema,
   })
-  .refine((data) => data.frameChoice !== 'catalog' || !!data.frameProductId, {
+  .refine((data) => data.frameChoice !== 'catalog' || !!data.offeringId, {
     message: 'Selecciona un modelo del catálogo.',
-    path: ['frameProductId'],
+    path: ['offeringId'],
   })
   .refine((data) => data.frameChoice !== 'catalog' || !!data.frameProductColorId, {
     message: 'Selecciona un color para este modelo.',

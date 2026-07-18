@@ -7,9 +7,11 @@
 // dominio consultable. No depende de React; consumible desde server,
 // tests y (en una fase posterior) la GUI del cotizador.
 //
-// Deliberadamente NO integrado todavía en modules/requests/schemas.ts,
-// QuoteWizard.tsx ni modules/requests/service.ts — esa integración visual/
-// de persistencia pertenece a la fase siguiente (cotizador configurable).
+// Integrado en la Fase 10 (cotizador configurable) por
+// modules/requests/quote-wizard-service.ts, modules/requests/schemas.ts y
+// modules/requests/service.ts#submitQuote — este módulo permanece sin
+// dependencias de Prisma/React; toda esa integración vive en capas
+// superiores.
 import { z } from 'zod';
 import { ValidationError } from '@/lib/errors';
 import { LENS_TYPES, type LensType } from '@/modules/requests/lens-types';
@@ -43,12 +45,50 @@ const ADDITIONAL_OPTION_IDS = ADDITIONAL_OPTIONS.map((o) => o.id) as [string, ..
 export const SOLAR_TREATMENT_IDS = ['uv400'] as const;
 export type SolarTreatmentId = (typeof SOLAR_TREATMENT_IDS)[number];
 
+// --- Resolución de labels (Fase 10): el cotizador nunca persiste ni
+// muestra un ID técnico — siempre resuelve al label canónico antes de
+// guardarlo en Request.details o mostrarlo en el resumen. Co-localizado
+// aquí junto a cada catálogo de IDs, nunca duplicado en el componente. ---
+const SUN_LENS_MODALITY_LABELS: Record<SunLensModality, string> = {
+  'sin-graduacion': 'Sin graduación',
+  'solar-monofocal': 'Solar monofocal',
+  'solar-progresivo': 'Solar progresivo',
+};
+
+/** Label público de cualquier modalidad de cristal, óptica o solar. */
+export const LENS_MODALITY_LABELS: Record<LensModalityId, string> = {
+  monofocal: 'Monofocal',
+  bifocal: 'Bifocal',
+  progresivo: 'Progresivo',
+  ...SUN_LENS_MODALITY_LABELS,
+};
+
+const treatmentLabelById = new Map<string, string>(TREATMENTS.map((t) => [t.id, t.label]));
+treatmentLabelById.set('uv400', 'UV400');
+const additionalOptionLabelById = new Map<string, string>(ADDITIONAL_OPTIONS.map((o) => [o.id, o.label]));
+
+/** Resuelve un ID de tratamiento (óptico o `uv400`) a su label público; `null` si el ID no existe en ningún catálogo. */
+export function getTreatmentLabel(id: string): string | null {
+  return treatmentLabelById.get(id) ?? null;
+}
+
+/** Resuelve un ID de opción adicional a su label público; `null` si no existe. */
+export function getAdditionalOptionLabel(id: string): string | null {
+  return additionalOptionLabelById.get(id) ?? null;
+}
+
+/** Resuelve una modalidad de cristal (óptica o solar) a su label público; `null` si no existe. */
+export function getLensModalityLabel(id: string): string | null {
+  return (LENS_MODALITY_LABELS as Record<string, string>)[id] ?? null;
+}
+
 const QUOTE_TREATMENT_IDS = [...TREATMENT_IDS, ...SOLAR_TREATMENT_IDS] as [string, ...string[]];
 
 /** Modalidades que son, por definición, exclusivamente sin receta (ver design.md, "Regla de graduación por modalidad"). */
 const PRESCRIPTION_FORBIDDEN_MODALITIES = new Set<LensModalityId>(['sin-graduacion']);
 
-function requiresPrescription(modality: LensModalityId): boolean {
+/** `true` salvo para modalidades exclusivamente sin graduación (hoy solo `sin-graduacion`) — usado tanto por la validación como por la GUI para decidir si mostrar el paso de receta. */
+export function requiresPrescription(modality: LensModalityId): boolean {
   return !PRESCRIPTION_FORBIDDEN_MODALITIES.has(modality);
 }
 

@@ -35,6 +35,41 @@ export function findOfferingWithLensContext(id: string) {
   });
 }
 
+/**
+ * Fase 10 (cotizador configurable): superconjunto de
+ * `findOfferingWithLensContext` — agrega lo que el wizard necesita
+ * mostrar/re-resolver (nombre/código de producto, marca, colores) sin
+ * tocar la forma de esa función existente (evita romper sus llamadores de
+ * la Fase 9).
+ */
+export function findOfferingWithWizardContext(id: string) {
+  return prisma.productOffering.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      slug: true,
+      categoryId: true,
+      productId: true,
+      active: true,
+      visible: true,
+      deletedAt: true,
+      configuration: true,
+      priceFromClp: true,
+      category: { select: { id: true, slug: true, name: true, active: true, visible: true, capabilities: true } },
+      product: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          visible: true,
+          brand: { select: { id: true, name: true, slug: true } },
+          colors: { select: { id: true, name: true, hex: true } },
+        },
+      },
+    },
+  });
+}
+
 export function findOfferingByProductAndCategory(productId: string, categoryId: string) {
   return prisma.productOffering.findUnique({ where: { productId_categoryId: { productId, categoryId } } });
 }

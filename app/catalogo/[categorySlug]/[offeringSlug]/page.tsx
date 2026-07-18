@@ -122,7 +122,7 @@ export default async function OfertaPage({ params }: { params: Promise<Params> }
           </div>
 
           <div className="mt-6 flex flex-col gap-2.5">
-            <LinkButton href={`/cotizador?productId=${offering.productId}`} variant="primary" className="w-full">
+            <LinkButton href={`/cotizador?categorySlug=${categorySlug}&offeringId=${offering.id}`} variant="primary" className="w-full">
               Cotizar este modelo
             </LinkButton>
             <div className="flex gap-2.5">

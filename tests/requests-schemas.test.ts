@@ -1,41 +1,50 @@
 import { describe, expect, it } from 'vitest';
-import { GLASS_TYPES, homeVisitRequestSchema, quoteRequestSchema } from '@/modules/requests/schemas';
+import { homeVisitRequestSchema, quoteRequestSchema } from '@/modules/requests/schemas';
+
+const CATEGORY_ID = 'clx000000000000000000cat';
 
 const baseQuote = {
+  categoryId: CATEGORY_ID,
   frameChoice: 'advice' as const,
-  glassType: 'Monofocal' as const,
-  treatments: ['azul'],
-  hasPrescription: 'Sí' as const,
+  treatments: [],
+  additionalOptions: [],
   name: 'Juana Pérez',
   phone: '+56 9 1234 5678',
   consent: true,
 };
 
 describe('modules/requests/schemas — quoteRequestSchema', () => {
-  it('accepts a valid submission requesting advice (no frame product needed)', () => {
+  it('accepts a valid submission requesting advice (no offering needed)', () => {
     const result = quoteRequestSchema.safeParse(baseQuote);
     expect(result.success).toBe(true);
   });
 
-  it('requires frameProductId when frameChoice is catalog', () => {
+  it('requires categoryId', () => {
+    const withoutCategory: Record<string, unknown> = { ...baseQuote };
+    delete withoutCategory.categoryId;
+    const result = quoteRequestSchema.safeParse(withoutCategory);
+    expect(result.success).toBe(false);
+  });
+
+  it('requires offeringId when frameChoice is catalog', () => {
     const result = quoteRequestSchema.safeParse({ ...baseQuote, frameChoice: 'catalog' });
     expect(result.success).toBe(false);
   });
 
-  it('requires frameProductColorId when frameChoice is catalog, even with a frameProductId', () => {
+  it('requires frameProductColorId when frameChoice is catalog, even with an offeringId', () => {
     const result = quoteRequestSchema.safeParse({
       ...baseQuote,
       frameChoice: 'catalog',
-      frameProductId: 'clx000000000000000000000',
+      offeringId: 'clx000000000000000000000',
     });
     expect(result.success).toBe(false);
   });
 
-  it('accepts a catalog choice with both a frameProductId and a frameProductColorId', () => {
+  it('accepts a catalog choice with both an offeringId and a frameProductColorId', () => {
     const result = quoteRequestSchema.safeParse({
       ...baseQuote,
       frameChoice: 'catalog',
-      frameProductId: 'clx000000000000000000000',
+      offeringId: 'clx000000000000000000000',
       frameProductColorId: 'clx000000000000000000001',
     });
     expect(result.success).toBe(true);
@@ -71,24 +80,23 @@ describe('modules/requests/schemas — quoteRequestSchema', () => {
     expect(result.success && result.data.website).toBe('');
   });
 
-  // Fase 7: "Progresivo" reemplaza "Multifocal" como valor técnico
-  // aceptado por nuevas solicitudes — ver spec lens-configuration.
-  it('GLASS_TYPES contains exactly Monofocal, Bifocal, Progresivo, "No estoy seguro" — never Multifocal', () => {
-    expect(GLASS_TYPES).toEqual(['Monofocal', 'Bifocal', 'Progresivo', 'No estoy seguro']);
-  });
-
-  it('accepts glassType: "Progresivo" for a new submission', () => {
-    const result = quoteRequestSchema.safeParse({ ...baseQuote, glassType: 'Progresivo' });
+  // Fase 10 (cotizador configurable): lensModality/treatments/additionalOptions
+  // ya no validan contra un enum hardcodeado aquí — cualquier ID acotado
+  // por forma pasa este schema; la allowlist real (qué IDs existen y cuáles
+  // admite la categoría resuelta) se valida exclusivamente en
+  // modules/catalog/quote-options-service.ts, nunca duplicada en este archivo.
+  it('accepts an arbitrary bounded string as lensModality — the real allowlist check happens server-side', () => {
+    const result = quoteRequestSchema.safeParse({ ...baseQuote, lensModality: 'progresivo' });
     expect(result.success).toBe(true);
   });
 
-  it('rejects glassType: "Multifocal" for a new submission (retired terminology)', () => {
-    const result = quoteRequestSchema.safeParse({ ...baseQuote, glassType: 'Multifocal' });
+  it('rejects a lensModality that is too long (defense-in-depth shape check only)', () => {
+    const result = quoteRequestSchema.safeParse({ ...baseQuote, lensModality: 'x'.repeat(61) });
     expect(result.success).toBe(false);
   });
 
-  it('rejects an unrecognized glassType value instead of silently coercing it', () => {
-    const result = quoteRequestSchema.safeParse({ ...baseQuote, glassType: 'algo-inventado' });
+  it('rejects duplicate-shaped payload issues (too many treatments)', () => {
+    const result = quoteRequestSchema.safeParse({ ...baseQuote, treatments: Array.from({ length: 21 }, (_, i) => `t${i}`) });
     expect(result.success).toBe(false);
   });
 });

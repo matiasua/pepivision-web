@@ -3,13 +3,47 @@ import { ValidationError } from '@/lib/errors';
 import type { QuoteRequestInput } from '@/modules/requests/schemas';
 
 const createRequest = vi.fn();
-const findProductById = vi.fn();
 const findActiveComunaByName = vi.fn();
 
 vi.mock('@/modules/requests/repository', () => ({
   createRequest: (...args: unknown[]) => createRequest(...args),
-  findProductById: (...args: unknown[]) => findProductById(...args),
   findActiveComunaByName: (...args: unknown[]) => findActiveComunaByName(...args),
+}));
+
+// Fase 10: submitQuote ahora re-resuelve la Category server-side antes de
+// todo lo demás — este mock representa una categoría real (equivalente a
+// lentes-opticos) con quoteOptions ya reconciliadas, para que las pruebas
+// de este archivo (centradas en el adjunto de receta, no en el motor de
+// compatibilidades) puedan seguir enviando lensModality/treatments reales
+// sin tener que levantar Postgres.
+const FAKE_CATEGORY = {
+  id: 'cat_optical_fake',
+  slug: 'lentes-opticos',
+  name: 'Lentes ópticos',
+  active: true,
+  visible: true,
+  capabilities: {
+    requiresColor: false,
+    allowsLensType: true,
+    allowsTreatments: true,
+    allowsPrescription: true,
+    allowsPrescriptionAttachment: true,
+    allowsLensTint: false,
+    allowsFrameSelection: true,
+    quoteOptions: {
+      version: 1,
+      lensTypes: ['monofocal', 'bifocal', 'progresivo'],
+      treatments: ['antirreflejo', 'filtro-azul-violeta', 'fotocromatico', 'proteccion-uv', 'resistencia-rayaduras'],
+      additionalOptions: ['alto-indice'],
+    },
+  },
+};
+
+const findCategoryById = vi.fn();
+findCategoryById.mockResolvedValue(FAKE_CATEGORY);
+
+vi.mock('@/modules/catalog/category-repository', () => ({
+  findCategoryById: (...args: unknown[]) => findCategoryById(...args),
 }));
 
 const uploadPrivateObject = vi.fn();
@@ -51,9 +85,11 @@ const { submitQuote } = await import('@/modules/requests/service');
 
 function baseInput(overrides: Partial<QuoteRequestInput> = {}): QuoteRequestInput {
   return {
+    categoryId: FAKE_CATEGORY.id,
     frameChoice: 'advice',
-    glassType: 'Monofocal',
+    lensModality: 'monofocal',
     treatments: [],
+    additionalOptions: [],
     hasPrescription: 'Sí',
     name: 'Ana Pérez',
     phone: '+56911111111',
