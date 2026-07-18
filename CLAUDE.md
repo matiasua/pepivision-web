@@ -63,6 +63,62 @@ Before considering any implementation task complete, run and pass:
 
 See `package.json` scripts (`lint`, `build`, `ci`, etc.) for exact commands — all of them are expected to run inside Docker Compose, not against a bare host install.
 
+## GUI acceptance gate
+
+1. Every phase that modifies a page, component, form, navigation, visual email, or document must include a manual GUI review.
+
+2. Automated tests, E2E, axe, and Lighthouse are necessary, but not sufficient to approve an interface.
+
+3. Before marking a visual phase complete, review:
+   - desktop;
+   - tablet;
+   - mobile;
+   - visual hierarchy;
+   - branding;
+   - spacing;
+   - responsiveness;
+   - legibility;
+   - accessibility;
+   - browser console;
+   - empty states;
+   - errors;
+   - loading;
+   - keyboard interaction;
+   - horizontal scroll.
+
+4. Temporary screenshots must be generated at, at minimum:
+   - 1440 × 900;
+   - 768 × 1024;
+   - 390 × 844.
+
+5. Screenshots must not be committed automatically.
+
+6. A visual phase must stop for owner review before:
+   - commit;
+   - tag;
+   - OpenSpec archive;
+   - starting the next phase.
+
+7. If the owner rejects the aesthetics:
+   - the phase is considered reopened;
+   - a corrective iteration is performed;
+   - work does not advance even if all tests are green.
+
+8. Never claim a GUI is "professional", "polished", or "done" based solely on automated tests.
+
+9. When Playwright is used for visual validation:
+   - it does not replace manual review;
+   - it must check URL, responsiveness, interaction, and absence of overflow;
+   - tests must not depend on fragile pixel-perfect screenshots unless explicitly decided.
+
+10. The final report for every visual phase must include:
+    - functional summary;
+    - visual summary;
+    - sizes reviewed;
+    - findings fixed;
+    - pending items;
+    - confirmation of owner approval or that it is awaiting owner approval.
+
 ## Repository layout
 
 - **`design-reference/`** — the original, definitive export from Claude Design. It is a visual and functional **reference** for the app, not a production application itself, and it is **read-only**: never modify, delete, move, or rename anything under this directory without explicit user authorization.
