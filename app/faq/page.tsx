@@ -23,8 +23,8 @@ const ALL_FAQS: { q: string; a: string; homeVisitOnly?: boolean }[] = [
     a: 'Sí. Puedes indicarlo en el cotizador y coordinar el envío por WhatsApp. Procuramos que la imagen sea clara y legible.',
   },
   {
-    q: '¿Qué diferencia existe entre monofocales, bifocales y multifocales?',
-    a: 'Los monofocales corrigen una sola distancia; los bifocales tienen dos zonas (lejos y cerca); los multifocales ofrecen una transición progresiva para lejos, intermedia y cerca. La elección final depende de tu receta y la recomendación profesional.',
+    q: '¿Qué diferencia existe entre monofocales, bifocales y progresivos?',
+    a: 'Los monofocales corrigen una sola distancia; los bifocales tienen dos zonas (lejos y cerca); los progresivos ofrecen una transición gradual para lejos, intermedia y cerca. La elección final depende de tu receta y la recomendación profesional.',
   },
   {
     // Marked so it can be filtered out while the home-visit service is

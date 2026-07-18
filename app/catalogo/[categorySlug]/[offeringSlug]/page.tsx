@@ -113,7 +113,7 @@ export default async function OfertaPage({ params }: { params: Promise<Params> }
               Cristales que puedes incorporar
             </div>
             <p className="mt-2 text-[13.5px] leading-relaxed text-grafito">
-              Monofocales, bifocales o multifocales, con tratamientos como filtro de luz azul, antirreflejo,
+              Monofocales, bifocales o progresivos, con tratamientos como filtro de luz azul-violeta, antirreflejo,
               fotocromático y protección UV.{' '}
               <Link href="/cristales" className="inline-flex items-center gap-1 font-semibold text-fucsia">
                 Ver tipos de cristales <ChevronRightIcon className="h-3.5 w-3.5" />

@@ -31,7 +31,7 @@ const STEP_LABELS = ['Armazón', 'Cristal', 'Tratamientos', 'Receta', 'Datos'];
 const GLASS_DESCRIPTIONS: Record<(typeof GLASS_TYPES)[number], string> = {
   Monofocal: 'Una sola distancia',
   Bifocal: 'Dos zonas: lejos y cerca',
-  Multifocal: 'Progresivo: lejos, media y cerca',
+  Progresivo: 'Lejos, media y cerca, sin líneas',
   'No estoy seguro': 'Prefiero orientación',
 };
 

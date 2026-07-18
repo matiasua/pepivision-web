@@ -108,7 +108,7 @@ test('permite adjuntar una imagen (JPG/PNG) como receta en lugar de un PDF', asy
   await page.goto('/cotizador');
   await clickWizardChoice(page, 'Necesito asesoría');
   await page.getByRole('button', { name: 'Continuar' }).click();
-  await clickWizardChoice(page, 'Multifocal');
+  await clickWizardChoice(page, 'Progresivo');
   await page.getByRole('button', { name: 'Continuar' }).click();
   await page.getByRole('button', { name: 'Continuar' }).click();
 

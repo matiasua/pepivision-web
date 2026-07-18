@@ -105,6 +105,40 @@ describe('modules/requests/service — submitQuote (integration)', () => {
     mailpitIds.push(...messages.map((m) => m.ID));
   });
 
+  // Fase 7: "Progresivo" reemplaza "Multifocal" — confirma que el cotizador
+  // V1 sigue funcionando end-to-end (creación de Request, email) con el
+  // nuevo valor, sin ninguna lógica nueva (mismo submitQuote sin cambios).
+  it('creates a quote request with glassType "Progresivo" end-to-end (cotizador V1, sin lógica nueva)', async () => {
+    const tag = uniqueTag('quote');
+    const email = `${tag}@integration.test.pepivision360.invalid`;
+    const phone = uniquePhone();
+
+    await submitQuote(
+      {
+        frameChoice: 'advice',
+        glassType: 'Progresivo',
+        treatments: ['foto'],
+        hasPrescription: 'Sí',
+        name: `Cliente ${tag}`,
+        phone,
+        email,
+        comuna: undefined,
+        message: undefined,
+        consent: true,
+        website: '',
+      },
+      null
+    );
+
+    const request = await prisma.request.findFirstOrThrow({ where: { phone, type: 'QUOTE' } });
+    requestIds.push(request.id);
+    expect((request.details as Record<string, unknown>).glassType).toBe('Progresivo');
+
+    const messages = await findMailpitMessagesTo(email);
+    expect(messages.length).toBeGreaterThanOrEqual(1);
+    mailpitIds.push(...messages.map((m) => m.ID));
+  });
+
   it('rejects a prescription file whose content does not match its declared type (never trusts declared MIME alone)', async () => {
     const tag = uniqueTag('quote');
     const phone = uniquePhone();

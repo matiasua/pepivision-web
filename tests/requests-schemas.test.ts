@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { homeVisitRequestSchema, quoteRequestSchema } from '@/modules/requests/schemas';
+import { GLASS_TYPES, homeVisitRequestSchema, quoteRequestSchema } from '@/modules/requests/schemas';
 
 const baseQuote = {
   frameChoice: 'advice' as const,
@@ -69,6 +69,27 @@ describe('modules/requests/schemas — quoteRequestSchema', () => {
   it('defaults the honeypot field to empty when omitted', () => {
     const result = quoteRequestSchema.safeParse(baseQuote);
     expect(result.success && result.data.website).toBe('');
+  });
+
+  // Fase 7: "Progresivo" reemplaza "Multifocal" como valor técnico
+  // aceptado por nuevas solicitudes — ver spec lens-configuration.
+  it('GLASS_TYPES contains exactly Monofocal, Bifocal, Progresivo, "No estoy seguro" — never Multifocal', () => {
+    expect(GLASS_TYPES).toEqual(['Monofocal', 'Bifocal', 'Progresivo', 'No estoy seguro']);
+  });
+
+  it('accepts glassType: "Progresivo" for a new submission', () => {
+    const result = quoteRequestSchema.safeParse({ ...baseQuote, glassType: 'Progresivo' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects glassType: "Multifocal" for a new submission (retired terminology)', () => {
+    const result = quoteRequestSchema.safeParse({ ...baseQuote, glassType: 'Multifocal' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an unrecognized glassType value instead of silently coercing it', () => {
+    const result = quoteRequestSchema.safeParse({ ...baseQuote, glassType: 'algo-inventado' });
+    expect(result.success).toBe(false);
   });
 });
 

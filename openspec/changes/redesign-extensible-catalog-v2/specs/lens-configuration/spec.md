@@ -20,11 +20,11 @@ Each `Category` SHALL declare which lens types, treatments, and additional optio
 
 #### Scenario: Lentes ópticos allows exactly its defined set
 - **WHEN** the Lentes ópticos category's `quoteOptions` is read
-- **THEN** its lens types SHALL be exactly Monofocal, Bifocal, Progresivo, and its treatments/options SHALL be exactly Antirreflejo, Filtro de luz azul-violeta, Fotocromático, Protección UV, Mayor resistencia a rayaduras, Hidrofóbico y oleofóbico, and Alto índice
+- **THEN** its lens types SHALL be exactly Monofocal, Bifocal, Progresivo, and its treatments/options SHALL be exactly Antirreflejo, Filtro de luz azul-violeta, Fotocromático, Protección UV, Mayor resistencia a rayaduras, and Alto índice
 
 #### Scenario: Lentes de sol allows exactly its defined set
 - **WHEN** the Lentes de sol category's `quoteOptions` is read
-- **THEN** its lens-type/modality options SHALL be exactly Sin graduación, Solar monofocal, Solar progresivo, and its treatments/options SHALL be exactly UV400, Polarizado, Degradado, Espejado, Solar graduado, Mayor resistencia a rayaduras, and Hidrofóbico y oleofóbico
+- **THEN** its lens-type/modality options SHALL be exactly Sin graduación, Solar monofocal, Solar progresivo, and its treatments/options SHALL be exactly UV400, Polarizado, Degradado, Espejado, Solar graduado, and Mayor resistencia a rayaduras
 
 #### Scenario: A value outside the category's allowlist is never offered or accepted
 - **WHEN** the quote wizard renders a lens-type, treatment, or additional-option step for a resolved category

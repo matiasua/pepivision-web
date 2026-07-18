@@ -9,6 +9,7 @@ const STATIC_PAGES: [string, string][] = [
   ['/catalogo', 'catalogo'],
   ['/catalogo/lentes-opticos', 'catalogo-categoria'],
   ['/cotizador', 'cotizador'],
+  ['/cristales', 'cristales'],
   ['/derechos-arco', 'derechos-arco'],
   ['/faq', 'faq'],
   ['/contacto', 'contacto'],

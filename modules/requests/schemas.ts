@@ -10,7 +10,14 @@ const nameSchema = z.string().trim().min(2, 'Ingresa tu nombre completo.').max(1
 const phoneSchema = z.string().trim().min(6, 'Ingresa un teléfono de contacto válido.').max(30);
 const optionalEmailSchema = optionalNonEmpty(z.string().trim().max(160).email('Revisa el formato de tu correo.'));
 
-export const GLASS_TYPES = ['Monofocal', 'Bifocal', 'Multifocal', 'No estoy seguro'] as const;
+// "Progresivo" reemplaza el nombre legado "Multifocal" (Fase 7,
+// redesign-extensible-catalog-v2 → spec lens-configuration): una nueva
+// solicitud con glassType: "Multifocal" ahora es rechazada por
+// quoteRequestSchema. Filas históricas de Request.details que ya
+// persistieron "Multifocal" no se reescriben — siguen siendo legibles tal
+// cual en el panel admin (RequestCard.tsx renderiza el string guardado sin
+// transformarlo).
+export const GLASS_TYPES = ['Monofocal', 'Bifocal', 'Progresivo', 'No estoy seguro'] as const;
 export const TREATMENT_IDS = ['azul', 'ar', 'foto', 'uv', 'delgado', 'raya'] as const;
 export const PRESCRIPTION_ANSWERS = ['Sí', 'No', 'No estoy seguro'] as const;
 

@@ -260,7 +260,7 @@ Ocurrencias exhaustivas de "Multifocal" identificadas en esta pasada (referencia
 
 **Riesgo de compatibilidad histórica**: `Request.details.glassType` ya persistido con el valor literal `"Multifocal"` en filas existentes es un snapshot inmutable de lo que era cierto al momento del envío (mismo principio ya aplicado en `request-category-snapshot`) — el renombre solo aplica a **nuevas** solicitudes desde que el enum cambie; una fila histórica con `"Multifocal"` no se reescribe ni se migra.
 
-**Catálogo definitivo de tipos de cristal (código, `modules/requests/lens-types.ts`, diseño no implementado aún):**
+**Catálogo definitivo de tipos de cristal (código, `modules/requests/lens-types.ts` — implementado en la Fase 7 de este cambio, contenido/tabla/copy únicamente; el motor de compatibilidades sigue sin implementar, ver más abajo):**
 
 ```ts
 export const LENS_TYPES = ['monofocal', 'bifocal', 'progresivo'] as const;
@@ -287,11 +287,13 @@ export const LENS_TYPE_DESCRIPTIONS: Record<(typeof LENS_TYPES)[number], string>
 | Línea divisoria visible | No | Sí | No |
 | Transición gradual entre distancias | No | No | Sí |
 
-**Catálogo definitivo de tratamientos** (`TREATMENTS`, código): Antirreflejo · Filtro de luz azul-violeta · Fotocromático · Protección UV · Mayor resistencia a rayaduras · Hidrofóbico y oleofóbico. **No usar la afirmación "completamente antirrayas"** — el tratamiento aumenta resistencia, no la hace absoluta; el copy debe decir "mayor resistencia a rayaduras."
+**Catálogo definitivo de tratamientos** (`TREATMENTS`, código — implementado en `modules/requests/treatments-content.ts`): Antirreflejo · Filtro de luz azul-violeta · Fotocromático · Protección UV · Mayor resistencia a rayaduras. **No usar la afirmación "completamente antirrayas"** — el tratamiento aumenta resistencia, no la hace absoluta; el copy debe decir "mayor resistencia a rayaduras."
 
-**Catálogo definitivo de opciones adicionales** (`ADDITIONAL_OPTIONS`, código, deliberadamente separado de "tratamientos" porque son decisiones estructurales del cristal, no un recubrimiento): Cristales de alto índice · Polarizado · Degradado · Espejado · Cristales solares graduados. "Cristales solares graduados" es en sí mismo una submodalidad con tres variantes: solar monofocal, solar progresivo, polarizado graduado (esta última solo cuando exista compatibilidad, ver tabla siguiente).
+**(NUEVO — iteración correctiva de interfaz de `/cristales`, misma Fase 7, no una fase nueva) Retiro de "Hidrofóbico y oleofóbico":** decisión comercial del propietario del producto — Pepi Visión no ofrece hoy este tratamiento, así que se retiró por completo de `TREATMENTS` y de la interfaz pública de `/cristales`. No es un error técnico ni una omisión de scope; es una corrección de catálogo. El total definitivo de tratamientos pasa de 6 a **5**. No afecta datos históricos (`Request.details` nunca persistió este valor como enum técnico — el catálogo de tratamientos siempre fue de solo lectura/presentación, sin un `TREATMENT_IDS` persistido por solicitud) ni los specs archivados/baseline (`openspec/specs/`, `openspec/changes/archive/`), que no se tocan. Si el negocio decide reintroducirlo en el futuro, requiere una decisión de producto explícita nueva, no una reversión automática de este retiro.
 
-**Compatibilidades del cotizador por categoría — fuente estructurada, validada server-side (extiende `Category.capabilities` con un bloque `quoteOptions`, diseño no implementado aún):**
+**Catálogo definitivo de opciones adicionales** (`ADDITIONAL_OPTIONS`, código — implementado en `modules/requests/additional-options.ts`, deliberadamente separado de "tratamientos" porque son decisiones estructurales del cristal, no un recubrimiento): Cristales de alto índice · Polarizado · Degradado · Espejado · Cristales solares graduados. "Cristales solares graduados" es en sí mismo una submodalidad con tres variantes: solar monofocal, solar progresivo, polarizado graduado (esta última solo cuando exista compatibilidad, ver tabla siguiente).
+
+**Compatibilidades del cotizador por categoría — fuente estructurada, validada server-side (extiende `Category.capabilities` con un bloque `quoteOptions`, diseño no implementado aún — deliberadamente diferido a la Fase 9, motor de compatibilidades; la Fase 7 solo implementó el contenido/tabla/copy de `LENS_TYPES`/`TREATMENTS`/`ADDITIONAL_OPTIONS`, sin ningún gating por categoría todavía):**
 
 ```ts
 // modules/catalog/quote-options.ts (design sketch, not implemented here)
@@ -306,7 +308,7 @@ const quoteOptionsSchema = z.object({
 | | Lentes ópticos | Lentes de sol |
 |---|---|---|
 | **Tipos de cristal** | Monofocal, Bifocal, Progresivo | Sin graduación, Solar monofocal, Solar progresivo |
-| **Tratamientos y opciones** | Antirreflejo, Filtro azul-violeta, Fotocromático, Protección UV, Mayor resistencia a rayaduras, Hidrofóbico y oleofóbico, Alto índice | UV400, Polarizado, Degradado, Espejado, Solar graduado, Mayor resistencia a rayaduras, Hidrofóbico y oleofóbico |
+| **Tratamientos y opciones** | Antirreflejo, Filtro azul-violeta, Fotocromático, Protección UV, Mayor resistencia a rayaduras, Alto índice | UV400, Polarizado, Degradado, Espejado, Solar graduado, Mayor resistencia a rayaduras |
 
 **Reglas de validación (SHALL, ver spec `lens-configuration`):**
 - El cotizador **nunca** debe mostrar una opción no listada en el `quoteOptions` de la categoría resuelta.
@@ -314,6 +316,20 @@ const quoteOptionsSchema = z.object({
 - Esto es una capa más fina que las `capabilities` booleanas existentes: `allowsLensType: true` sigue gating *si el paso existe*; `quoteOptions.lensTypes` gating *cuáles opciones aparecen dentro de ese paso*. Ambas capas se validan server-side, nunca solo una.
 
 **Open Question (no resuelta por este cambio — requiere decisión del propietario del producto):** ¿puede un cliente cotizar únicamente el armazón sin cristales ópticos dentro de la categoría Lentes ópticos (equivalente al antiguo flujo "Armazones"), o el tipo de cristal es un paso obligatorio una vez que se elige esa categoría? Esto determina si `allowsLensType`/`allowsTreatments`/`allowsPrescription` deben poder saltarse dentro de Lentes ópticos o si son siempre obligatorios. Ver "Open Questions" al final de este documento.
+
+**(NUEVO — iteración correctiva de interfaz de `/cristales`, misma Fase 7):** el contenido óptico de la primera pasada de la Fase 7 era correcto, pero su presentación visual no cumplía el estándar de marca de Pepi Visión (jerarquía plana, tarjetas idénticas, iconografía de placeholder con una sola letra). Se corrigió exclusivamente la capa de presentación, sin tocar el modelo de contenido salvo el retiro de "Hidrofóbico y oleofóbico" documentado arriba:
+- Nuevos íconos de línea en `components/icons.tsx`, siguiendo exactamente la convención ya existente (`viewBox 24×24`, `stroke="currentColor"`, `aria-hidden`) — no es una dependencia nueva, son más funciones en el mismo archivo compartido. Ningún ícono nuevo pertenece todavía a la ilustración final de `improve-visual-identity-and-content`.
+- Sin paleta nueva: se reutilizan los tokens de marca ya definidos en `app/globals.css` (navy, fucsia, fondos suaves, radios, sombras).
+- Se corrigió un defecto real de contraste AA detectado por la corrida completa de axe (no por pruebas unitarias, que no calculan contraste real renderizado): el texto de la insignia "Opción adicional" (`text-fucsia` sobre el fondo suave `#fdeaf4`) medía 4.47:1, bajo el mínimo 4.5:1 — se ajustó a un tono más oscuro de la misma familia (`#b30f68`, ~5.73:1) sin cambiar el fondo ni la insignia "Tratamiento" (que ya pasaba).
+- La tabla comparativa y el listado de tratamientos/opciones adicionales mantienen exactamente el mismo contenido funcional aprobado en la primera pasada de la Fase 7 — solo cambió su contenedor, jerarquía visual y densidad.
+
+**(NUEVO — segunda iteración correctiva de interfaz de `/cristales`, misma Fase 7; el propietario del producto rechazó el resultado estético de la iteración anterior pese a que 7.9 pasaba todos los tests automatizados — ver CLAUDE.md → "GUI acceptance gate", regla 7):**
+- Diagnóstico del propietario: el contenido óptico era correcto, pero la página "se sentía como documentación técnica presentada en tarjetas" — específicamente el bloque "Tratamientos principales", una grilla de 6 tarjetas visualmente idénticas (icono + badge + texto, todas del mismo tamaño y forma) que no se leía como una página comercial de óptica.
+- Corrección: el bloque "Tratamientos principales" se reescribió de una grilla de 6 tarjetas independientes a un único contenedor con dos columnas de filas (icono + nombre + badge + descripción) separadas por divisores internos — mismo contenido, misma información por ítem, pero sin repetir el mismo "molde de tarjeta" seis veces. Esto también diferencia visualmente esta sección de "Opciones para lentes de sol" (que conserva el formato de tarjeta, ya que allí solo hay 4 ítems y vive en su propio contenedor con acento de marca), en vez de que ambas secciones se vean como la misma grilla repetida.
+- El hero se complementó con una fila breve de tres propuestas de valor (tipos de cristal disponibles, tratamientos/opciones para sol, cotización por WhatsApp) para que no se perciba como "título + párrafo centrado" — texto derivado del contenido ya aprobado en la página, sin ninguna afirmación nueva.
+- Se corrigió además una referencia residual a "Hidrofóbico y oleofóbico" en `specs/lens-configuration/spec.md` (dos escenarios de la Fase 9, no tocados por la primera iteración correctiva) que quedó inconsistente con el retiro documentado arriba — el catálogo definitivo de tratamientos sigue siendo 5, sin excepción, en todas las fuentes (código, delta spec, design).
+- Sin cambios de paleta, de contenido óptico, ni de dependencias — mismos tokens de marca, misma iconografía esquemática de `components/icons.tsx`.
+- Validación GUI manual pendiente de aprobación explícita del propietario antes de consolidar/archivar la Fase 7 (ver tasks.md → 7.10).
 
 ### Rediseño del catálogo público
 

@@ -12,7 +12,7 @@ import { ValidationError } from '@/lib/errors';
 export const categoryCapabilitiesSchema = z.object({
   /// El armazón/producto requiere seleccionar un ProductColor.
   requiresColor: z.boolean().default(true),
-  /// Habilita el paso "tipo de cristal" (Monofocal/Bifocal/Multifocal/...).
+  /// Habilita el paso "tipo de cristal" (Monofocal/Bifocal/Progresivo/...).
   allowsLensType: z.boolean().default(false),
   /// Habilita el paso de tratamientos (antirreflejo, filtro azul, etc.).
   allowsTreatments: z.boolean().default(false),
