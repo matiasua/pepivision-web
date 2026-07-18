@@ -11,6 +11,30 @@ export function findOfferingById(id: string) {
   return prisma.productOffering.findUnique({ where: { id } });
 }
 
+/**
+ * Fase 9 (motor de compatibilidades): el único dato de `Category`/
+ * `Product` que la validación de dominio necesita — nunca la fila
+ * completa. Incluye soft-deleted (`deletedAt`) a propósito: quien llama
+ * decide qué hacer con una oferta borrada, en vez de que quede
+ * indistinguible de "no existe".
+ */
+export function findOfferingWithLensContext(id: string) {
+  return prisma.productOffering.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      categoryId: true,
+      productId: true,
+      active: true,
+      visible: true,
+      deletedAt: true,
+      configuration: true,
+      category: { select: { id: true, slug: true, active: true, visible: true, capabilities: true } },
+      product: { select: { id: true, visible: true } },
+    },
+  });
+}
+
 export function findOfferingByProductAndCategory(productId: string, categoryId: string) {
   return prisma.productOffering.findUnique({ where: { productId_categoryId: { productId, categoryId } } });
 }

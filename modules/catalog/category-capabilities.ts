@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ValidationError } from '@/lib/errors';
+import { quoteOptionsSchema } from './quote-options';
 
 // Perfil por defecto (todo ausente -> estos valores) = el perfil más simple
 // posible (listado de producto simple, sin pasos opcionales) — ver
@@ -31,6 +32,15 @@ export const categoryCapabilitiesSchema = z.object({
   /// producto genérico para una categoría futura que no se basa en elegir
   /// un armazón (p. ej. "Accesorios").
   allowsFrameSelection: z.boolean().default(true),
+  /// Fase 9 (motor de compatibilidades): allowlist fina de qué
+  /// modalidades de cristal/tratamientos/opciones adicionales admite esta
+  /// categoría — ver modules/catalog/quote-options.ts. Distinto de las
+  /// capacidades booleanas de arriba: `allowsLensType: true` habilita *que
+  /// exista* el paso; `quoteOptions` acota *cuáles valores* aparecen
+  /// dentro de ese paso. Opcional a propósito — una categoría sin este
+  /// bloque (o con uno inválido) se resuelve fail-closed (sin opciones),
+  /// nunca lanza — ver resolveCategoryQuoteOptions().
+  quoteOptions: quoteOptionsSchema.optional(),
 });
 
 export type CategoryCapabilities = z.infer<typeof categoryCapabilitiesSchema>;

@@ -27,6 +27,23 @@ const offeringConfigurationV1Schema = z
       .array(z.object({ label: z.string().max(60), amountClp: z.number().int().nonnegative() }).strict())
       .max(5)
       .optional(),
+    /// Fase 9 (motor de compatibilidades): exclusión — nunca ampliación —
+    /// de tratamientos/opciones adicionales que la Category de esta oferta
+    /// permitiría, para un modelo puntual que no los soporta (p. ej. un
+    /// modelo de lentes de sol sin certificación `uv400`). Solo IDs, nunca
+    /// labels. Deliberadamente sin validar contra el catálogo fijo aquí
+    /// (offering-configuration.ts no depende de quote-options.ts, evita un
+    /// ciclo de imports) — `getEffectiveOfferingLensOptions` en
+    /// quote-options.ts es quien intersecta esto de forma segura: un ID
+    /// excluido que la categoría ni siquiera ofrecía no tiene ningún
+    /// efecto, nunca puede *agregar* una opción nueva.
+    lensOptionExclusions: z
+      .object({
+        treatments: z.array(z.string().max(60)).max(20).optional(),
+        additionalOptions: z.array(z.string().max(60)).max(20).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 

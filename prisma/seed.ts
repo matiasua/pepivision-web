@@ -9,6 +9,8 @@ import { slugify } from '../lib/slug';
 import { getBrandLogos } from '../lib/brands';
 import { categoryCapabilitiesSchema, type CategoryCapabilities } from '../modules/catalog/category-capabilities';
 import { migrateToDefinitiveTaxonomy } from '../modules/catalog/taxonomy-migration';
+import { LENTES_OPTICOS_QUOTE_OPTIONS, LENTES_DE_SOL_QUOTE_OPTIONS } from '../modules/catalog/quote-options';
+import { reconcileCanonicalQuoteOptions } from '../modules/catalog/quote-options-reconciliation';
 
 const prisma = new PrismaClient();
 
@@ -54,6 +56,15 @@ const SEED_PRODUCTS = [
 // sembrar por separado. Solo estas dos se siembran por script — toda
 // categoría posterior se crea desde /admin/categories (Fase 4), nunca
 // agregándola aquí.
+//
+// Fase 9 (motor de compatibilidades): `quoteOptions` se agrega aquí como
+// fuente para instalaciones nuevas/frescas — `seedCategories()` usa
+// `update: {}` deliberadamente (ver más abajo), así que una categoría que
+// YA existe en una base de datos (como la de este entorno de desarrollo)
+// nunca se sobrescribe con esta corrida. No es un backfill: para
+// propagar `quoteOptions` a una categoría ya sembrada hace falta un reseed
+// desde una base vacía o una futura edición admin — ninguna de las dos
+// está en el alcance de esta fase.
 const SEED_CATEGORIES: {
   slug: string;
   name: string;
@@ -75,6 +86,7 @@ const SEED_CATEGORIES: {
       allowsPrescriptionAttachment: true,
       allowsLensTint: false,
       allowsFrameSelection: true,
+      quoteOptions: LENTES_OPTICOS_QUOTE_OPTIONS,
     },
   },
   {
@@ -91,6 +103,7 @@ const SEED_CATEGORIES: {
       allowsPrescriptionAttachment: true,
       allowsLensTint: true,
       allowsFrameSelection: true,
+      quoteOptions: LENTES_DE_SOL_QUOTE_OPTIONS,
     },
   },
 ];
@@ -141,9 +154,26 @@ export async function seedCategories() {
     });
   }
 
+  // Fase 9 (motor de compatibilidades): reconcilia `quoteOptions` en las
+  // dos categorías canónicas — necesario en instalaciones cuyas filas ya
+  // existían antes de que `quoteOptions` se agregara al schema (el
+  // `update: {}` de arriba nunca las toca). Nunca sobrescribe una edición
+  // administrativa válida ni reemplaza silenciosamente un valor inválido —
+  // ver modules/catalog/quote-options-reconciliation.ts.
+  const reconciliation = await reconcileCanonicalQuoteOptions();
+  for (const result of reconciliation) {
+    if (result.action === 'conflict') {
+      console.warn(
+        `quoteOptions inválido en la categoría "${result.slug}" — no se sobrescribió. Revisar manualmente: ${(result.issues ?? []).join('; ')}`
+      );
+    } else if (result.action === 'missing_category') {
+      console.warn(`Categoría "${result.slug}" no encontrada al reconciliar quoteOptions.`);
+    }
+  }
+
   const count = await prisma.category.count();
   console.log(`Seed de categorías completo. ${count} categorías en la base de datos.`);
-  return migrationReport;
+  return { migrationReport, reconciliation };
 }
 
 // Dev bootstrap for `home-visit-coverage`: there is no admin panel yet to

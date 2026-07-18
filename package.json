@@ -20,7 +20,8 @@
     "prisma:migrate": "prisma migrate deploy",
     "migrate": "npm run prisma:migrate",
     "prisma:seed": "prisma db seed",
-    "admin:create-superadmin": "tsx scripts/create-superadmin.ts"
+    "admin:create-superadmin": "tsx scripts/create-superadmin.ts",
+    "catalog:reconcile-quote-options": "tsx scripts/reconcile-quote-options.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
