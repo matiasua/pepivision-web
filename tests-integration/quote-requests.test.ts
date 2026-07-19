@@ -1048,4 +1048,313 @@ describe('modules/requests/service — submitQuote (integration)', () => {
       expect(allResults.some((r) => r.id === sunRequest.id)).toBe(true);
     });
   });
+
+  // Fase 13 (redesign-extensible-catalog-v2 — emails y WhatsApp consumiendo
+  // el snapshot de categoría/oferta/precio): ambos correos y el mensaje de
+  // WhatsApp deben mostrar exactamente el mismo priceFromSnapshot ya
+  // persistido en Request.details, nunca un recálculo. Real Postgres +
+  // Mailpit, sin mocks.
+  describe('Fase 13 — emails y WhatsApp consumen categoría, oferta y precio del snapshot', () => {
+    it('óptica con ProductOffering y precio: ambos correos muestran "Precio referencial: Desde $X", y el snapshot persiste el mismo valor', async () => {
+      const { offering, color } = await makeOpticalOffering();
+      const tag = uniqueTag('quote');
+      const email = `${tag}@integration.test.pepivision360.invalid`;
+      const phone = uniquePhone();
+
+      await submitQuote(
+        {
+          categoryId: opticalCategoryId,
+          frameChoice: 'catalog',
+          offeringId: offering.id,
+          frameProductColorId: color.id,
+          lensModality: 'monofocal',
+          treatments: [],
+          additionalOptions: [],
+          hasPrescription: 'Sí',
+          name: `Cliente ${tag}`,
+          phone,
+          email,
+          comuna: undefined,
+          message: undefined,
+          consent: true,
+          website: '',
+        },
+        null
+      );
+      const request = await prisma.request.findFirstOrThrow({ where: { phone, type: 'QUOTE' } });
+      requestIds.push(request.id);
+
+      const details = request.details as Record<string, unknown>;
+      expect(details.priceFromSnapshot).toBe(19990);
+      expect(details.categorySlug).toBe('lentes-opticos');
+
+      const customerMessages = await findMailpitMessagesTo(email);
+      expect(customerMessages.length).toBeGreaterThanOrEqual(1);
+      mailpitIds.push(...customerMessages.map((m) => m.ID));
+      const customerFull = await fetch(`http://mailpit:8025/api/v1/message/${customerMessages[0].ID}`).then((r) => r.json());
+      expect(customerFull.Text).toContain('Precio referencial: Desde $19.990');
+      expect(customerFull.HTML).toContain('Precio referencial');
+      expect(customerFull.HTML).toContain('Desde $19.990');
+      expect(customerFull.HTML).toContain('Lentes ópticos');
+
+      const businessSearch = await fetch(
+        `http://mailpit:8025/api/v1/search?query=${encodeURIComponent(`subject:"Nueva cotización — Cliente ${tag}"`)}`
+      ).then((r) => r.json());
+      expect(businessSearch.messages.length).toBeGreaterThanOrEqual(1);
+      mailpitIds.push(...businessSearch.messages.map((m: { ID: string }) => m.ID));
+      const businessFull = await fetch(`http://mailpit:8025/api/v1/message/${businessSearch.messages[0].ID}`).then((r) =>
+        r.json()
+      );
+      expect(businessFull.Text).toContain('Precio referencial: Desde $19.990');
+      expect(businessFull.HTML).toContain('Precio referencial');
+      expect(businessFull.HTML).toContain('Desde $19.990');
+    });
+
+    it('solar con ProductOffering y precio: ambos correos muestran el precio y la categoría Lentes de sol', async () => {
+      const actor = await makeActor();
+      const sunCategory = await prisma.category.findUniqueOrThrow({ where: { slug: 'lentes-de-sol' } });
+      const tag = uniqueTag('prodsun');
+      const brand = await prisma.brand.create({ data: { name: tag, slug: tag, active: true } });
+      brandIds.push(brand.id);
+      const product = await createProduct(
+        {
+          name: `Modelo ${tag}`,
+          code: tag,
+          brandId: brand.id,
+          priceFromClp: 29990,
+          sizes: undefined,
+          gender: Gender.UNISEX,
+          shape: ProductShape.REDONDO,
+          material: ProductMaterial.ACETATO,
+          available: true,
+          visible: true,
+          badge: undefined,
+          description: undefined,
+          colors: [{ name: 'Carey', hex: '#8a5a2b' }],
+        },
+        actor
+      );
+      productIds.push(product.id);
+      const offering = await createOffering(
+        {
+          productId: product.id,
+          categoryId: sunCategory.id,
+          title: undefined,
+          commercialDescription: undefined,
+          priceFromClp: 45000,
+          active: true,
+          visible: true,
+          featured: false,
+          sortOrder: 0,
+          seoTitle: undefined,
+          seoDescription: undefined,
+        },
+        actor
+      );
+      offeringIds.push(offering.id);
+      const color = await prisma.productColor.findFirstOrThrow({ where: { productId: product.id } });
+
+      const tagQ = uniqueTag('quote');
+      const email = `${tagQ}@integration.test.pepivision360.invalid`;
+      const phone = uniquePhone();
+
+      await submitQuote(
+        {
+          categoryId: sunCategory.id,
+          frameChoice: 'catalog',
+          offeringId: offering.id,
+          frameProductColorId: color.id,
+          lensModality: 'sin-graduacion',
+          treatments: ['uv400'],
+          additionalOptions: [],
+          name: `Cliente ${tagQ}`,
+          phone,
+          email,
+          comuna: undefined,
+          message: undefined,
+          consent: true,
+          website: '',
+        },
+        null
+      );
+      const request = await prisma.request.findFirstOrThrow({ where: { phone, type: 'QUOTE' } });
+      requestIds.push(request.id);
+
+      const details = request.details as Record<string, unknown>;
+      expect(details.priceFromSnapshot).toBe(45000);
+      expect(details.categorySlug).toBe('lentes-de-sol');
+
+      const customerMessages = await findMailpitMessagesTo(email);
+      expect(customerMessages.length).toBeGreaterThanOrEqual(1);
+      mailpitIds.push(...customerMessages.map((m) => m.ID));
+      const customerFull = await fetch(`http://mailpit:8025/api/v1/message/${customerMessages[0].ID}`).then((r) => r.json());
+      expect(customerFull.Text).toContain('Precio referencial: Desde $45.000');
+      expect(customerFull.HTML).toContain('Lentes de sol');
+
+      const businessSearch = await fetch(
+        `http://mailpit:8025/api/v1/search?query=${encodeURIComponent(`subject:"Nueva cotización — Cliente ${tagQ}"`)}`
+      ).then((r) => r.json());
+      expect(businessSearch.messages.length).toBeGreaterThanOrEqual(1);
+      mailpitIds.push(...businessSearch.messages.map((m: { ID: string }) => m.ID));
+      const businessFull = await fetch(`http://mailpit:8025/api/v1/message/${businessSearch.messages[0].ID}`).then((r) =>
+        r.json()
+      );
+      expect(businessFull.Text).toContain('Precio referencial: Desde $45.000');
+    });
+
+    it('asesoría sin ProductOffering: ningún correo muestra "Precio referencial" — nunca "$0" ni "Por cotizar" inventado', async () => {
+      const tag = uniqueTag('quote');
+      const email = `${tag}@integration.test.pepivision360.invalid`;
+      const phone = uniquePhone();
+
+      await submitQuote(
+        {
+          categoryId: opticalCategoryId,
+          frameChoice: 'advice',
+          lensModality: 'monofocal',
+          treatments: [],
+          additionalOptions: [],
+          hasPrescription: 'Sí',
+          name: `Cliente ${tag}`,
+          phone,
+          email,
+          comuna: undefined,
+          message: undefined,
+          consent: true,
+          website: '',
+        },
+        null
+      );
+      const request = await prisma.request.findFirstOrThrow({ where: { phone, type: 'QUOTE' } });
+      requestIds.push(request.id);
+
+      const details = request.details as Record<string, unknown>;
+      expect(details.priceFromSnapshot ?? null).toBeNull();
+
+      const customerMessages = await findMailpitMessagesTo(email);
+      expect(customerMessages.length).toBeGreaterThanOrEqual(1);
+      mailpitIds.push(...customerMessages.map((m) => m.ID));
+      const customerFull = await fetch(`http://mailpit:8025/api/v1/message/${customerMessages[0].ID}`).then((r) => r.json());
+      expect(customerFull.Text).not.toContain('Precio referencial');
+      expect(customerFull.HTML).not.toContain('Precio referencial');
+      expect(customerFull.HTML).not.toContain('$0');
+      expect(customerFull.HTML).not.toContain('Por cotizar');
+
+      const businessSearch = await fetch(
+        `http://mailpit:8025/api/v1/search?query=${encodeURIComponent(`subject:"Nueva cotización — Cliente ${tag}"`)}`
+      ).then((r) => r.json());
+      expect(businessSearch.messages.length).toBeGreaterThanOrEqual(1);
+      mailpitIds.push(...businessSearch.messages.map((m: { ID: string }) => m.ID));
+      const businessFull = await fetch(`http://mailpit:8025/api/v1/message/${businessSearch.messages[0].ID}`).then((r) =>
+        r.json()
+      );
+      expect(businessFull.Text).not.toContain('Precio referencial');
+      expect(businessFull.HTML).not.toContain('$0');
+    });
+
+    it('el WhatsApp generado contiene la misma categoría y el mismo precio que el snapshot, decodificando el parámetro del mensaje', async () => {
+      const { offering, color } = await makeOpticalOffering();
+      const tag = uniqueTag('quote');
+      const phone = uniquePhone();
+
+      const result = await submitQuote(
+        {
+          categoryId: opticalCategoryId,
+          frameChoice: 'catalog',
+          offeringId: offering.id,
+          frameProductColorId: color.id,
+          lensModality: 'monofocal',
+          treatments: [],
+          additionalOptions: [],
+          hasPrescription: 'Sí',
+          name: `Cliente ${tag}`,
+          phone,
+          email: undefined,
+          comuna: undefined,
+          message: undefined,
+          consent: true,
+          website: '',
+        },
+        null
+      );
+      const request = await prisma.request.findFirstOrThrow({ where: { phone, type: 'QUOTE' } });
+      requestIds.push(request.id);
+
+      const url = new URL(result.whatsappHref);
+      const decoded = decodeURIComponent(url.searchParams.get('text') ?? '');
+      expect(decoded).toContain('Lentes ópticos');
+      expect(decoded).toContain('Desde $19.990');
+      expect(decoded).toContain(`Cliente ${tag}`);
+      for (const forbidden of ['lentes-opticos', offering.id, offering.productId, 'storageKey', 'http://', 'https://']) {
+        expect(decoded).not.toContain(forbidden);
+      }
+    });
+
+    it('el WhatsApp de una asesoría sin oferta omite el precio y nunca inventa una oferta', async () => {
+      const sunCategory = await prisma.category.findUniqueOrThrow({ where: { slug: 'lentes-de-sol' } });
+      const tag = uniqueTag('quote');
+      const phone = uniquePhone();
+
+      const result = await submitQuote(
+        {
+          categoryId: sunCategory.id,
+          frameChoice: 'advice',
+          lensModality: 'solar-progresivo',
+          treatments: ['uv400'],
+          additionalOptions: [],
+          hasPrescription: 'Sí',
+          name: `Cliente ${tag}`,
+          phone,
+          email: undefined,
+          comuna: undefined,
+          message: undefined,
+          consent: true,
+          website: '',
+        },
+        null
+      );
+      const request = await prisma.request.findFirstOrThrow({ where: { phone, type: 'QUOTE' } });
+      requestIds.push(request.id);
+
+      const url = new URL(result.whatsappHref);
+      const decoded = decodeURIComponent(url.searchParams.get('text') ?? '');
+      expect(decoded).toContain('Lentes de sol');
+      expect(decoded).toContain('Solar progresivo');
+      expect(decoded).not.toContain('Desde $');
+      expect(decoded).not.toContain('$0');
+    });
+
+    it('un adjunto de receta nunca aparece mencionado en el mensaje de WhatsApp (ni datos internos del archivo)', async () => {
+      const tag = uniqueTag('quote');
+      const phone = uniquePhone();
+      const pngBuffer = await tinyPngBuffer();
+
+      const result = await submitQuote(
+        {
+          categoryId: opticalCategoryId,
+          frameChoice: 'advice',
+          lensModality: 'monofocal',
+          treatments: [],
+          additionalOptions: [],
+          hasPrescription: 'Sí',
+          name: `Cliente ${tag}`,
+          phone,
+          email: undefined,
+          comuna: undefined,
+          message: undefined,
+          consent: true,
+          website: '',
+        },
+        { buffer: pngBuffer, contentType: 'image/png', size: pngBuffer.length, originalFileName: 'receta.png' }
+      );
+      const request = await prisma.request.findFirstOrThrow({ where: { phone, type: 'QUOTE' } });
+      requestIds.push(request.id);
+
+      const url = new URL(result.whatsappHref);
+      const decoded = decodeURIComponent(url.searchParams.get('text') ?? '');
+      for (const forbidden of ['receta.png', 'storageKey', 'prescriptions/', 'X-Amz-Signature', 'minio', '.png']) {
+        expect(decoded).not.toContain(forbidden);
+      }
+    });
+  });
 });

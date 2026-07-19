@@ -1,6 +1,7 @@
 import { escapeHtml, escapeHtmlMultiline, renderButton, renderDataRow, renderInfoCard, renderNotice } from '../components';
 import { renderEmailFooter, renderEmailLayout, type FooterContactInfo } from '../layout';
 import { formatDateCl, formatList, shortRequestId } from '../format';
+import { formatClp } from '@/modules/catalog/labels';
 import type { EmailMessage } from '../types';
 
 export interface QuoteCustomerConfirmationInput {
@@ -11,6 +12,8 @@ export interface QuoteCustomerConfirmationInput {
   frameProductName: string | null;
   frameProductCode: string | null;
   frameProductColorName: string | null;
+  /** Fase 13: valor histórico ya resuelto server-side desde `ProductOffering.priceFromClp` en el momento de la solicitud (nunca recalculado). `null` en el flujo de asesoría sin oferta — la fila se omite por completo, nunca "$0"/"Por cotizar"/"—". */
+  priceFromSnapshot: number | null;
   glassType: string;
   treatmentLabels: string[];
   /** null cuando la categoría/modalidad no requiere receta (p. ej. Sin graduación) — la fila se omite por completo, nunca se muestra "—". */
@@ -34,6 +37,9 @@ export function quoteCustomerConfirmation(input: QuoteCustomerConfirmationInput)
     input.frameProductName ? renderDataRow({ label: 'Modelo', value: escapeHtml(input.frameProductName) }) : '',
     input.frameProductCode ? renderDataRow({ label: 'Código', value: escapeHtml(input.frameProductCode) }) : '',
     input.frameProductColorName ? renderDataRow({ label: 'Color', value: escapeHtml(input.frameProductColorName) }) : '',
+    input.priceFromSnapshot !== null
+      ? renderDataRow({ label: 'Precio referencial', value: `Desde ${formatClp(input.priceFromSnapshot)}` })
+      : '',
     renderDataRow({ label: 'Tipo de cristal', value: escapeHtml(input.glassType) }),
     renderDataRow({ label: 'Tratamientos', value: escapeHtml(treatments) }),
     input.prescriptionAnswer !== null ? renderDataRow({ label: 'Receta óptica', value: escapeHtml(input.prescriptionAnswer) }) : '',
@@ -78,6 +84,7 @@ export function quoteCustomerConfirmation(input: QuoteCustomerConfirmationInput)
     ...(input.frameProductName ? [`- Modelo: ${input.frameProductName}`] : []),
     ...(input.frameProductCode ? [`- Código: ${input.frameProductCode}`] : []),
     ...(input.frameProductColorName ? [`- Color: ${input.frameProductColorName}`] : []),
+    ...(input.priceFromSnapshot !== null ? [`- Precio referencial: Desde ${formatClp(input.priceFromSnapshot)}`] : []),
     `- Tipo de cristal: ${input.glassType}`,
     `- Tratamientos: ${treatments}`,
     ...(input.prescriptionAnswer !== null ? [`- Receta óptica: ${input.prescriptionAnswer}`] : []),

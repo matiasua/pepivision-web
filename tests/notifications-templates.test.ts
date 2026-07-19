@@ -37,6 +37,7 @@ describe('modules/notifications/templates — quoteCustomerConfirmation', () => 
     frameProductName: null as string | null,
     frameProductCode: null as string | null,
     frameProductColorName: null as string | null,
+    priceFromSnapshot: null as number | null,
     glassType: 'Monofocal',
     treatmentLabels: [] as string[],
     prescriptionAnswer: 'No',
@@ -134,6 +135,21 @@ describe('modules/notifications/templates — quoteCustomerConfirmation', () => 
     expect(email.html).toContain('>Sí<');
     expect(email.text).toContain('Receta óptica: Sí');
   });
+
+  it('shows "Precio referencial: Desde $X" (formatClp) in both HTML and text when priceFromSnapshot has a value', () => {
+    const email = quoteCustomerConfirmation({ ...base, priceFromSnapshot: 19990 });
+    expect(email.html).toContain('Precio referencial');
+    expect(email.html).toContain('Desde $19.990');
+    expect(email.text).toContain('Precio referencial: Desde $19.990');
+  });
+
+  it('omits the "Precio referencial" row entirely when priceFromSnapshot is null — never "$0", "Por cotizar" or "—"', () => {
+    const email = quoteCustomerConfirmation({ ...base, priceFromSnapshot: null });
+    expect(email.html).not.toContain('Precio referencial');
+    expect(email.text).not.toContain('Precio referencial');
+    expect(email.html).not.toContain('$0');
+    expect(email.html).not.toContain('Por cotizar');
+  });
 });
 
 describe('modules/notifications/templates — quoteBusinessNotification', () => {
@@ -149,6 +165,7 @@ describe('modules/notifications/templates — quoteBusinessNotification', () => 
     frameProductName: 'Aurora',
     frameProductCode: 'PV-101',
     frameProductColorName: 'Negro',
+    priceFromSnapshot: null as number | null,
     glassType: 'Monofocal',
     treatmentLabels: ['Antirreflejo'],
     prescriptionAnswer: 'Sí',
@@ -222,6 +239,21 @@ describe('modules/notifications/templates — quoteBusinessNotification', () => 
     const email = quoteBusinessNotification({ ...base, prescriptionAnswer: 'Sí', glassType: 'Monofocal' });
     expect(email.html).toContain('Receta óptica');
     expect(email.text).toContain('Receta óptica: Sí');
+  });
+
+  it('shows "Precio referencial: Desde $X" (formatClp) in both HTML and text when priceFromSnapshot has a value', () => {
+    const email = quoteBusinessNotification({ ...base, priceFromSnapshot: 45000 });
+    expect(email.html).toContain('Precio referencial');
+    expect(email.html).toContain('Desde $45.000');
+    expect(email.text).toContain('Precio referencial: Desde $45.000');
+  });
+
+  it('omits the "Precio referencial" row entirely when priceFromSnapshot is null — never "$0", "Por cotizar" or "—"', () => {
+    const email = quoteBusinessNotification({ ...base, priceFromSnapshot: null });
+    expect(email.html).not.toContain('Precio referencial');
+    expect(email.text).not.toContain('Precio referencial');
+    expect(email.html).not.toContain('$0');
+    expect(email.html).not.toContain('Por cotizar');
   });
 });
 

@@ -33,6 +33,7 @@ import {
 import { createRequest, findActiveComunaByName } from './repository';
 import { getQuoteOfferingContext } from './quote-wizard-service';
 import { buildRequestSnapshotV2 } from './request-snapshot';
+import { buildQuoteWhatsAppMessage } from './whatsapp-message';
 import type { HomeVisitRequestInput, QuoteRequestInput } from './schemas';
 
 export interface PrescriptionFileInput {
@@ -95,9 +96,9 @@ export async function submitQuote(
 
   let frameProductName: string | null = null;
   // Distinct from frameProductName (which stays "Aurora (PV-101)" for
-  // Request.details/WhatsApp compatibility, unchanged) — these two exist
-  // only so the email templates can show "Modelo" and "Código" as separate
-  // rows instead of one concatenated string.
+  // Request.details compatibility, unchanged) — these two exist only so
+  // the email templates and the WhatsApp message (Fase 13) can show
+  // "Modelo" separately from "Código" instead of one concatenated string.
   let frameProductDisplayName: string | null = null;
   let frameProductCode: string | null = null;
   let frameProductColorId: string | null = null;
@@ -148,12 +149,6 @@ export async function submitQuote(
       frameProductColorName = color.name;
       frameProductColorHex = color.hex;
     }
-
-    const brandPrefix = frameBrandName ? `${frameBrandName} ` : '';
-    const colorSuffix = frameProductColorName ? ` en color ${frameProductColorName}` : '';
-    whatsappHref = buildWhatsAppLink(
-      `Hola Pepi Visión 360, quiero cotizar el modelo ${brandPrefix}${frameProductName}${colorSuffix}. Mi nombre es ${input.name}.`
-    );
   }
 
   // Fase 9 (motor de compatibilidades): valida tipo de cristal/modalidad,
@@ -220,6 +215,24 @@ export async function submitQuote(
   if (!prescriptionAttachmentAllowed) {
     prescriptionFile = null;
   }
+
+  // Fase 13 (emails y WhatsApp consumiendo el snapshot): único punto de
+  // construcción del mensaje comercial de WhatsApp, una vez que categoría,
+  // marca/modelo/color, tipo de cristal y precio ya están resueltos
+  // server-side arriba — nunca antes (el mensaje anterior a esta fase se
+  // construía dentro de la rama `catalog`, antes de resolver el tipo de
+  // cristal, y nunca mencionaba categoría ni precio).
+  whatsappHref = buildWhatsAppLink(
+    buildQuoteWhatsAppMessage({
+      customerName: input.name,
+      categoryName: category.name,
+      frameBrandName,
+      frameProductName: frameProductDisplayName,
+      frameProductColorName,
+      glassTypeLabel: lensModalityLabel,
+      priceFromSnapshot,
+    })
+  );
 
   // Steps 3–4: generate the storage key and upload only now, right before
   // persisting — validation already passed, and the product/color lookup
@@ -327,6 +340,7 @@ export async function submitQuote(
       frameProductName: frameProductDisplayName,
       frameProductCode,
       frameProductColorName,
+      priceFromSnapshot,
       glassType: lensModalityLabel ?? '—',
       treatmentLabels,
       // null cuando la categoría/modalidad resuelta no requiere receta (p.
@@ -365,6 +379,7 @@ export async function submitQuote(
     frameProductName: frameProductDisplayName,
     frameProductCode,
     frameProductColorName,
+    priceFromSnapshot,
     glassType: lensModalityLabel ?? '—',
     treatmentLabels,
     // null cuando la categoría/modalidad resuelta no requiere receta (p.

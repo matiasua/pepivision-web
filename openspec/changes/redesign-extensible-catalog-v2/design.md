@@ -431,6 +431,16 @@ Auditoría de datos reales al inicio de esta pasada (solo lectura, cualquier ent
 
 Auditoría vía la acción admin real (no SQL directo) demuestra el flujo completo: crear una definición → marcarla filtrable → editar una oferta sintética → asignar un valor desde el servicio real → el filtro aparece en `getCatalogForCategory()` → aplicarlo devuelve la oferta correcta y excluye las demás → editar el valor cambia el resultado → retirarlo lo hace desaparecer → fixtures limpiados (`tests-integration/offering-attribute-values.test.ts`).
 
+### Fase 13 — emails y WhatsApp consumiendo el snapshot — **CLOSED**
+
+Revisión previa confirmó que categoría/marca/modelo/color ya llegaban a `quoteCustomerConfirmation()`/`quoteBusinessNotification()` desde antes de esta fase (implementado junto con la Fase 9/10, no como parte de la Fase 11) — el gap real y único era el precio: `priceFromSnapshot` ya se resolvía server-side en `submitQuote` (usado para construir `Request.details`) pero nunca se pasaba a ninguna de las dos plantillas.
+
+**Contrato de precio en ambas plantillas**: se agregó `priceFromSnapshot: number | null` (un valor primitivo, nunca un objeto `Request`/`ProductOffering`/snapshot completo) a `QuoteCustomerConfirmationInput`/`QuoteBusinessNotificationInput`. Una fila "Precio referencial: Desde $X" (`formatClp()`, mismo formateador que catálogo/cotizador) se inserta entre "Color" y "Tipo de cristal" en HTML y texto plano; se omite por completo — nunca "$0", "Por cotizar" ni "—" — cuando `priceFromSnapshot` es `null` (flujo de asesoría sin `ProductOffering`). Ambos call-sites en `submitQuote` pasan la misma variable local ya resuelta arriba, nunca un recálculo ni `Product.priceFromClp`.
+
+**Mensaje de WhatsApp — reescrito, no solo extendido**: antes de esta fase, el mensaje se construía *dentro* de la rama `catalog` de `submitQuote`, **antes** de resolver el tipo de cristal (`lensModalityLabel` se resuelve más abajo en la función) — nunca podía mencionar la modalidad, y la ruta de asesoría (sin oferta) nunca reasignaba `whatsappHref`, quedándose con el texto genérico fijo del inicio de la función. Se extrajo la construcción a un módulo puro nuevo, `modules/requests/whatsapp-message.ts` (`buildQuoteWhatsAppMessage()`, sin Prisma, mismo patrón que `modules/catalog/dynamic-filters.ts` — permite probarlo unitariamente sin arrastrar la cadena de dependencias de `service.ts`), invocado una única vez desde `submitQuote` **después** de que categoría, marca/modelo/color, tipo de cristal y precio ya están resueltos — cubre catálogo y asesoría con la misma llamada. Cada segmento (marca+modelo+color, tipo de cristal, precio) se omite por completo cuando no aplica; nunca `categorySlug`/`offeringId`/`productId` como texto, nunca datos del adjunto.
+
+**Inmutabilidad**: ningún email ni mensaje de WhatsApp se regenera o reenvía para una solicitud ya persistida — esta fase solo afecta la construcción de mensajes en el momento de una solicitud nueva. Un cambio posterior de precio/categoría no reenvía ni altera correos ya entregados.
+
 ### Precios y cotizador configurable
 
 Catalog/detail price always reads `ProductOffering.priceFromClp` (nullable → "Cotizar"). The quote wizard becomes one component driven by an ordered, filtered step list:

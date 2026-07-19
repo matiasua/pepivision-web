@@ -2,6 +2,7 @@ import { ADMIN_REQUESTS_URL } from '../config';
 import { escapeHtml, escapeHtmlMultiline, renderButton, renderDataRow, renderInfoCard, renderNotice } from '../components';
 import { renderEmailFooter, renderEmailLayout, type FooterContactInfo } from '../layout';
 import { formatDateCl, formatList, shortRequestId } from '../format';
+import { formatClp } from '@/modules/catalog/labels';
 import type { EmailMessage } from '../types';
 
 export interface QuoteBusinessNotificationInput {
@@ -16,6 +17,8 @@ export interface QuoteBusinessNotificationInput {
   frameProductName: string | null;
   frameProductCode: string | null;
   frameProductColorName: string | null;
+  /** Fase 13: mismo valor histórico que ve el cliente y que ya persiste el snapshot — nunca recalculado, nunca `Product.priceFromClp`. `null` en asesoría sin oferta → fila omitida. */
+  priceFromSnapshot: number | null;
   glassType: string;
   treatmentLabels: string[];
   /** null cuando la categoría/modalidad no requiere receta (p. ej. Sin graduación) — la fila se omite por completo, nunca se muestra "—". */
@@ -40,6 +43,9 @@ export function quoteBusinessNotification(input: QuoteBusinessNotificationInput)
     renderDataRow({ label: 'Modelo', value: escapeHtml(input.frameProductName ?? '(sin modelo seleccionado)') }),
     input.frameProductCode ? renderDataRow({ label: 'Código', value: escapeHtml(input.frameProductCode) }) : '',
     renderDataRow({ label: 'Color', value: escapeHtml(input.frameProductColorName ?? '(sin color seleccionado)') }),
+    input.priceFromSnapshot !== null
+      ? renderDataRow({ label: 'Precio referencial', value: `Desde ${formatClp(input.priceFromSnapshot)}` })
+      : '',
     renderDataRow({ label: 'Tipo de cristal', value: escapeHtml(input.glassType) }),
     renderDataRow({ label: 'Tratamientos', value: escapeHtml(treatments) }),
     input.prescriptionAnswer !== null ? renderDataRow({ label: 'Receta óptica', value: escapeHtml(input.prescriptionAnswer) }) : '',
@@ -85,6 +91,7 @@ export function quoteBusinessNotification(input: QuoteBusinessNotificationInput)
     `Modelo: ${input.frameProductName ?? '(sin modelo seleccionado)'}`,
     ...(input.frameProductCode ? [`Código: ${input.frameProductCode}`] : []),
     `Color: ${input.frameProductColorName ?? '(sin color seleccionado)'}`,
+    ...(input.priceFromSnapshot !== null ? [`Precio referencial: Desde ${formatClp(input.priceFromSnapshot)}`] : []),
     `Tipo de cristal: ${input.glassType}`,
     `Tratamientos: ${treatments}`,
     ...(input.prescriptionAnswer !== null ? [`Receta óptica: ${input.prescriptionAnswer}`] : []),
