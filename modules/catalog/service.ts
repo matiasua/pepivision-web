@@ -1,6 +1,7 @@
 import type { Brand, Category, Product, ProductColor, ProductImage, ProductOffering } from '@prisma/client';
 import { buildWhatsAppLink } from '@/lib/whatsapp';
 import { findActiveVisibleCategoryBySlug, listActiveVisibleCategories } from './category-repository';
+import { listAttributesForCategory } from './category-attribute-repository';
 import { BADGE_LABELS, GENDER_LABELS, MATERIAL_LABELS, SHAPE_LABELS, formatClp, offeringCtaLabel } from './labels';
 import {
   findDefaultPublicOfferingForProductSlug,
@@ -10,6 +11,7 @@ import {
   listPublicOfferingsForCategoryFiltered,
   listRelatedPublicOfferings,
 } from './offering-repository';
+import { selectFilterableAttributes, type FilterableAttributeDefinition, type ResolvedAttributeFilter } from './dynamic-filters';
 import type { CatalogFilters } from './schemas';
 
 type ProductWithRelations = Product & { colors: ProductColor[]; images: ProductImage[]; brand: Brand | null };
@@ -177,12 +179,13 @@ export async function getCategorySummary(categorySlug: string): Promise<Category
 /** Listado + filtros de `/catalogo/[categorySlug]` (5.2) — `null` si la categoría no existe, no está activa, o no es visible (404). */
 export async function getCatalogForCategory(
   categorySlug: string,
-  filters: CatalogFilters
+  filters: CatalogFilters,
+  dynamicFilters: ResolvedAttributeFilter[] = []
 ): Promise<{ category: CategoryPickerItem; offerings: OfferingCardView[] } | null> {
   const category = await findActiveVisibleCategoryBySlug(categorySlug);
   if (!category) return null;
 
-  const offerings = await listPublicOfferingsForCategoryFiltered(category.id, filters);
+  const offerings = await listPublicOfferingsForCategoryFiltered(category.id, filters, dynamicFilters);
   const categorySummary: CategorySummary = category;
   return {
     category: {
@@ -194,6 +197,21 @@ export async function getCatalogForCategory(
     },
     offerings: offerings.map((offering) => toOfferingCardView(offering, categorySummary)),
   };
+}
+
+/**
+ * Fase 12 (filtros dinámicos): las definiciones de atributo activas y
+ * filtrables de esta categoría — fuente única para construir tanto el
+ * schema/parser de query params (dynamic-filters.ts) como los controles
+ * de `CatalogFilters.tsx`. `[]` si la categoría no existe/no es pública,
+ * nunca un error.
+ */
+export async function getCategoryFilterableAttributes(categorySlug: string): Promise<FilterableAttributeDefinition[]> {
+  const category = await findActiveVisibleCategoryBySlug(categorySlug);
+  if (!category) return [];
+
+  const definitions = await listAttributesForCategory(category.id);
+  return selectFilterableAttributes(definitions);
 }
 
 /** Opciones de marca para el filtro de `/catalogo/[categorySlug]` — solo marcas con al menos una oferta pública en esa categoría. */

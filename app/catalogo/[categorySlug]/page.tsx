@@ -8,12 +8,14 @@ import { OfferingCard } from '@/components/catalog/OfferingCard';
 import { CatalogEmptyState } from '@/components/catalog/CatalogEmptyState';
 import {
   getCategoryBrandFilterOptions,
+  getCategoryFilterableAttributes,
   getCategorySummary,
   getCatalogForCategory,
   getLegacyRedirectTarget,
 } from '@/modules/catalog/service';
 import { resolveLegacyCategorySlug } from '@/modules/catalog/legacy-slugs';
 import { parseCatalogFilters, type CatalogFilters as CatalogFiltersType } from '@/modules/catalog/schemas';
+import { parseDynamicFilters, type ResolvedAttributeFilter } from '@/modules/catalog/dynamic-filters';
 
 type Params = { categorySlug: string };
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -37,8 +39,16 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 // emitir un shell 200 antes de que el `notFound()` de esa ruta pueda
 // correr, rompiendo su código de estado 404. Un <Suspense> acotado
 // localmente evita eso.
-async function CatalogResults({ categorySlug, filters }: { categorySlug: string; filters: CatalogFiltersType }) {
-  const catalog = await getCatalogForCategory(categorySlug, filters);
+async function CatalogResults({
+  categorySlug,
+  filters,
+  dynamicFilters,
+}: {
+  categorySlug: string;
+  filters: CatalogFiltersType;
+  dynamicFilters: ResolvedAttributeFilter[];
+}) {
+  const catalog = await getCatalogForCategory(categorySlug, filters, dynamicFilters);
   if (!catalog) notFound();
 
   return (
@@ -118,6 +128,8 @@ export default async function CategoriaPage({
   }
 
   const brandOptions = await getCategoryBrandFilterOptions(categorySlug);
+  const attributeDefinitions = await getCategoryFilterableAttributes(categorySlug);
+  const dynamicFilters = parseDynamicFilters(attributeDefinitions, resolvedSearchParams);
   const basePath = `/catalogo/${categorySlug}`;
 
   return (
@@ -138,10 +150,13 @@ export default async function CategoriaPage({
           </div>
 
           <div className="grid grid-cols-1 items-start gap-7 lg:grid-cols-[260px_1fr]">
-            <CatalogFilters basePath={basePath} brands={brandOptions} />
+            <CatalogFilters basePath={basePath} brands={brandOptions} attributes={attributeDefinitions} />
 
-            <Suspense key={JSON.stringify(filters)} fallback={<CatalogResultsSkeleton />}>
-              <CatalogResults categorySlug={categorySlug} filters={filters} />
+            <Suspense
+              key={JSON.stringify(filters) + JSON.stringify(dynamicFilters)}
+              fallback={<CatalogResultsSkeleton />}
+            >
+              <CatalogResults categorySlug={categorySlug} filters={filters} dynamicFilters={dynamicFilters} />
             </Suspense>
           </div>
         </Container>

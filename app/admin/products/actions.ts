@@ -25,6 +25,12 @@ import {
 } from '@/modules/catalog/admin-service';
 import { offeringFormSchema, setOfferingActiveSchema } from '@/modules/catalog/offering-schemas';
 import { createOffering, setOfferingActive, updateOffering } from '@/modules/catalog/offering-service';
+import { updateOfferingAttributeValuesSchema } from '@/modules/catalog/offering-attribute-schemas';
+import {
+  getOfferingAttributeContext,
+  updateOfferingAttributeValues,
+  type OfferingAttributeContext,
+} from '@/modules/catalog/offering-attribute-service';
 import type { ProductFormValues } from '@/components/admin/ProductForm';
 import { toErrorResponse } from '@/lib/errors';
 import { logger } from '@/lib/logger';
@@ -378,6 +384,48 @@ export async function setOfferingActiveAction(offeringId: string, active: boolea
     return { status: 'success' };
   } catch (error) {
     logger.error('offering.set_active_failed', { offeringId, error: error instanceof Error ? error.message : String(error) });
+    return { status: 'error', message: toErrorResponse(error).message };
+  }
+}
+
+// --- Valores de atributo por categoría de una ProductOffering (cierre
+// operativo de la Fase 12 — filtros dinámicos del catálogo) ---
+// Ver specs/catalog-administration/spec.md (línea sobre "atributos" en la
+// sección de disponibilidad en el catálogo) y
+// modules/catalog/offering-attribute-service.ts.
+
+type OfferingAttributeContextResult =
+  | { status: 'error'; message: string }
+  | { status: 'success'; context: OfferingAttributeContext };
+
+export async function getOfferingAttributeContextAction(offeringId: string): Promise<OfferingAttributeContextResult> {
+  await requireSession();
+  if (!offeringId || typeof offeringId !== 'string') {
+    return { status: 'error', message: 'Oferta inválida.' };
+  }
+  try {
+    const context = await getOfferingAttributeContext(offeringId);
+    return { status: 'success', context };
+  } catch (error) {
+    logger.error('offering.attributes_context_failed', { offeringId, error: error instanceof Error ? error.message : String(error) });
+    return { status: 'error', message: toErrorResponse(error).message };
+  }
+}
+
+export async function updateOfferingAttributeValuesAction(input: unknown): Promise<OfferingAttributeContextResult> {
+  const session = await requireSession();
+  const parsed = updateOfferingAttributeValuesSchema.safeParse(input);
+  if (!parsed.success) {
+    return { status: 'error', message: parsed.error.issues[0]?.message ?? 'Revisa los atributos ingresados.' };
+  }
+  try {
+    const context = await updateOfferingAttributeValues(parsed.data, session);
+    return { status: 'success', context };
+  } catch (error) {
+    logger.error('offering.attributes_update_failed', {
+      offeringId: parsed.data.offeringId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return { status: 'error', message: toErrorResponse(error).message };
   }
 }

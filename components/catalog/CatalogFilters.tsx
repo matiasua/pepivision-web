@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Gender, ProductMaterial, ProductShape } from '@prisma/client';
 import { GENDER_LABELS, MATERIAL_LABELS, SHAPE_LABELS } from '@/modules/catalog/labels';
-import { buildFilterHref, buildToggleHref } from '@/modules/catalog/filter-url';
+import { buildFilterHref, buildToggleHref, buildMultiToggleHref } from '@/modules/catalog/filter-url';
+import { DYNAMIC_FILTER_PREFIX, parseAttributeOptionsList, type FilterableAttributeDefinition } from '@/modules/catalog/dynamic-filters';
 import { CloseIcon } from '@/components/icons';
 
 const GENDER_OPTIONS = Object.values(Gender);
@@ -28,12 +29,183 @@ function chipClass(active: boolean) {
   }`;
 }
 
+/** Fase 12 (filtros dinámicos): un control por `CategoryAttributeDefinition` activa/filtrable — el tipo decide el control, nunca una segunda allowlist en el cliente (los valores válidos ya vienen acotados por `options`, cuando la definición los declara). */
+function DynamicAttributeFilter({
+  attribute,
+  basePath,
+  searchParams,
+  router,
+}: {
+  attribute: FilterableAttributeDefinition;
+  basePath: string;
+  searchParams: URLSearchParams;
+  router: ReturnType<typeof useRouter>;
+}) {
+  const paramKey = `${DYNAMIC_FILTER_PREFIX}${attribute.key}`;
+  const options = parseAttributeOptionsList(attribute.options) ?? [];
+
+  if (attribute.type === 'SELECT') {
+    const active = searchParams.get(paramKey);
+    return (
+      <div className="mt-4.5">
+        <div className="mb-2.5 text-[13px] font-semibold text-navy">{attribute.label}</div>
+        <div className="flex flex-wrap gap-1.5">
+          <Link href={buildFilterHref(basePath, searchParams, paramKey, null)} aria-current={!active} className={chipClass(!active)}>
+            Todos
+          </Link>
+          {options.map((option) => (
+            <Link
+              key={option}
+              href={buildToggleHref(basePath, searchParams, paramKey, option)}
+              aria-current={active === option}
+              className={chipClass(active === option)}
+            >
+              {option}
+            </Link>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (attribute.type === 'MULTI_SELECT') {
+    const active = searchParams.getAll(paramKey);
+    return (
+      <fieldset className="mt-4.5">
+        <legend className="mb-2.5 text-[13px] font-semibold text-navy">{attribute.label}</legend>
+        <div className="flex flex-col gap-2">
+          {options.map((option) => {
+            const checked = active.includes(option);
+            return (
+              <label key={option} className="flex cursor-pointer items-center gap-2.5 text-sm text-grafito">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => router.push(buildMultiToggleHref(basePath, searchParams, paramKey, option))}
+                  aria-label={option}
+                  className="h-[18px] w-[18px] accent-fucsia"
+                />
+                {option}
+              </label>
+            );
+          })}
+        </div>
+      </fieldset>
+    );
+  }
+
+  if (attribute.type === 'BOOLEAN') {
+    const checked = searchParams.get(paramKey) === '1';
+    return (
+      <label className="mt-4.5 flex cursor-pointer items-center gap-2.5 text-sm text-grafito">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => router.push(buildFilterHref(basePath, searchParams, paramKey, event.target.checked ? '1' : null))}
+          className="h-[18px] w-[18px] accent-fucsia"
+        />
+        {attribute.label}
+      </label>
+    );
+  }
+
+  if (attribute.type === 'RANGE') {
+    return (
+      <RangeAttributeFilter attribute={attribute} paramKey={paramKey} basePath={basePath} searchParams={searchParams} router={router} />
+    );
+  }
+
+  return null;
+}
+
+/** Extraído como componente propio: un tipo RANGE necesita estado local (inputs controlados antes de "Aplicar"), y las Reglas de Hooks exigen que `useState` nunca dependa de una rama condicional dentro del mismo componente. */
+function RangeAttributeFilter({
+  attribute,
+  paramKey,
+  basePath,
+  searchParams,
+  router,
+}: {
+  attribute: FilterableAttributeDefinition;
+  paramKey: string;
+  basePath: string;
+  searchParams: URLSearchParams;
+  router: ReturnType<typeof useRouter>;
+}) {
+  const minKey = `${paramKey}_min`;
+  const maxKey = `${paramKey}_max`;
+  const [minValue, setMinValue] = useState(searchParams.get(minKey) ?? '');
+  const [maxValue, setMaxValue] = useState(searchParams.get(maxKey) ?? '');
+  const rangeError = minValue !== '' && maxValue !== '' && Number(minValue) > Number(maxValue);
+
+  function applyRange() {
+    if (rangeError) return;
+    const next = new URLSearchParams(searchParams);
+    if (minValue.trim()) next.set(minKey, minValue.trim());
+    else next.delete(minKey);
+    if (maxValue.trim()) next.set(maxKey, maxValue.trim());
+    else next.delete(maxKey);
+    const query = next.toString();
+    router.push(query ? `${basePath}?${query}` : basePath);
+  }
+
+  return (
+    <div className="mt-4.5">
+      <div className="mb-2.5 text-[13px] font-semibold text-navy">{attribute.label}</div>
+      <div className="flex items-center gap-2">
+        <label className="sr-only" htmlFor={`${minKey}-input`}>
+          {attribute.label} mínimo
+        </label>
+        <input
+          id={`${minKey}-input`}
+          type="number"
+          min={0}
+          inputMode="numeric"
+          placeholder="Mín."
+          value={minValue}
+          onChange={(event) => setMinValue(event.target.value)}
+          className="w-full rounded-input border border-line bg-white px-3 py-2 text-sm text-ink"
+        />
+        <span className="text-grafito">–</span>
+        <label className="sr-only" htmlFor={`${maxKey}-input`}>
+          {attribute.label} máximo
+        </label>
+        <input
+          id={`${maxKey}-input`}
+          type="number"
+          min={0}
+          inputMode="numeric"
+          placeholder="Máx."
+          value={maxValue}
+          onChange={(event) => setMaxValue(event.target.value)}
+          className="w-full rounded-input border border-line bg-white px-3 py-2 text-sm text-ink"
+        />
+        <button
+          type="button"
+          onClick={applyRange}
+          disabled={rangeError}
+          className="shrink-0 rounded-input bg-navy px-3.5 py-2 text-xs font-semibold text-white disabled:opacity-40"
+        >
+          Aplicar
+        </button>
+      </div>
+      {rangeError ? (
+        <p role="alert" className="mt-1.5 text-[12.5px] font-semibold text-error">
+          El mínimo no puede ser mayor que el máximo.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function CatalogFilters({
   basePath,
   brands,
+  attributes,
 }: {
   basePath: string;
   brands: { slug: string; name: string }[];
+  attributes: FilterableAttributeDefinition[];
 }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -247,6 +419,11 @@ export function CatalogFilters({
         />
         Solo disponibles
       </label>
+
+      {/* Fase 12: un control por atributo de categoría activo/filtrable — nunca hardcodeado, se agrega/quita desde el admin sin cambio de código. */}
+      {attributes.map((attribute) => (
+        <DynamicAttributeFilter key={attribute.id} attribute={attribute} basePath={basePath} searchParams={searchParams} router={router} />
+      ))}
     </div>
   );
 

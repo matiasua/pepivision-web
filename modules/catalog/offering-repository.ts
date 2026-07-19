@@ -1,6 +1,7 @@
 import { Prisma, type Gender, type ProductShape } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import type { CatalogFilters } from './schemas';
+import type { ResolvedAttributeFilter } from './dynamic-filters';
 
 const IMAGES_ORDERED = { orderBy: { sortOrder: 'asc' as const } };
 const OFFERING_INCLUDE_PRODUCT = {
@@ -115,12 +116,68 @@ const PRICE_BUCKET_RANGES: Record<string, Prisma.IntFilter> = {
 };
 
 /**
- * Filtros comunes (5.1) reusados tal cual desde modules/catalog/schemas.ts,
- * acotados a la categoría de la ruta — sin scoping por categoría propio ni
- * filtros dinámicos (CategoryAttributeDefinition): eso queda deliberadamente
- * para la Fase 6 (tasks.md 6.1-6.6), ver design.md.
+ * Fase 12 (filtros dinámicos): un filtro por atributo de categoría se
+ * traduce en una condición `some` sobre `ProductOfferingAttributeValue`,
+ * resuelta exclusivamente por `attributeDefinitionId` — nunca
+ * interpolando la `key` cruda del query param en la ruta del campo Prisma
+ * (ver dynamic-filters.ts y specs/dynamic-catalog-filters). Cada
+ * dimensión distinta se combina con AND; los valores dentro de una misma
+ * dimensión MULTI_SELECT se combinan con OR vía `{ in: [...] }`.
  */
-function buildPublicOfferingWhere(categoryId: string, filters: CatalogFilters): Prisma.ProductOfferingWhereInput {
+function buildAttributeValueConditions(
+  dynamicFilters: ResolvedAttributeFilter[]
+): Prisma.ProductOfferingWhereInput['AND'] {
+  if (dynamicFilters.length === 0) return undefined;
+  return dynamicFilters.map((filter): Prisma.ProductOfferingWhereInput => {
+    const valueWhere: Prisma.ProductOfferingAttributeValueWhereInput = { attributeDefinitionId: filter.attributeDefinitionId };
+    if (filter.type === 'RANGE') {
+      valueWhere.valueNumber = {
+        ...(filter.rangeMin !== undefined ? { gte: filter.rangeMin } : {}),
+        ...(filter.rangeMax !== undefined ? { lte: filter.rangeMax } : {}),
+      };
+      return { attributeValues: { some: valueWhere } };
+    }
+    if (filter.type === 'NUMBER') {
+      valueWhere.valueNumber = filter.numberValue;
+      return { attributeValues: { some: valueWhere } };
+    }
+    if (filter.type === 'BOOLEAN') {
+      valueWhere.valueBoolean = filter.booleanValue;
+      return { attributeValues: { some: valueWhere } };
+    }
+    if (filter.type === 'MULTI_SELECT') {
+      // Fase 12 (cierre operativo — corrección real): MULTI_SELECT se
+      // persiste como UN array JSON serializado en `valueText`
+      // (@@unique([offeringId, attributeDefinitionId]) impide una fila
+      // por valor seleccionado) — nunca como valores planos comparables
+      // con `{ in: [...] }`. OR entre los valores elegidos se expresa
+      // como `contains` del substring JSON-citado de cada uno
+      // (`JSON.stringify(v)` ya entrega `"v"` con las comillas y el
+      // escapado correctos, evitando falsos positivos de substring).
+      return {
+        attributeValues: {
+          some: { attributeDefinitionId: filter.attributeDefinitionId, OR: filter.values!.map((v) => ({ valueText: { contains: JSON.stringify(v) } })) },
+        },
+      };
+    }
+    // SELECT / TEXT — valor plano, coincidencia exacta; OR entre los
+    // valores seleccionados dentro de esta misma dimensión.
+    valueWhere.valueText = { in: filter.values };
+    return { attributeValues: { some: valueWhere } };
+  });
+}
+
+/**
+ * Filtros comunes (5.1) reusados tal cual desde modules/catalog/schemas.ts,
+ * acotados a la categoría de la ruta, más los filtros dinámicos de la
+ * Fase 12 (uno por `CategoryAttributeDefinition` filtrable de esa misma
+ * categoría) — ambos grupos se combinan con AND.
+ */
+function buildPublicOfferingWhere(
+  categoryId: string,
+  filters: CatalogFilters,
+  dynamicFilters: ResolvedAttributeFilter[] = []
+): Prisma.ProductOfferingWhereInput {
   const productWhere: Prisma.ProductWhereInput = { visible: true };
   if (filters.gender) productWhere.gender = filters.gender;
   if (filters.shape) productWhere.shape = filters.shape;
@@ -146,12 +203,18 @@ function buildPublicOfferingWhere(categoryId: string, filters: CatalogFilters): 
   // El precio filtrable es el de la oferta (ProductOffering.priceFromClp),
   // nunca Product.priceFromClp — ver design.md → "Fase de compatibilidad de precios".
   if (filters.price) where.priceFromClp = PRICE_BUCKET_RANGES[filters.price];
+  const attributeConditions = buildAttributeValueConditions(dynamicFilters);
+  if (attributeConditions) where.AND = attributeConditions;
   return where;
 }
 
-export function listPublicOfferingsForCategoryFiltered(categoryId: string, filters: CatalogFilters) {
+export function listPublicOfferingsForCategoryFiltered(
+  categoryId: string,
+  filters: CatalogFilters,
+  dynamicFilters: ResolvedAttributeFilter[] = []
+) {
   return prisma.productOffering.findMany({
-    where: buildPublicOfferingWhere(categoryId, filters),
+    where: buildPublicOfferingWhere(categoryId, filters, dynamicFilters),
     include: OFFERING_INCLUDE_PRODUCT,
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
   });

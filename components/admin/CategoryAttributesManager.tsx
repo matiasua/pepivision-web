@@ -21,6 +21,11 @@ const TYPE_LABELS: Record<CategoryAttributeType, string> = {
 };
 
 const NEEDS_OPTIONS: CategoryAttributeType[] = [CategoryAttributeType.SELECT, CategoryAttributeType.MULTI_SELECT];
+// Fase 12 (cierre operativo): Texto y Número nunca son filtrables — el
+// catálogo público no tiene un control de filtro sensato para "texto
+// libre" ni "número exacto arbitrario"; un atributo numérico que sí debe
+// filtrarse usa Rango numérico en su lugar. Ver category-attribute-schemas.ts.
+const NEVER_FILTERABLE: CategoryAttributeType[] = [CategoryAttributeType.TEXT, CategoryAttributeType.NUMBER];
 
 const EMPTY_NEW_ATTRIBUTE = {
   key: '',
@@ -56,7 +61,7 @@ export function CategoryAttributesManager({ categoryId, attributes }: { category
         label: draft.label.trim(),
         type: draft.type,
         required: draft.required,
-        filterable: draft.filterable,
+        filterable: NEVER_FILTERABLE.includes(draft.type) ? false : draft.filterable,
         visibleInCard: draft.visibleInCard,
         visibleInDetail: draft.visibleInDetail,
         sortOrder: draft.sortOrder,
@@ -149,7 +154,10 @@ export function CategoryAttributesManager({ categoryId, attributes }: { category
           />
           <select
             value={draft.type}
-            onChange={(e) => setDraft((d) => ({ ...d, type: e.target.value as CategoryAttributeType }))}
+            onChange={(e) => {
+              const nextType = e.target.value as CategoryAttributeType;
+              setDraft((d) => ({ ...d, type: nextType, filterable: NEVER_FILTERABLE.includes(nextType) ? false : d.filterable }));
+            }}
             aria-label="Tipo del atributo"
             className="rounded-input border border-line bg-white px-3 py-2 text-sm text-ink"
           >
@@ -184,14 +192,22 @@ export function CategoryAttributesManager({ categoryId, attributes }: { category
             <input type="checkbox" checked={draft.required} onChange={(e) => setDraft((d) => ({ ...d, required: e.target.checked }))} />
             Obligatorio
           </label>
-          <label className="flex items-center gap-1.5">
+          <label className="flex items-center gap-1.5" title={NEVER_FILTERABLE.includes(draft.type) ? 'Texto y Número no pueden ser filtrables — usa Rango numérico.' : undefined}>
             <input
               type="checkbox"
-              checked={draft.filterable}
+              checked={NEVER_FILTERABLE.includes(draft.type) ? false : draft.filterable}
+              disabled={NEVER_FILTERABLE.includes(draft.type)}
               onChange={(e) => setDraft((d) => ({ ...d, filterable: e.target.checked }))}
             />
             Filtrable
           </label>
+        </div>
+        {NEVER_FILTERABLE.includes(draft.type) ? (
+          <p className="mt-1.5 text-[11px] text-grafito">
+            Texto y Número no pueden ser filtrables — usa Rango numérico si necesitas filtrar por un valor numérico.
+          </p>
+        ) : null}
+        <div className="mt-2.5 flex flex-wrap gap-3.5 text-xs text-ink">
           <label className="flex items-center gap-1.5">
             <input
               type="checkbox"

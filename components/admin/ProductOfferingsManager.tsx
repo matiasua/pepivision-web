@@ -9,6 +9,7 @@ import {
   type OfferingView,
 } from '@/app/admin/products/actions';
 import { StatusToast, useStatusToast } from './StatusToast';
+import { OfferingAttributesEditor } from './OfferingAttributesEditor';
 
 export interface OfferingCategoryOption {
   id: string;
@@ -188,6 +189,7 @@ export function ProductOfferingsManager({
                 {busy ? 'Guardando…' : 'Guardar precio'}
               </button>
             </div>
+            <OfferingAttributesEditor offeringId={offering.id} categoryName={category.name} />
           </div>
         );
       })}
