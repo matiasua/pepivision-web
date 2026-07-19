@@ -11,13 +11,15 @@ export interface QuoteBusinessNotificationInput {
   email: string | null;
   comuna: string | null;
   message: string | null;
+  categoryName: string;
   frameBrandName: string | null;
   frameProductName: string | null;
   frameProductCode: string | null;
   frameProductColorName: string | null;
   glassType: string;
   treatmentLabels: string[];
-  prescriptionAnswer: string;
+  /** null cuando la categoría/modalidad no requiere receta (p. ej. Sin graduación) — la fila se omite por completo, nunca se muestra "—". */
+  prescriptionAnswer: string | null;
   hasPrescriptionAttachment: boolean;
   createdAt: Date;
   contact: FooterContactInfo;
@@ -33,13 +35,14 @@ export function quoteBusinessNotification(input: QuoteBusinessNotificationInput)
     renderDataRow({ label: 'Teléfono', value: escapeHtml(input.phone) }),
     renderDataRow({ label: 'Correo', value: escapeHtml(input.email ?? '(no proporcionado)') }),
     renderDataRow({ label: 'Comuna', value: escapeHtml(input.comuna ?? '(no proporcionada)') }),
+    renderDataRow({ label: 'Categoría', value: escapeHtml(input.categoryName) }),
     renderDataRow({ label: 'Marca', value: escapeHtml(input.frameBrandName ?? '(sin marca)') }),
     renderDataRow({ label: 'Modelo', value: escapeHtml(input.frameProductName ?? '(sin modelo seleccionado)') }),
     input.frameProductCode ? renderDataRow({ label: 'Código', value: escapeHtml(input.frameProductCode) }) : '',
     renderDataRow({ label: 'Color', value: escapeHtml(input.frameProductColorName ?? '(sin color seleccionado)') }),
     renderDataRow({ label: 'Tipo de cristal', value: escapeHtml(input.glassType) }),
     renderDataRow({ label: 'Tratamientos', value: escapeHtml(treatments) }),
-    renderDataRow({ label: 'Receta óptica', value: escapeHtml(input.prescriptionAnswer) }),
+    input.prescriptionAnswer !== null ? renderDataRow({ label: 'Receta óptica', value: escapeHtml(input.prescriptionAnswer) }) : '',
     renderDataRow({ label: 'Mensaje', value: input.message ? escapeHtmlMultiline(input.message) : '(sin mensaje)' }),
     renderDataRow({ label: 'Solicitud', value: escapeHtml(ref) }),
     renderDataRow({ label: 'Fecha', value: escapeHtml(date) }),
@@ -77,13 +80,14 @@ export function quoteBusinessNotification(input: QuoteBusinessNotificationInput)
     `Teléfono: ${input.phone}`,
     `Correo: ${input.email ?? '(no proporcionado)'}`,
     `Comuna: ${input.comuna ?? '(no proporcionada)'}`,
+    `Categoría: ${input.categoryName}`,
     `Marca: ${input.frameBrandName ?? '(sin marca)'}`,
     `Modelo: ${input.frameProductName ?? '(sin modelo seleccionado)'}`,
     ...(input.frameProductCode ? [`Código: ${input.frameProductCode}`] : []),
     `Color: ${input.frameProductColorName ?? '(sin color seleccionado)'}`,
     `Tipo de cristal: ${input.glassType}`,
     `Tratamientos: ${treatments}`,
-    `Receta óptica: ${input.prescriptionAnswer}`,
+    ...(input.prescriptionAnswer !== null ? [`Receta óptica: ${input.prescriptionAnswer}`] : []),
     `Mensaje: ${input.message ?? '(sin mensaje)'}`,
     `Fecha: ${date}`,
     ...(attachmentNoticeText ? [attachmentNoticeText] : []),

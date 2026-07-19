@@ -32,6 +32,7 @@ describe('modules/notifications/templates — quoteCustomerConfirmation', () => 
   const base = {
     requestId: 'req_abcdef123456',
     name: 'Ana',
+    categoryName: 'Lentes ópticos',
     frameBrandName: null as string | null,
     frameProductName: null as string | null,
     frameProductCode: null as string | null,
@@ -118,6 +119,21 @@ describe('modules/notifications/templates — quoteCustomerConfirmation', () => 
     expect(email.html).not.toContain('<b>&</b>');
     expect(email.html).toContain('&lt;b&gt;');
   });
+
+  it('omits the "Receta óptica" row/label entirely when prescriptionAnswer is null (Sin graduación — not applicable, not "—")', () => {
+    const email = quoteCustomerConfirmation({ ...base, prescriptionAnswer: null, glassType: 'Sin graduación' });
+    expect(email.html).not.toContain('Receta óptica');
+    expect(email.html).not.toContain('>—<');
+    expect(email.text).not.toContain('Receta óptica');
+    expect(email.text).not.toMatch(/Receta óptica: —/);
+  });
+
+  it('shows the "Receta óptica" row with the real answer for a graduated modality (Solar progresivo/Monofocal)', () => {
+    const email = quoteCustomerConfirmation({ ...base, prescriptionAnswer: 'Sí', glassType: 'Solar progresivo' });
+    expect(email.html).toContain('Receta óptica');
+    expect(email.html).toContain('>Sí<');
+    expect(email.text).toContain('Receta óptica: Sí');
+  });
 });
 
 describe('modules/notifications/templates — quoteBusinessNotification', () => {
@@ -128,6 +144,7 @@ describe('modules/notifications/templates — quoteBusinessNotification', () => 
     email: 'ana@example.cl',
     comuna: 'Ñuñoa',
     message: 'Hola',
+    categoryName: 'Lentes ópticos',
     frameBrandName: 'Vespa',
     frameProductName: 'Aurora',
     frameProductCode: 'PV-101',
@@ -192,6 +209,19 @@ describe('modules/notifications/templates — quoteBusinessNotification', () => 
   it('escapes a <script> injection attempt in the customer message', () => {
     const email = quoteBusinessNotification({ ...base, message: '<script>alert(1)</script>' });
     expect(email.html).not.toContain('<script>alert(1)</script>');
+  });
+
+  it('omits the "Receta óptica" row/label entirely when prescriptionAnswer is null (Sin graduación — not applicable, not "—")', () => {
+    const email = quoteBusinessNotification({ ...base, prescriptionAnswer: null, glassType: 'Sin graduación' });
+    expect(email.html).not.toContain('Receta óptica');
+    expect(email.text).not.toContain('Receta óptica');
+    expect(email.text).not.toMatch(/Receta óptica: —/);
+  });
+
+  it('shows the "Receta óptica" row with the real answer for lentes ópticos (Monofocal) when applicable', () => {
+    const email = quoteBusinessNotification({ ...base, prescriptionAnswer: 'Sí', glassType: 'Monofocal' });
+    expect(email.html).toContain('Receta óptica');
+    expect(email.text).toContain('Receta óptica: Sí');
   });
 });
 

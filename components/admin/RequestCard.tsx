@@ -10,6 +10,7 @@ import {
   deleteRequestAction,
   getAttachmentDownloadUrlAction,
 } from '@/app/admin/requests/actions';
+import { parseRequestDetails } from '@/modules/requests/request-snapshot';
 import type { AdminRequestView } from '@/modules/requests/admin-service';
 
 const TYPE_LABELS: Record<string, string> = { QUOTE: 'Cotización', HOME_VISIT: 'Atención a domicilio' };
@@ -72,21 +73,37 @@ function AttachmentPanel({ attachment }: { attachment: NonNullable<AdminRequestV
 }
 
 function detailLines(request: AdminRequestView): { label: string; value: string }[] {
-  const details = (request.details ?? {}) as Record<string, unknown>;
-
   if (request.type === 'QUOTE') {
+    // Fase 11 (snapshot histórico): única lectura normalizada,
+    // indiferente a si la fila es V1 legada o V2 con snapshot — nunca
+    // consulta Category/Product en vivo para completar esta vista.
+    const normalized = parseRequestDetails(request.details);
     return [
-      ...(details.frameBrandName ? [{ label: 'Marca', value: details.frameBrandName as string }] : []),
-      { label: 'Armazón', value: (details.frameProductName as string) ?? (details.frameChoice === 'advice' ? 'Necesita asesoría' : '—') },
-      ...(details.frameProductColorName ? [{ label: 'Color', value: details.frameProductColorName as string }] : []),
-      { label: 'Cristal', value: (details.glassType as string) ?? '—' },
-      { label: 'Tratamientos', value: (details.treatmentLabels as string[])?.join(', ') || 'Ninguno' },
-      { label: 'Receta óptica', value: (details.prescriptionAnswer as string) ?? '—' },
+      // Ausente en solicitudes V1 (nunca tuvieron categoría) — no se
+      // inventa un valor para esas filas históricas.
+      ...(normalized.categoryName ? [{ label: 'Categoría', value: normalized.categoryName }] : []),
+      ...(normalized.frameBrandName ? [{ label: 'Marca', value: normalized.frameBrandName }] : []),
+      { label: 'Armazón', value: normalized.frameProductName ?? (normalized.frameChoice === 'advice' ? 'Necesita asesoría' : '—') },
+      ...(normalized.frameProductColorName ? [{ label: 'Color', value: normalized.frameProductColorName }] : []),
+      { label: 'Cristal', value: normalized.glassType ?? '—' },
+      { label: 'Tratamientos', value: normalized.treatmentLabels.join(', ') || 'Ninguno' },
+      // V2: `prescriptionAnswer === null` significa que la categoría/
+      // modalidad resuelta no requiere receta (p. ej. Sin graduación) — la
+      // fila se omite por completo, nunca se muestra "—" ("no aplica" es
+      // distinto de "aplica pero no está disponible"). V1 conserva su
+      // comportamiento histórico exacto: siempre se muestra, con "—" si
+      // el dato no estaba presente en la fila legada.
+      ...(normalized.version === 2
+        ? normalized.prescriptionAnswer !== null
+          ? [{ label: 'Receta óptica', value: normalized.prescriptionAnswer }]
+          : []
+        : [{ label: 'Receta óptica', value: normalized.prescriptionAnswer ?? '—' }]),
       ...(request.comuna ? [{ label: 'Comuna', value: request.comuna }] : []),
       ...(request.message ? [{ label: 'Mensaje', value: request.message }] : []),
     ];
   }
 
+  const details = (request.details ?? {}) as Record<string, unknown>;
   return [
     { label: 'Comuna', value: request.comuna ?? '—' },
     { label: 'Tipo de atención', value: (details.attentionType as string) ?? '—' },

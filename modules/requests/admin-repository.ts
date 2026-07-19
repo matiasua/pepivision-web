@@ -7,6 +7,12 @@ function buildWhere(filters: RequestFilterInput): Prisma.RequestWhereInput {
 
   if (filters.type) where.type = filters.type;
   if (filters.status) where.status = filters.status;
+  // Fase 11 (11.2): solo filas con snapshot V2 tienen `categorySlug` en
+  // `details` — este filtro nunca intenta reconstruir la categoría de una
+  // fila V1 histórica, que simplemente no calza con ningún valor.
+  if (filters.category) {
+    where.details = { path: ['categorySlug'], equals: filters.category };
+  }
   if (filters.dateFrom || filters.dateTo) {
     where.createdAt = {
       ...(filters.dateFrom ? { gte: new Date(filters.dateFrom) } : {}),

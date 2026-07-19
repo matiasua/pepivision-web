@@ -32,6 +32,7 @@ import {
 } from '@/modules/notifications/templates';
 import { createRequest, findActiveComunaByName } from './repository';
 import { getQuoteOfferingContext } from './quote-wizard-service';
+import { buildRequestSnapshotV2 } from './request-snapshot';
 import type { HomeVisitRequestInput, QuoteRequestInput } from './schemas';
 
 export interface PrescriptionFileInput {
@@ -263,13 +264,14 @@ export async function submitQuote(
       comuna: input.comuna ?? null,
       message: input.message ?? null,
       hasPrescription: prescriptionAnswer !== null && prescriptionAnswer !== 'No estoy seguro' ? prescriptionAnswer === 'Sí' : null,
-      details: {
-        // Fase 10: campos de categoría/oferta, additivos — nunca leídos
-        // por RequestCard.tsx ni los templates de correo todavía (eso
-        // llega en una fase posterior), pero ya quedan persistidos como
-        // snapshot temporal inmutable de esta solicitud (ver design.md →
-        // "Precios y cotizador configurable"; el snapshot histórico
-        // definitivo pertenece a la Fase 11, no reimplementado aquí).
+      // Fase 11 (snapshot histórico definitivo): construido por la única
+      // función del contrato versionado, a partir exclusivamente de
+      // entidades/labels ya resueltos server-side arriba — nunca de un
+      // valor crudo del cliente. `detailsVersion: 2` queda tagueado
+      // explícitamente; el snapshot resultante se valida completo antes
+      // de llegar aquí (buildRequestSnapshotV2 lanza si no calza con el
+      // contrato) y nunca se recalcula después de esta escritura.
+      details: buildRequestSnapshotV2({
         categoryId: category.id,
         categoryName: category.name,
         categorySlug: category.slug,
@@ -290,7 +292,7 @@ export async function submitQuote(
         additionalOptions: additionalOptionIdsToStore,
         additionalOptionLabels,
         prescriptionAnswer,
-      },
+      }),
       consentAcceptedAt: now,
       retentionExpiresAt: computeRetentionExpiresAt(now, settings.requestRetentionMonths),
       attachment: attachmentToCreate ?? undefined,
@@ -320,13 +322,17 @@ export async function submitQuote(
     const customerEmail = quoteCustomerConfirmation({
       requestId: request.id,
       name: input.name,
+      categoryName: category.name,
       frameBrandName,
       frameProductName: frameProductDisplayName,
       frameProductCode,
       frameProductColorName,
       glassType: lensModalityLabel ?? '—',
       treatmentLabels,
-      prescriptionAnswer: prescriptionAnswer ?? '—',
+      // null cuando la categoría/modalidad resuelta no requiere receta (p.
+      // ej. Sin graduación) — nunca "—", que implicaría "aplica pero no se
+      // sabe". Las plantillas omiten la fila por completo en ese caso.
+      prescriptionAnswer,
       hasPrescriptionAttachment: Boolean(attachmentToCreate),
       comuna: input.comuna ?? null,
       message: input.message ?? null,
@@ -353,6 +359,7 @@ export async function submitQuote(
     phone: input.phone,
     email: input.email ?? null,
     comuna: input.comuna ?? null,
+    categoryName: category.name,
     message: input.message ?? null,
     frameBrandName,
     frameProductName: frameProductDisplayName,
@@ -360,7 +367,9 @@ export async function submitQuote(
     frameProductColorName,
     glassType: lensModalityLabel ?? '—',
     treatmentLabels,
-    prescriptionAnswer: prescriptionAnswer ?? '—',
+    // null cuando la categoría/modalidad resuelta no requiere receta (p.
+    // ej. Sin graduación) — nunca "—". La plantilla omite la fila por completo en ese caso.
+    prescriptionAnswer,
     // Never the file itself, its storageKey, or any other detail — just a
     // pointer to go look at it in the authenticated admin panel.
     hasPrescriptionAttachment: Boolean(attachmentToCreate),

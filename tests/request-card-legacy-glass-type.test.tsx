@@ -56,3 +56,70 @@ describe('components/admin/RequestCard — legacy glassType "Multifocal" (Fase 7
     expect(screen.getByText('Progresivo')).toBeTruthy();
   });
 });
+
+describe('components/admin/RequestCard — omisión de "Receta óptica" cuando no aplica (Fase 11, corrección de presentación)', () => {
+  it('V2 solar sin graduación (prescriptionAnswer: null): no muestra la fila "Receta óptica" en absoluto', () => {
+    const request = baseRequest({
+      detailsVersion: 2,
+      categoryId: 'cat_sol',
+      categoryName: 'Lentes de sol',
+      categorySlug: 'lentes-de-sol',
+      offeringId: null,
+      priceFromSnapshot: null,
+      frameChoice: 'advice',
+      frameProductId: null,
+      frameProductName: null,
+      frameProductColorId: null,
+      frameProductColorName: null,
+      frameProductColorHex: null,
+      frameBrandId: null,
+      frameBrandName: null,
+      frameBrandSlug: null,
+      glassType: 'Sin graduación',
+      treatments: ['uv400'],
+      treatmentLabels: ['UV400'],
+      additionalOptions: [],
+      additionalOptionLabels: [],
+      prescriptionAnswer: null,
+    });
+    render(<RequestCard request={request} />);
+    expect(screen.queryByText('Receta óptica:')).toBeNull();
+    expect(screen.queryByText(/Receta óptica/)).toBeNull();
+  });
+
+  it('V2 solar graduado (prescriptionAnswer: "Sí"): sí muestra la fila "Receta óptica" con el valor real', () => {
+    const request = baseRequest({
+      detailsVersion: 2,
+      categoryId: 'cat_sol',
+      categoryName: 'Lentes de sol',
+      categorySlug: 'lentes-de-sol',
+      offeringId: null,
+      priceFromSnapshot: null,
+      frameChoice: 'advice',
+      frameProductId: null,
+      frameProductName: null,
+      frameProductColorId: null,
+      frameProductColorName: null,
+      frameProductColorHex: null,
+      frameBrandId: null,
+      frameBrandName: null,
+      frameBrandSlug: null,
+      glassType: 'Solar progresivo',
+      treatments: ['uv400'],
+      treatmentLabels: ['UV400'],
+      additionalOptions: [],
+      additionalOptionLabels: [],
+      prescriptionAnswer: 'Sí',
+    });
+    render(<RequestCard request={request} />);
+    expect(screen.getByText(/Receta óptica/)).toBeTruthy();
+    expect(screen.getByText('Sí')).toBeTruthy();
+  });
+
+  it('V1 histórica sin detailsVersion: conserva el comportamiento anterior — siempre muestra "Receta óptica", con "—" si falta', () => {
+    const request = baseRequest({ frameChoice: 'advice', glassType: 'Multifocal', treatmentLabels: [] });
+    render(<RequestCard request={request} />);
+    expect(screen.getByText(/Receta óptica/)).toBeTruthy();
+    expect(screen.getByText('—')).toBeTruthy();
+  });
+});

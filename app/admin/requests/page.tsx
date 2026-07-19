@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { requireSession } from '@/modules/auth/service';
 import { listRequests } from '@/modules/requests/admin-service';
-import { parseRequestFilters } from '@/modules/requests/admin-schemas';
+import { parseRequestFilters, REQUEST_CATEGORY_FILTER_SLUGS } from '@/modules/requests/admin-schemas';
 import { listDataRightsRequests } from '@/modules/data-rights/admin-service';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { RequestCard } from '@/components/admin/RequestCard';
 import { DataRightsCard } from '@/components/admin/DataRightsCard';
+import type { RequestFilterInput } from '@/modules/requests/admin-schemas';
 
 export const metadata: Metadata = { title: 'Solicitudes · Panel de administración', robots: { index: false } };
 export const dynamic = 'force-dynamic';
@@ -17,11 +18,20 @@ function tabLink(tab: string) {
   return `/admin/requests?tab=${tab}`;
 }
 
-function typeLink(type: string | null) {
+// Cada link de filtro preserva el otro filtro activo — elegir una
+// categoría no debe resetear el tipo ya elegido, y viceversa (11.2).
+function filterLink(current: RequestFilterInput, overrides: Partial<Pick<RequestFilterInput, 'type' | 'category'>>) {
+  const next = { ...current, ...overrides };
   const params = new URLSearchParams();
-  if (type) params.set('type', type);
+  if (next.type) params.set('type', next.type);
+  if (next.category) params.set('category', next.category);
   return `/admin/requests?${params.toString()}`;
 }
+
+const CATEGORY_FILTER_LABELS: Record<string, string> = {
+  'lentes-opticos': 'Lentes ópticos',
+  'lentes-de-sol': 'Lentes de sol',
+};
 
 export default async function AdminRequestsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const session = await requireSession();
@@ -53,17 +63,17 @@ export default async function AdminRequestsPage({ searchParams }: { searchParams
     <AdminShell session={session}>
       <RequestTabs activeTab="comercial" />
 
-      <div className="mb-4.5 flex flex-wrap gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         {[
-          { label: 'Todas', type: null },
-          { label: 'Cotizaciones', type: 'QUOTE' },
-          { label: 'Atención a domicilio', type: 'HOME_VISIT' },
+          { label: 'Todas', type: undefined },
+          { label: 'Cotizaciones', type: 'QUOTE' as const },
+          { label: 'Atención a domicilio', type: 'HOME_VISIT' as const },
         ].map((option) => {
           const active = option.type ? filters.type === option.type : !filters.type;
           return (
             <Link
               key={option.label}
-              href={typeLink(option.type)}
+              href={filterLink(filters, { type: option.type })}
               aria-current={active}
               className={`rounded-pill border-[1.5px] px-3.5 py-1.5 text-[13px] font-semibold ${
                 active ? 'border-fucsia bg-brand-gradient-soft text-fucsia' : 'border-line bg-white text-grafito'
@@ -73,6 +83,30 @@ export default async function AdminRequestsPage({ searchParams }: { searchParams
             </Link>
           );
         })}
+      </div>
+
+      {/* Fase 11 (11.2): filtro por categoría, además del tipo — solo
+          reduce solicitudes QUOTE con snapshot V2 (las históricas V1 y
+          las de atención a domicilio nunca tienen categorySlug). */}
+      <div className="mb-4.5 flex flex-wrap items-center gap-2">
+        <span className="text-[12.5px] font-semibold text-[#5b6b85]">Categoría:</span>
+        {[{ label: 'Todas', category: undefined }, ...REQUEST_CATEGORY_FILTER_SLUGS.map((slug) => ({ label: CATEGORY_FILTER_LABELS[slug], category: slug }))].map(
+          (option) => {
+            const active = option.category ? filters.category === option.category : !filters.category;
+            return (
+              <Link
+                key={option.label}
+                href={filterLink(filters, { category: option.category })}
+                aria-current={active}
+                className={`rounded-pill border-[1.5px] px-3.5 py-1.5 text-[13px] font-semibold ${
+                  active ? 'border-blue bg-[#eaf1fb] text-blue' : 'border-line bg-white text-grafito'
+                }`}
+              >
+                {option.label}
+              </Link>
+            );
+          }
+        )}
       </div>
 
       {requests.length === 0 ? (

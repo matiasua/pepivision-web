@@ -6,13 +6,15 @@ import type { EmailMessage } from '../types';
 export interface QuoteCustomerConfirmationInput {
   requestId: string;
   name: string;
+  categoryName: string;
   frameBrandName: string | null;
   frameProductName: string | null;
   frameProductCode: string | null;
   frameProductColorName: string | null;
   glassType: string;
   treatmentLabels: string[];
-  prescriptionAnswer: string;
+  /** null cuando la categoría/modalidad no requiere receta (p. ej. Sin graduación) — la fila se omite por completo, nunca se muestra "—". */
+  prescriptionAnswer: string | null;
   hasPrescriptionAttachment: boolean;
   comuna: string | null;
   message: string | null;
@@ -27,13 +29,14 @@ export function quoteCustomerConfirmation(input: QuoteCustomerConfirmationInput)
   const date = formatDateCl(input.createdAt);
 
   const rows = [
+    renderDataRow({ label: 'Categoría', value: escapeHtml(input.categoryName) }),
     input.frameBrandName ? renderDataRow({ label: 'Marca', value: escapeHtml(input.frameBrandName) }) : '',
     input.frameProductName ? renderDataRow({ label: 'Modelo', value: escapeHtml(input.frameProductName) }) : '',
     input.frameProductCode ? renderDataRow({ label: 'Código', value: escapeHtml(input.frameProductCode) }) : '',
     input.frameProductColorName ? renderDataRow({ label: 'Color', value: escapeHtml(input.frameProductColorName) }) : '',
     renderDataRow({ label: 'Tipo de cristal', value: escapeHtml(input.glassType) }),
     renderDataRow({ label: 'Tratamientos', value: escapeHtml(treatments) }),
-    renderDataRow({ label: 'Receta óptica', value: escapeHtml(input.prescriptionAnswer) }),
+    input.prescriptionAnswer !== null ? renderDataRow({ label: 'Receta óptica', value: escapeHtml(input.prescriptionAnswer) }) : '',
     input.hasPrescriptionAttachment
       ? renderDataRow({ label: 'Archivo adjunto', value: 'Tu receta fue adjuntada correctamente.' })
       : '',
@@ -70,13 +73,14 @@ export function quoteCustomerConfirmation(input: QuoteCustomerConfirmationInput)
     `Recibimos tu solicitud de cotización (${ref}) el ${date}. Te contactaremos pronto con un presupuesto referencial. El valor final dependerá de tu receta, el armazón y los tratamientos seleccionados.`,
     '',
     'Resumen de tu cotización:',
+    `- Categoría: ${input.categoryName}`,
     ...(input.frameBrandName ? [`- Marca: ${input.frameBrandName}`] : []),
     ...(input.frameProductName ? [`- Modelo: ${input.frameProductName}`] : []),
     ...(input.frameProductCode ? [`- Código: ${input.frameProductCode}`] : []),
     ...(input.frameProductColorName ? [`- Color: ${input.frameProductColorName}`] : []),
     `- Tipo de cristal: ${input.glassType}`,
     `- Tratamientos: ${treatments}`,
-    `- Receta óptica: ${input.prescriptionAnswer}`,
+    ...(input.prescriptionAnswer !== null ? [`- Receta óptica: ${input.prescriptionAnswer}`] : []),
     ...(input.hasPrescriptionAttachment ? ['- Archivo adjunto: Tu receta fue adjuntada correctamente.'] : []),
     ...(input.comuna ? [`- Comuna: ${input.comuna}`] : []),
     ...(input.message ? [`- Mensaje: ${input.message}`] : []),
