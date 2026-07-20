@@ -147,14 +147,34 @@ test.describe('Catálogo — capa de compatibilidad de URLs legadas', () => {
   });
 
   test('un producto sin ninguna oferta pública sigue devolviendo 404', async ({ page }) => {
-    const productWithoutOffering = await prisma.product.findFirst({
-      where: { visible: true, slug: { not: E2E_CATALOG_PRODUCT_SLUG }, offerings: { none: {} } },
-      select: { slug: true },
+    // Fixture sintético propio, nunca dependiente del estado real de la
+    // base — desde la Fase 15 (backfill de ProductOffering, 15.8), todo
+    // Product visible sembrado en desarrollo ya tiene al menos una oferta,
+    // así que depender de encontrar uno sin ofertas en la base real
+    // dejaría este test permanentemente en skip. Verifica la invariante
+    // "un Product sin ProductOffering no aparece en el catálogo V2"
+    // (nunca se ejecuta el backfill sobre este fixture — eso es
+    // responsabilidad de tests-integration/offering-backfill.test.ts).
+    const tag = `e2e-no-offering-${Date.now()}`;
+    const productWithoutOffering = await prisma.product.create({
+      data: {
+        name: `Producto sin oferta (E2E) ${tag}`,
+        code: tag,
+        slug: tag,
+        gender: Gender.UNISEX,
+        shape: ProductShape.REDONDO,
+        material: ProductMaterial.ACETATO,
+        priceFromClp: 19990,
+        available: true,
+        visible: true,
+      },
     });
-    test.skip(!productWithoutOffering, 'No hay productos sembrados sin ofertas para probar este caso.');
-
-    const response = await page.goto(`/catalogo/${productWithoutOffering!.slug}`);
-    expect(response?.status()).toBe(404);
+    try {
+      const response = await page.goto(`/catalogo/${productWithoutOffering.slug}`);
+      expect(response?.status()).toBe(404);
+    } finally {
+      await prisma.product.delete({ where: { id: productWithoutOffering.id } });
+    }
   });
 
   test('una categoría desconocida devuelve 404', async ({ page }) => {

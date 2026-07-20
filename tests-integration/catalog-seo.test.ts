@@ -173,7 +173,7 @@ describe('modules/catalog/seo — SEO del catálogo público (integration)', () 
         categoryId: opticalCategoryId,
         title: undefined,
         commercialDescription: undefined,
-        priceFromClp: undefined, // sin precio público — "Cotizar"
+        priceFromClp: null, // sin precio público — "Cotizar"
         active: true,
         visible: true,
         featured: false,

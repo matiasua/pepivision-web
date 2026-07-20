@@ -21,7 +21,8 @@
     "migrate": "npm run prisma:migrate",
     "prisma:seed": "prisma db seed",
     "admin:create-superadmin": "tsx scripts/create-superadmin.ts",
-    "catalog:reconcile-quote-options": "tsx scripts/reconcile-quote-options.ts"
+    "catalog:reconcile-quote-options": "tsx scripts/reconcile-quote-options.ts",
+    "catalog:backfill-product-offerings": "tsx scripts/backfill-product-offerings.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

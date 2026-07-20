@@ -30,7 +30,13 @@ export function listVisibleOfferingsForCategory(categoryId: string) {
   return listPublicOfferingsForCategory(categoryId);
 }
 
-async function uniqueOfferingSlugFor(categoryId: string, baseName: string): Promise<string> {
+/**
+ * Único generador/resolver de slug de oferta — reutilizado por
+ * `createOffering()` y por el backfill de la Fase 15
+ * (`modules/catalog/offering-backfill.ts`), para no duplicar la lógica de
+ * colisión en dos lugares.
+ */
+export async function uniqueOfferingSlugFor(categoryId: string, baseName: string): Promise<string> {
   const base = slugify(baseName);
   let candidate = base;
   let suffix = 2;

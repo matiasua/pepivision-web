@@ -60,7 +60,7 @@ describe('modules/catalog/seo — buildCategoryMetadata', () => {
       hasQueryParams: false,
     });
     expect(metadata.title).toContain('Lentes de sol');
-    expect(metadata.description.toLowerCase()).toContain('lentes de sol');
+    expect(metadata.description?.toLowerCase()).toContain('lentes de sol');
   });
 
   it('never uses the technical slug as visible title text', () => {
