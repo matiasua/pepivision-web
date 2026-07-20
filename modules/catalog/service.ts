@@ -6,6 +6,7 @@ import { BADGE_LABELS, GENDER_LABELS, MATERIAL_LABELS, SHAPE_LABELS, formatClp, 
 import {
   findDefaultPublicOfferingForProductSlug,
   findPublicOfferingByCategoryAndSlug,
+  listAllPublicOfferingsForSitemap,
   listBrandsWithPublicOfferingsInCategory,
   listOtherPublicOfferingsForProduct,
   listPublicOfferingsForCategoryFiltered,
@@ -32,6 +33,11 @@ export interface CategoryPickerItem {
   shortDescription: string | null;
   icon: string | null;
   imagePath: string | null;
+  /** Fase 14 (SEO): editables desde el admin, consumidos por modules/catalog/seo.ts — `null` cuando el admin no los definió. */
+  seoTitle: string | null;
+  seoDescription: string | null;
+  /** Solo para app/sitemap.ts — nunca recalculado ni sustituido por `new Date()`. */
+  updatedAt: Date;
 }
 
 export interface GalleryImageView {
@@ -56,6 +62,8 @@ export interface OfferingCardView {
   shapeLabel: string;
   materialLabel: string;
   priceLabel: string;
+  /** Fase 14 (JSON-LD `Offer.price`): mismo valor que `priceLabel` formatea — fuente exclusiva `ProductOffering.priceFromClp`, nunca `Product.priceFromClp`. `null` cuando no hay precio público ("Cotizar"). */
+  priceFromClp: number | null;
   available: boolean;
   availabilityLabel: string;
   badgeLabel: string | null;
@@ -79,6 +87,9 @@ export interface OfferingDetailView extends OfferingCardView {
   images: GalleryImageView[];
   waQuoteHref: string;
   otherCategoryOfferings: OtherCategoryOfferingLink[];
+  /** Fase 14 (SEO): `ProductOffering.seoTitle`/`seoDescription` editables desde el admin, consumidos por modules/catalog/seo.ts — `null` cuando el admin no los definió. */
+  seoTitle: string | null;
+  seoDescription: string | null;
 }
 
 function buildGalleryImages(product: ProductWithRelations): GalleryImageView[] {
@@ -107,6 +118,19 @@ function offeringPriceLabel(priceFromClp: number | null): string {
   return priceFromClp != null ? `Desde ${formatClp(priceFromClp)}` : 'Cotizar';
 }
 
+function toCategoryPickerItem(category: Category): CategoryPickerItem {
+  return {
+    slug: category.slug,
+    name: category.name,
+    shortDescription: category.shortDescription,
+    icon: category.icon,
+    imagePath: category.imagePath,
+    seoTitle: category.seoTitle,
+    seoDescription: category.seoDescription,
+    updatedAt: category.updatedAt,
+  };
+}
+
 function toOfferingCardView(offering: OfferingWithProduct, category: CategorySummary): OfferingCardView {
   const { product } = offering;
   const images = buildGalleryImages(product);
@@ -122,6 +146,7 @@ function toOfferingCardView(offering: OfferingWithProduct, category: CategorySum
     shapeLabel: SHAPE_LABELS[product.shape],
     materialLabel: MATERIAL_LABELS[product.material],
     priceLabel: offeringPriceLabel(offering.priceFromClp),
+    priceFromClp: offering.priceFromClp,
     available: product.available,
     availabilityLabel: product.available ? 'Disponible' : 'Bajo pedido',
     badgeLabel: product.badge ? BADGE_LABELS[product.badge] : null,
@@ -147,19 +172,15 @@ function toOfferingDetailView(
       `Hola Pepi Visión 360, me interesa el modelo ${product.name} (${product.code}). ¿Me pueden cotizar?`
     ),
     otherCategoryOfferings,
+    seoTitle: offering.seoTitle,
+    seoDescription: offering.seoDescription,
   };
 }
 
 /** Selector de categorías de `/catalogo` (5.2) — agregar una categoría nueva desde el admin no requiere tocar este componente ni ningún otro. */
 export async function getCategoryPicker(): Promise<CategoryPickerItem[]> {
   const categories = await listActiveVisibleCategories();
-  return categories.map((c) => ({
-    slug: c.slug,
-    name: c.name,
-    shortDescription: c.shortDescription,
-    icon: c.icon,
-    imagePath: c.imagePath,
-  }));
+  return categories.map(toCategoryPickerItem);
 }
 
 /** Resuelve solo la categoría (sin ofertas) para el hero/metadata de `/catalogo/[categorySlug]` — evita repetir el listado completo solo para el título. */
@@ -167,13 +188,7 @@ export async function getCategorySummary(categorySlug: string): Promise<Category
   const category = await findActiveVisibleCategoryBySlug(categorySlug);
   if (!category) return null;
 
-  return {
-    slug: category.slug,
-    name: category.name,
-    shortDescription: category.shortDescription,
-    icon: category.icon,
-    imagePath: category.imagePath,
-  };
+  return toCategoryPickerItem(category);
 }
 
 /** Listado + filtros de `/catalogo/[categorySlug]` (5.2) — `null` si la categoría no existe, no está activa, o no es visible (404). */
@@ -188,13 +203,7 @@ export async function getCatalogForCategory(
   const offerings = await listPublicOfferingsForCategoryFiltered(category.id, filters, dynamicFilters);
   const categorySummary: CategorySummary = category;
   return {
-    category: {
-      slug: category.slug,
-      name: category.name,
-      shortDescription: category.shortDescription,
-      icon: category.icon,
-      imagePath: category.imagePath,
-    },
+    category: toCategoryPickerItem(category),
     offerings: offerings.map((offering) => toOfferingCardView(offering, categorySummary)),
   };
 }
@@ -247,6 +256,22 @@ export async function getOfferingDetail(
     offering: toOfferingDetailView(offering, otherCategoryOfferings),
     related: related.map((r) => toOfferingCardView(r, offering.category)),
   };
+}
+
+export interface SitemapOfferingEntry {
+  categorySlug: string;
+  offeringSlug: string;
+  updatedAt: Date;
+}
+
+/** Fase 14 (sitemap): una entrada por `ProductOffering` pública — un mismo `Product` en dos categorías produce dos entradas distintas, una por cada oferta. */
+export async function getPublicOfferingsForSitemap(): Promise<SitemapOfferingEntry[]> {
+  const offerings = await listAllPublicOfferingsForSitemap();
+  return offerings.map((offering) => ({
+    categorySlug: offering.category.slug,
+    offeringSlug: offering.slug,
+    updatedAt: offering.updatedAt,
+  }));
 }
 
 /** Capa de compatibilidad (8.1): destino del redirect 308 desde `/catalogo/[slug]`, o `null` si debe seguir siendo 404. */

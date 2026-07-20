@@ -6,6 +6,7 @@ import { CatalogFilters } from '@/components/catalog/CatalogFilters';
 import { CatalogSearchInput } from '@/components/catalog/CatalogSearchInput';
 import { OfferingCard } from '@/components/catalog/OfferingCard';
 import { CatalogEmptyState } from '@/components/catalog/CatalogEmptyState';
+import { JsonLd } from '@/components/catalog/JsonLd';
 import {
   getCategoryBrandFilterOptions,
   getCategoryFilterableAttributes,
@@ -16,19 +17,36 @@ import {
 import { resolveLegacyCategorySlug } from '@/modules/catalog/legacy-slugs';
 import { parseCatalogFilters, type CatalogFilters as CatalogFiltersType } from '@/modules/catalog/schemas';
 import { parseDynamicFilters, type ResolvedAttributeFilter } from '@/modules/catalog/dynamic-filters';
+import {
+  buildCategoryBreadcrumb,
+  buildCategoryMetadata,
+  toBreadcrumbListJsonLd,
+  toItemListJsonLd,
+} from '@/modules/catalog/seo';
 
 type Params = { categorySlug: string };
 type SearchParams = Record<string, string | string[] | undefined>;
 
-export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<Params>;
+  searchParams: Promise<SearchParams>;
+}): Promise<Metadata> {
   const { categorySlug } = await params;
   const category = await getCategorySummary(categorySlug);
   if (!category) return {};
 
-  return {
-    title: category.name,
-    description: category.shortDescription ?? `Explora nuestros modelos de ${category.name.toLowerCase()}.`,
-  };
+  const resolvedSearchParams = await searchParams;
+  // Fase 14: cualquier query param — filtros comunes, `attr_*`, `q`,
+  // `price`, `availableOnly`, orden, paginación, o uno desconocido —
+  // nunca se refleja en title/description y fuerza `robots.index: false`
+  // (pero `follow: true`); el canonical siempre apunta a la URL limpia.
+  // Ver design.md → "Fase 14" y modules/catalog/seo.ts.
+  const hasQueryParams = Object.keys(resolvedSearchParams).length > 0;
+
+  return buildCategoryMetadata(category, { hasQueryParams });
 }
 
 // Solo los resultados (contador + grilla) dependen del fetch a la BD — el
@@ -43,16 +61,33 @@ async function CatalogResults({
   categorySlug,
   filters,
   dynamicFilters,
+  showItemList,
 }: {
   categorySlug: string;
   filters: CatalogFiltersType;
   dynamicFilters: ResolvedAttributeFilter[];
+  showItemList: boolean;
 }) {
   const catalog = await getCatalogForCategory(categorySlug, filters, dynamicFilters);
   if (!catalog) notFound();
 
   return (
     <div>
+      {/* ItemList JSON-LD se reserva exclusivamente para la URL limpia de
+          categoría (14.9/spec) — nunca para una variante filtrada, para no
+          contradecir la página canónica con un listado parcial. */}
+      {showItemList ? (
+        <JsonLd
+          data={toItemListJsonLd(
+            catalog.offerings.map((offering) => ({
+              categorySlug: offering.categorySlug,
+              offeringSlug: offering.offeringSlug,
+              name: offering.name,
+              imageUrl: offering.coverImageUrl,
+            }))
+          )}
+        />
+      ) : null}
       <div aria-live="polite" className="mb-4 text-sm text-grafito">
         {catalog.offerings.length} modelos encontrados
       </div>
@@ -131,9 +166,12 @@ export default async function CategoriaPage({
   const attributeDefinitions = await getCategoryFilterableAttributes(categorySlug);
   const dynamicFilters = parseDynamicFilters(attributeDefinitions, resolvedSearchParams);
   const basePath = `/catalogo/${categorySlug}`;
+  const hasQueryParams = Object.keys(resolvedSearchParams).length > 0;
 
   return (
     <>
+      <JsonLd data={toBreadcrumbListJsonLd(buildCategoryBreadcrumb(category))} />
+
       <section className="bg-brand-gradient-soft">
         <Container className="py-11">
           <h1 className="text-[38px] font-bold">{category.name}</h1>
@@ -156,7 +194,12 @@ export default async function CategoriaPage({
               key={JSON.stringify(filters) + JSON.stringify(dynamicFilters)}
               fallback={<CatalogResultsSkeleton />}
             >
-              <CatalogResults categorySlug={categorySlug} filters={filters} dynamicFilters={dynamicFilters} />
+              <CatalogResults
+                categorySlug={categorySlug}
+                filters={filters}
+                dynamicFilters={dynamicFilters}
+                showItemList={!hasQueryParams}
+              />
             </Suspense>
           </div>
         </Container>

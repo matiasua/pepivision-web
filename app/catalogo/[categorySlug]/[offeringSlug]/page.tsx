@@ -6,8 +6,15 @@ import { LinkButton } from '@/components/Button';
 import { ProductGallery } from '@/components/catalog/ProductGallery';
 import { RelatedProducts } from '@/components/catalog/RelatedProducts';
 import { OtherCategoryOfferings } from '@/components/catalog/OtherCategoryOfferings';
+import { JsonLd } from '@/components/catalog/JsonLd';
 import { WhatsAppIcon, ChevronRightIcon } from '@/components/icons';
 import { resolveOfferingPage } from '@/modules/catalog/service';
+import {
+  buildOfferingBreadcrumb,
+  buildOfferingMetadata,
+  toBreadcrumbListJsonLd,
+  toOfferingProductJsonLd,
+} from '@/modules/catalog/seo';
 
 type Params = { categorySlug: string; offeringSlug: string };
 
@@ -16,10 +23,18 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
   const result = await resolveOfferingPage(categorySlug, offeringSlug);
   if (result.kind !== 'found') return {};
 
-  return {
-    title: result.offering.name,
-    description: result.offering.description ?? `${result.offering.name} — ${result.offering.priceLabel}.`,
-  };
+  const { offering } = result;
+  return buildOfferingMetadata({
+    categorySlug,
+    categoryName: offering.categoryName,
+    offeringSlug: offering.offeringSlug,
+    name: offering.name,
+    description: offering.description,
+    seoTitle: offering.seoTitle,
+    seoDescription: offering.seoDescription,
+    priceLabel: offering.priceLabel,
+    coverImageUrl: offering.coverImageUrl,
+  });
 }
 
 export default async function OfertaPage({ params }: { params: Promise<Params> }) {
@@ -34,6 +49,26 @@ export default async function OfertaPage({ params }: { params: Promise<Params> }
 
   return (
     <Container size="wide" className="py-6">
+      <JsonLd
+        data={toBreadcrumbListJsonLd(
+          buildOfferingBreadcrumb(
+            { slug: categorySlug, name: offering.categoryName },
+            { slug: offering.offeringSlug, name: offering.name }
+          )
+        )}
+      />
+      <JsonLd
+        data={toOfferingProductJsonLd({
+          categorySlug,
+          categoryName: offering.categoryName,
+          offeringSlug: offering.offeringSlug,
+          name: offering.name,
+          description: offering.description,
+          brandName: offering.brandName,
+          images: offering.images.map((image) => image.url),
+          priceFromClp: offering.priceFromClp,
+        })}
+      />
       <Link href={`/catalogo/${categorySlug}`} className="mb-5 inline-flex items-center gap-1.5 font-semibold text-grafito">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden="true">
           <path d="M19 12H5M11 6l-6 6 6 6" />

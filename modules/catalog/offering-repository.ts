@@ -327,6 +327,33 @@ export async function findDefaultPublicOfferingForProductSlug(
   return { categorySlug: defaultOffering.category.slug, offeringSlug: defaultOffering.slug };
 }
 
+/**
+ * Fase 14 (sitemap): un registro liviano por oferta pública — solo lo
+ * que `app/sitemap.ts` necesita (slug de categoría, slug de oferta,
+ * `updatedAt`), nunca la fila completa con joins de producto/imágenes.
+ * Mismo triple filtro `active/visible/deletedAt` + `category.active/
+ * visible` + `product.visible` que el resto de las lecturas públicas —
+ * una oferta oculta/inactiva, una categoría oculta/inactiva o un
+ * producto oculto nunca aparecen.
+ */
+export function listAllPublicOfferingsForSitemap() {
+  return prisma.productOffering.findMany({
+    where: {
+      active: true,
+      visible: true,
+      deletedAt: null,
+      category: { active: true, visible: true },
+      product: { visible: true },
+    },
+    select: {
+      slug: true,
+      updatedAt: true,
+      category: { select: { slug: true } },
+    },
+    orderBy: [{ categoryId: 'asc' }, { sortOrder: 'asc' }],
+  });
+}
+
 interface OfferingRowInput {
   title: string | null;
   commercialDescription: string | null;
